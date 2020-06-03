@@ -1,0 +1,44 @@
+server:
+  servlet:
+    context-path: /
+  port: ${APP_PORT:8901}
+ 
+spring:
+  application:
+    name: ${APP_NAME:apoiador-requisitante}
+    version: 0.0.1
+  jackson:
+    serialization:
+      WRITE_DATES_AS_TIMESTAMPS: false
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    virtual-host: ${RABBIT_VHOST:/}
+    username: ${RABBIT_USERNAME:guest}
+    password: ${RABBIT_PASSWORD:guest}
+    connection-timeout: 1000ms
+    listener:
+      simple:
+        concurrency: ${RABBIT_CONCURRENCY:3}
+        max-concurrency: ${RABBIT_MAX_CONCURRENCY:10}
+    template:
+      default-receive-queue: ${RABBIT_QUEUE:apoiador-requisitante.queue}
+      exchange: ${RABBIT_EXCHANGE:dev-platform.exchange}
+      custom:
+        jira:
+          issue-created:
+            routing-key: ${RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_CREATED}
+          issue-updated:
+            routing-key: ${RABBIT_JIRA_COMMENT_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*}
+            
+        
+springfox:
+  documentation:
+    swagger:
+      v2:
+        path: /api-docs
+
+clients:
+  jira:
+    url: ${SERVICE_JIRA_URL:my-jira-url}
+    user: ${SERVICE_JIRA_USER:my-user}
+    pass: ${SERVICE_JIRA_PASSWORD:my-pass}
