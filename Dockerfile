@@ -14,7 +14,7 @@ EXPOSE 8901
 
 ENV JAVA_OPTS=""
 
-ARG JAR_FILE=target/apoiador-requisitante*.ja
+ARG JAR_FILE=target/apoiador-requisitante*.jar
 ADD ${JAR_FILE} bot-apoiador-requisitante.jar
 
 ENTRYPOINT ["java","-Djava.security.egd=file:/dev/./urandom","-jar","/bot-apoiador-requisitante.jar", "--logging.file=/tmp/bot-apoiador-requisitante.log"]
