@@ -5,14 +5,19 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 
 import feign.auth.BasicAuthRequestInterceptor;
-import feign.okhttp.OkHttpClient;
+import feign.httpclient.ApacheHttpClient;
 
 public class JiraClientConfiguration {
 
 	@Bean
-	public OkHttpClient client() {
-		return new OkHttpClient();
+	public ApacheHttpClient client() {
+		return new ApacheHttpClient();
 	}
+
+//	@Bean
+//	public OkHttpClient client() {
+//		return new OkHttpClient();
+//	}
 
 	@Bean
 	@ConditionalOnProperty(name = { "clients.jira.user", "clients.jira.pass" })

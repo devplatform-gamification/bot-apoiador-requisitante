@@ -14,8 +14,8 @@ import com.devplatform.model.jira.JiraIssueTransitions;
 import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
 
-@FeignClient(name = "jira", url = "${clients.jira.url}", configuration = JiraClientConfiguration.class)
-public interface JiraClient {
+@FeignClient(name = "jiraDebug", url = "https://webhook.site/0602e93d-4659-40eb-86ba-3ed09dab942f", configuration = JiraClientConfiguration.class)
+public interface JiraClientDebug {
 	@GetMapping(value = "/rest/auth/1/session", consumes = "application/json")
 	public Object whoami();
 	
