@@ -18,6 +18,7 @@ spring:
     connection-timeout: 1000ms
     listener:
       simple:
+        prefetch: ${RABBIT_PREFETCH:20}
         concurrency: ${RABBIT_CONCURRENCY:3}
         max-concurrency: ${RABBIT_MAX_CONCURRENCY:10}
     template:
@@ -42,4 +43,3 @@ clients:
     url: ${SERVICE_JIRA_URL:my-jira-url}
     user: ${SERVICE_JIRA_USER:my-user}
     pass: ${SERVICE_JIRA_PASSWORD:my-pass}
-    token: emVuaWVsLmNoYXZlczpSb3Rhcm8jMDE=
