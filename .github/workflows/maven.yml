@@ -1,0 +1,128 @@
+# This workflow will build a Java project with Maven
+# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
+
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      m2: ./.m2
+      GITHUB_ACTOR: $GITHUB_ACTOR
+      GITHUB_TOKEN: ${{ secrets.USER_TOKEN }}
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven
+        restore-keys: |
+          ${{ runner.os }}-maven-
+    - name: Set up JDK 1.8
+      uses: actions/setup-java@v1
+      with:
+        java-version: 1.8
+    - name: Build site assets
+      working-directory: ${{ github.workspace }}
+      run: |
+         ls -la
+         whoami
+    - name: maven-setings-action
+      run: |
+        cp ${{env.m2}}/settings.xml ~/.m2/settings.xml
+        sed -i "s/GITHUB_ACTOR/${{env.GITHUB_ACTOR}}/g" ~/.m2/settings.xml
+        sed -i "s/GITHUB_TOKEN/${{env.GITHUB_TOKEN}}/g" ~/.m2/settings.xml
+        cat ~/.m2/settings.xml
+    - name: Build with Maven
+      run: mvn -B package --file pom.xml
+    - name: Saving artifacts
+      uses: actions/upload-artifact@master
+      with:
+        name: artifacts
+        path: target
+    - name: Saving Dockerfile
+      uses: actions/upload-artifact@master
+      with:
+        name: Dockerfile
+        path: Dockerfile
+    - name: Saving scripts directory
+      uses: actions/upload-artifact@master
+      with:
+        name: Scripts
+        path: .github/scripts
+    - name: teste
+      run: |
+        ls -lha
+      
+  publish:
+    needs: [build]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+      REGISTRY_PASS: ${{ secrets.REGISTRY_PASS }}
+      REGISTRY_HOST: ${{ secrets.REGISTRY_HOST }}
+#       REGISTRY_HOST: docker.pkg.github.com
+      REGISTRY_PACKAGE_GROUP: zeniel/bot-apoiador-requisitante
+      REGISTRY_PACKAGE_NAME: bot-apoiador-requisitante
+    steps:
+    - name: Restauring artifacts
+      uses: actions/download-artifact@master
+      with:
+        name: artifacts
+        path: target
+    - name: Restauring Dockerfile
+      uses: actions/download-artifact@master
+      with:
+        name: Dockerfile
+        path: .
+    - name: teste
+      run: |
+        ls -lha
+    - name: Build and push Docker images
+      uses: docker/build-push-action@v1.1.0
+      with:
+        username: ${{ env.REGISTRY_USER }}
+        password: ${{ env.REGISTRY_PASS }}
+        registry: ${{ env.REGISTRY_HOST }}
+        repository: ${{ env.REGISTRY_PACKAGE_GROUP }}/${{ env.REGISTRY_PACKAGE_NAME }}
+        cache_froms: ${{ env.REGISTRY_PACKAGE_GROUP }}/${{ env.REGISTRY_PACKAGE_NAME }}:latest
+        tag_with_ref: true
+        path: .
+        always_pull: true
+        add_git_labels: true
+#         push: ${{ startsWith(github.ref, 'refs/tags/') }} # only tags
+        push: ${{ startsWith(github.ref, 'refs/heads/master') }} # only master
+
+  deploy:
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:3.10
+    env:
+      RANCHER_STG_URL: ${{ secrets.RANCHER_STG_URL }} 
+      RANCHER_STG_ACCESS_KEY: ${{ secrets.RANCHER_STG_ACCESS_KEY }}
+      RANCHER_STG_SECRET_KEY: ${{ secrets.RANCHER_STG_SECRET_KEY }}
+      RANCHER_STG_REPOSITORIO_PROJECTID: ${{ secrets.RANCHER_STG_REPOSITORIO_PROJECTID }}
+      RANCHER_STG_REPOSITORIO_SERVICEID: ${{ secrets.RANCHER_STG_REPOSITORIO_SERVICEID }}
+    steps:
+    - name: install curl + bash
+      run: |
+        apk add --update bash curl
+    - name: Restauring Scripts
+      uses: actions/download-artifact@master
+      with:
+        name: Scripts
+        path: scripts
+    - name: redeploy-rancher
+      shell: bash
+      run: |
+        find .
+        chmod +x scripts/redeploy_rancher.bash
+        bash ./scripts/redeploy_rancher.bash ${{ env.RANCHER_STG_ACCESS_KEY }}:${{ env.RANCHER_STG_SECRET_KEY }} ${{ env.RANCHER_STG_URL }} ${{ env.RANCHER_STG_REPOSITORIO_PROJECTID }} ${{ env.RANCHER_STG_REPOSITORIO_SERVICEID }}
