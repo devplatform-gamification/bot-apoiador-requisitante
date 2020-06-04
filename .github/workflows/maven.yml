@@ -68,8 +68,7 @@ jobs:
       REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
       REGISTRY_PASS: ${{ secrets.REGISTRY_PASS }}
       REGISTRY_HOST: ${{ secrets.REGISTRY_HOST }}
-#       REGISTRY_HOST: docker.pkg.github.com
-      REGISTRY_PACKAGE_GROUP: zeniel/bot-apoiador-requisitante
+      REGISTRY_PACKAGE_GROUP: devplatform-gamification/bot-apoiador-requisitante
       REGISTRY_PACKAGE_NAME: bot-apoiador-requisitante
     steps:
     - name: Restauring artifacts
