@@ -37,7 +37,8 @@ public class AmqpConsumer {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
 			String body = new String(msg.getBody());
 			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
-			logger.info("[JIRA] - " + jiraEventIssue.getIssueEventTypeName().name());
+			String issueKey = jiraEventIssue.getIssue().getKey();
+			logger.info("[JIRA] - " + issueKey + jiraEventIssue.getIssueEventTypeName().name());
 			jiraEventHandler.handle(jiraEventIssue);
 		}
 	}	

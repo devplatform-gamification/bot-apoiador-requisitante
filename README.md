@@ -23,7 +23,7 @@ Bot para gerenciar a identificação de apoiador requisitante nas issues do jira
 - RABBIT_MAX_CONCURRENCY [rabbit-max-concurrency] # default: 10
 
 - APP_PORT [APP-PORT] # default: 8901
-- RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX [jira-issuecreated-routingkey-prefix] # default: dev-platform.jira.ISSUE_CREATED
+- RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX [jira-issuecreated-routingkey-prefix] # default: dev-platform.jira.ISSUE_CREATED.*
 - RABBIT_JIRA_COMMENT_CREATED_ROUTINGKEY_PREFIX [jira-issueupdated-routingkey-prefix] # default: dev-platform.jira.ISSUE_UPDATED.*
 
 - SERVICE_JIRA_URL [client-jira-url] # default: my-jira-url

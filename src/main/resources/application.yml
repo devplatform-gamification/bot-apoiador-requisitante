@@ -27,7 +27,7 @@ spring:
       custom:
         jira:
           issue-created:
-            routing-key: ${RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_CREATED}
+            routing-key: ${RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_CREATED.*}
           issue-updated:
             routing-key: ${RABBIT_JIRA_COMMENT_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*}
             
