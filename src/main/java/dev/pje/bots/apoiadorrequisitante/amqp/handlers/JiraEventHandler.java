@@ -18,6 +18,7 @@ import com.devplatform.model.jira.event.JiraWebhookEventEnum;
 import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
 
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
+import dev.pje.bots.apoiadorrequisitante.services.SlackService;
 
 @Component
 public class JiraEventHandler {
@@ -26,8 +27,12 @@ public class JiraEventHandler {
 
 	@Autowired
 	private JiraService jiraService;
-	
+
+	@Autowired
+	private SlackService slackService;
+
 	public void handle(JiraEventIssue jiraEventIssue) {
+		slackService.sendBotMessage("[REQUISITANTE][JIRA] - " + jiraEventIssue.getIssue().getKey() + " - " + jiraEventIssue.getIssueEventTypeName().name());
 		JiraUser reporter = jiraService.getIssueReporter(jiraEventIssue.getIssue());
 		String tribunalUsuario = jiraService.getTribunalUsuario(reporter);
 		adicionarTribunalRequisitanteDemanda(
@@ -47,30 +52,37 @@ public class JiraEventHandler {
 			if(StringUtils.isNotBlank(tribunalUsuarioAcao)) {
 				tribunalUsuario = tribunalUsuarioAcao;
 			}
+			adicionarTribunalRequisitanteDemanda(jiraEventIssue.getIssue(), tribunalUsuario, usuarioAcao, JiraWebhookEventEnum.ISSUE_UPDATED);
 		}
-		
-		adicionarTribunalRequisitanteDemanda(jiraEventIssue.getIssue(), tribunalUsuario, usuarioAcao, JiraWebhookEventEnum.ISSUE_UPDATED);
 	}
 	
 	private void adicionarTribunalRequisitanteDemanda(JiraIssue issue, String tribunal, JiraUser usuario, JiraWebhookEventEnum tipoInclusao) {
-		Map<String, Object> updateFields = new HashMap<>();
-		try {
-			jiraService.adicionaTribunalRequisitante(issue, tribunal, updateFields);
-			if(!updateFields.isEmpty()) {
-				String linkTribunal = "[" + tribunal +"|" + jiraService.getJqlIssuesPendentesTribunalRequisitante(tribunal) + "]";
-				String textoInclusao = "Incluindo "+ linkTribunal +" automaticamente como requisitante desta demanda.";
-				if(tipoInclusao.equals(JiraWebhookEventEnum.ISSUE_UPDATED)) {
-					textoInclusao = "Incluindo " + linkTribunal +" como requisitante desta demanda de acordo com a participação de: [~" + usuario.getName() + "]";
+		if(tribunal != null) {
+			Map<String, Object> updateFields = new HashMap<>();
+			try {
+				jiraService.adicionaTribunalRequisitante(issue, tribunal, updateFields);
+				if(!updateFields.isEmpty()) {
+					String linkTribunal = "[" + tribunal +"|" + jiraService.getJqlIssuesPendentesTribunalRequisitante(tribunal) + "]";
+					String textoInclusao = "Incluindo "+ linkTribunal +" automaticamente como requisitante desta demanda.";
+					if(tipoInclusao.equals(JiraWebhookEventEnum.ISSUE_UPDATED)) {
+						textoInclusao = "Incluindo " + linkTribunal +" como requisitante desta demanda de acordo com a participação de: [~" + usuario.getName() + "]";
+					}
+					jiraService.adicionarComentario(issue,textoInclusao, updateFields);
+					JiraIssueTransition edicaoAvancada = jiraService.findTransicao(issue, JiraService.TRANSICION_DEFAULT_EDICAO_AVANCADA);
+					if(edicaoAvancada != null) {
+						JiraIssueTransitionUpdate issueTransitionUpdate = new JiraIssueTransitionUpdate(edicaoAvancada, updateFields);
+						jiraService.updateIssue(issue, issueTransitionUpdate);
+						slackService.sendBotMessage("[REQUISITANTE][" + issue.getKey() + "] Issue atualizada");
+						logger.info("Issue atualizada");
+					}else {
+						slackService.sendBotMessage("*[REQUISITANTE][" + issue.getKey() + "] Erro!!* \n Não há transição para realizar esta alteração");
+						logger.error("Não há transição para realizar esta alteração");
+					}
 				}
-				jiraService.adicionarComentario(issue,textoInclusao, updateFields);
-				JiraIssueTransition edicaoAvancada = jiraService.findTransicao(issue, JiraService.TRANSICION_DEFAULT_EDICAO_AVANCADA);
-				JiraIssueTransitionUpdate issueTransitionUpdate = new JiraIssueTransitionUpdate(edicaoAvancada, updateFields);
-				jiraService.updateIssue(issue, issueTransitionUpdate);
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
 		}
-		
 	}
 	
 	private boolean verificaSeRequisitouIssue(JiraIssueComment comment) {

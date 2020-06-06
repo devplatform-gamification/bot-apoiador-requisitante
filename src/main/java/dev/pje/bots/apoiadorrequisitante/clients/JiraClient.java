@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraIssueTransitions;
 import com.devplatform.model.jira.JiraUser;
+import com.devplatform.model.jira.custom.JiraCustomField;
 import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
 
 @FeignClient(name = "jira", url = "${clients.jira.url}", configuration = JiraClientConfiguration.class)
@@ -34,5 +35,9 @@ public interface JiraClient {
 	@PostMapping(value = "/rest/api/latest/issue/{issueKey}/transitions", consumes = "application/json")
 	public void changeIssueWithTransition(
 			@PathVariable("issueKey") String issueKey, @RequestBody JiraIssueTransitionUpdate issueUpdate);
+
+	@GetMapping(value = "/rest/scriptrunner/latest/custom/customFields/{customField}/option?{options}", consumes = "application/json")
+	public JiraCustomField getCustomFieldOptions(
+			@PathVariable("customField") String customField, @SpringQueryMap Map<String, String> options);
 
 }

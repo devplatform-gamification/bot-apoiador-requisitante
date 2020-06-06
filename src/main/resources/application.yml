@@ -25,12 +25,13 @@ spring:
       default-receive-queue: ${RABBIT_QUEUE:apoiador-requisitante.queue}
       exchange: ${RABBIT_EXCHANGE:dev-platform.exchange}
       custom:
+        # TODO - migrar esta queue para um novo servico separado deste daqui - pre-requisito: o clientejira deve estar separado em um servico fora deste aqui
+        classification-queue: ${RABBIT_SUPEREPICTHEME_QUEUE:super-epic-theme.queue}
         jira:
           issue-created:
             routing-key: ${RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_CREATED.*}
           issue-updated:
             routing-key: ${RABBIT_JIRA_COMMENT_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*}
-            
         
 springfox:
   documentation:
@@ -43,3 +44,6 @@ clients:
     url: ${SERVICE_JIRA_URL:my-jira-url}
     user: ${SERVICE_JIRA_USER:my-user}
     pass: ${SERVICE_JIRA_PASSWORD:my-pass}
+  slack:
+    url: https://slack.com/api/
+    token: ${SERVICE_SLACK_TOKEN:my-slack-bot-token}

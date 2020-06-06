@@ -21,12 +21,16 @@ import com.devplatform.model.jira.JiraIssueFieldOption;
 import com.devplatform.model.jira.JiraIssueTransition;
 import com.devplatform.model.jira.JiraIssueTransitions;
 import com.devplatform.model.jira.JiraUser;
+import com.devplatform.model.jira.custom.JiraCustomField;
+import com.devplatform.model.jira.custom.JiraCustomFieldOption;
 import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
 import com.devplatform.model.jira.request.fields.JiraComment;
 import com.devplatform.model.jira.request.fields.JiraMultiselect;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 import dev.pje.bots.apoiadorrequisitante.clients.JiraClient;
+import dev.pje.bots.apoiadorrequisitante.clients.JiraClientDebug;
+import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 
 @Service
 public class JiraService {
@@ -36,32 +40,24 @@ public class JiraService {
 	@Autowired
 	private JiraClient jiraClient;
 
-//	@Autowired
-//	private JiraClientDebug jiraClientDebug;
+	@Autowired
+	private JiraClientDebug jiraClientDebug;
 	
+	@Autowired
+	private SlackService slackService;
+
 	@Value("${clients.jira.url}") 
 	private String jiraUrl;
 	
 	private static final String PREFIXO_GRUPO_TRIBUNAL = "PJE_TRIBUNAL_";
 	public static final String TRANSICION_DEFAULT_EDICAO_AVANCADA = "Edição avançada";
-
-//	public void teste() {
-//		logger.info("Trying to get user information from service JIRA: ");
-//		if (jiraClient != null) {
-//			Object usuarioLogadoJira = jiraClient.whoami();
-//			logger.info(usuarioLogadoJira.toString());
-//
-//			Map<String, String> options = new HashMap<>();
-//			options.put("expand", "groups");
-//			options.put("username", "zeniel.chaves");
-//			JiraUser usuario = jiraClient.getUserDetails(options);
-//			logger.info(usuario.toString());
-//		} else {
-//			logger.error("client feign not initialized");
-//		}
-//		new Exception("erro para não permitir retirar mensagem do rabbit");
-//	}
-
+	
+	public static final String FIELD_COMMENT = "comment";
+	public static final String FIELD_TRIBUNAL_REQUISITANTE = "customfield_11700";
+	public static final String FIELD_SUPER_EPIC_THEME = "customfield_11800";
+	public static final String FIELD_AREAS_CONHECIMENTO = "customfield_13921";
+	public static final String FIELD_EPIC_THEME = "customfield_10201";
+	
 	public JiraGroup getGrupoTribunalUsuario(JiraUser user) {
 		JiraGroup tribunal = null;
 		try {
@@ -106,38 +102,57 @@ public class JiraService {
 	 * @throws Exception 
 	 */
 	public void adicionaTribunalRequisitante(JiraIssue issue, String tribunalRequisitante, Map<String, Object> updateFields) throws Exception {
-		if (StringUtils.isNotBlank(tribunalRequisitante)) {
-			List<String> listaTribunaisAtualizada = new ArrayList<>();
+		List<String> listaTribunaisAtualizada = new ArrayList<>();
 
-			JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
-			List<JiraIssueFieldOption> tribunaisRequisitantes = getTribunaisRequisitantes(issueDetalhada);
-			listaTribunaisAtualizada.add(tribunalRequisitante);
-			boolean tribunalConstaComoRequisitante = false;
-			if (tribunaisRequisitantes != null) {
-				for (JiraIssueFieldOption tribunal : tribunaisRequisitantes) {
-					listaTribunaisAtualizada.add(tribunal.getValue());
-					if (tribunal.getValue().equals(tribunalRequisitante)) {
-						tribunalConstaComoRequisitante = true;
-						break;
-					}
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+		List<JiraIssueFieldOption> tribunaisRequisitantes = getTribunaisRequisitantes(issueDetalhada);
+		listaTribunaisAtualizada.add(tribunalRequisitante);
+		boolean tribunalConstaComoRequisitante = false;
+		if (tribunaisRequisitantes != null) {
+			for (JiraIssueFieldOption tribunal : tribunaisRequisitantes) {
+				listaTribunaisAtualizada.add(tribunal.getValue());
+				if (tribunal.getValue().equals(tribunalRequisitante)) {
+					tribunalConstaComoRequisitante = true;
+					break;
 				}
 			}
-			if (!tribunalConstaComoRequisitante) {
-				String fieldName = "customfield_11700";
-				Map<String, Object> updateField = createUpdateObject(fieldName, listaTribunaisAtualizada, "ADD");
-				if(updateField != null && updateField.get(fieldName) != null) {
-					updateFields.put(fieldName, updateField.get(fieldName));
-				}
+		}
+		if (!tribunalConstaComoRequisitante) {
+			String fieldName = FIELD_TRIBUNAL_REQUISITANTE;
+			Map<String, Object> updateField = createUpdateObject(fieldName, listaTribunaisAtualizada, "ADD");
+			if(updateField != null && updateField.get(fieldName) != null) {
+				updateFields.put(fieldName, updateField.get(fieldName));
 			}
 		}
 	}
 	
+	public void atualizarAreasConhecimento(JiraIssue issue, List<String> novasAreasConhecimento, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+		List<JiraIssueFieldOption> areasConhecimentoAtual = issueDetalhada.getFields().getAreasConhecimento();
+
+		boolean houveAlteracao = false;
+		if(!(novasAreasConhecimento.isEmpty() && (areasConhecimentoAtual == null || areasConhecimentoAtual.isEmpty()))) {
+			List<String> areasConhecimentoList = new ArrayList<>();
+			if(areasConhecimentoAtual != null) {
+				for (JiraIssueFieldOption areaConhecimento : areasConhecimentoAtual) {
+					areasConhecimentoList.add(areaConhecimento.getValue());
+				}
+			}
+			houveAlteracao = !Utils.compareListValues(novasAreasConhecimento, areasConhecimentoList);
+		}
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_AREAS_CONHECIMENTO, novasAreasConhecimento, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_AREAS_CONHECIMENTO) != null) {
+				updateFields.put(FIELD_AREAS_CONHECIMENTO, updateField.get(FIELD_AREAS_CONHECIMENTO));
+			}
+		}
+	}
+
 	public void adicionarComentario(JiraIssue issue, String texto, Map<String, Object> updateFields) throws Exception {
 		if (StringUtils.isNotBlank(texto)) {
-			String fieldName = "comment";
-			Map<String, Object> updateField = createUpdateObject(fieldName, texto, "ADD");
-			if(updateField != null && updateField.get(fieldName) != null) {
-				updateFields.put(fieldName, updateField.get(fieldName));
+			Map<String, Object> updateField = createUpdateObject(FIELD_COMMENT, texto, "ADD");
+			if(updateField != null && updateField.get(FIELD_COMMENT) != null) {
+				updateFields.put(FIELD_COMMENT, updateField.get(FIELD_COMMENT));
 			}
 		}
 	}
@@ -148,7 +163,7 @@ public class JiraService {
 	private Map<String, Object> createUpdateObject(String fieldName, Object valueToUpdate, String operation) throws Exception{
 		Map<String, Object> objectToUpdate = new HashMap<>();
 		
-		if("customfield_11700".equals(fieldName)) {
+		if(FIELD_TRIBUNAL_REQUISITANTE.equals(fieldName) || FIELD_AREAS_CONHECIMENTO.equals(fieldName)) {
 			boolean identificouCampo = false;
 			if(valueToUpdate instanceof List<?>) {
 				List<?> valueToUpdateList = (List<?>) valueToUpdate;
@@ -169,12 +184,12 @@ public class JiraService {
 			if(!identificouCampo) {
 				throw new Exception("Valor para update fora do padrão - deveria ser List<String>, recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
-		}else if("comment".equals(fieldName) && valueToUpdate != null) {
+		}else if(FIELD_COMMENT.equals(fieldName) && valueToUpdate != null) {
 			boolean identificouCampo = false;
 			if(valueToUpdate instanceof String) {
-				identificouCampo = true;
 				JiraComment comment = new JiraComment((String) valueToUpdate);
 				objectToUpdate.put(fieldName, comment.getComment());
+				identificouCampo = true;
 			}
 			if(!identificouCampo) {
 				throw new Exception("Valor para update fora do padrão - deveria ser String, recebeu: " +  valueToUpdate.getClass().getTypeName());
@@ -182,6 +197,56 @@ public class JiraService {
 		}
 		
 		return objectToUpdate;
+	}
+	
+	@Cacheable
+	public JiraCustomField getCustomFieldDetailed (String customFieldName, String searchItems, String onlyEnabled) { 
+		Map<String, String> options = new HashMap<>();
+		if(searchItems != null) {
+			options.put("search", searchItems);
+		}
+		if(onlyEnabled == null) {
+			onlyEnabled = Boolean.FALSE.toString();
+		}
+		options.put("onlyEnabled", onlyEnabled);
+
+		return jiraClient.getCustomFieldOptions(customFieldName, options);
+	}
+
+	public List<String> findSuperEpicTheme(List<String> epicThemeListToSearch) {
+		List<String> superEpicThemes = new ArrayList<>();
+		if(epicThemeListToSearch != null && !epicThemeListToSearch.isEmpty()) {
+			JiraCustomField customFieldDetails = getCustomFieldDetailed(FIELD_SUPER_EPIC_THEME, null, null);
+			if(customFieldDetails != null && !customFieldDetails.getOptions().isEmpty()) {
+				for (String epicThemeSearched : epicThemeListToSearch) {
+					boolean encontrou = false;
+					for (JiraCustomFieldOption option : customFieldDetails.getOptions()) {
+						String superEpicTheme = option.getValue();
+						if(!superEpicThemes.contains(superEpicTheme)) {
+							if(!option.getCascadingOptions().isEmpty()) {
+								for (JiraCustomFieldOption cascadeOption : option.getCascadingOptions()) {
+									String epicTheme = cascadeOption.getValue();
+									if(Utils.compareAsciiIgnoreCase(epicTheme, epicThemeSearched)) {
+										superEpicThemes.add(superEpicTheme);
+										encontrou = true;
+										break;
+									}
+								}
+							}
+						}
+						if(encontrou) {
+							break;
+						}
+					}
+					if(!encontrou) {
+						// TODO - erro, precisamos enviar uma mensagem para o slack indicando que houve este problema
+						logger.error("Não foi possível encontrar um super Epic/Theme para o Epic/Theme: [" + epicThemeSearched + "]");
+						slackService.sendBotMessage("Não foi possível encontrar um super Epic/Theme para o Epic/Theme: [" + epicThemeSearched + "]");
+					}
+				}				
+			}
+		}
+		return superEpicThemes;
 	}
 	
 	public JiraIssueTransition findTransicao(JiraIssue issue, String nomeTransicao) {
@@ -206,17 +271,26 @@ public class JiraService {
 		String issueKey = issue.getKey();
 		jiraClient.changeIssueWithTransition(issueKey, issueUpdate);
 	}
-	
+
+	public void updateIssueDebug(JiraIssue issue, JiraIssueTransitionUpdate issueUpdate) throws JsonProcessingException {
+		String issueKey = issue.getKey();
+		jiraClientDebug.changeIssueWithTransition(issueKey, issueUpdate);
+	}
+
 	public JiraIssueTransitions recuperarTransicoesIssue(JiraIssue issue) {
 		String issueKey = issue.getKey();
 		return jiraClient.getIssueTransitions(issueKey);
 	}
 
-	@Cacheable("issue")
 	public JiraIssue recuperaIssueDetalhada(JiraIssue issue) {
 		String issueKey = issue.getKey();
 		Map<String, String> options = new HashMap<>();
 		options.put("expand", "operations");
+		return recuperaIssue(issueKey, options);
+	}
+	
+	@Cacheable
+	public JiraIssue recuperaIssue(String issueKey, Map<String, String> options) {
 		return jiraClient.getIssueDetails(issueKey, options);
 	}
 

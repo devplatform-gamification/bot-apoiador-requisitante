@@ -15,6 +15,7 @@ import com.devplatform.model.jira.event.JiraEventIssue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraEventHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraEventHandlerClassification;
 
 @Component
 public class AmqpConsumer {
@@ -26,7 +27,10 @@ public class AmqpConsumer {
 	
 	@Autowired
 	private JiraEventHandler jiraEventHandler;
-    
+
+	@Autowired
+	private JiraEventHandlerClassification jiraEventHandlerClassification;
+
 	@RabbitListener(
 			bindings = @QueueBinding(
 				value = @Queue(value = "${spring.rabbitmq.template.default-receive-queue}", durable = "true", autoDelete = "false", exclusive = "false"), 
@@ -38,9 +42,25 @@ public class AmqpConsumer {
 			String body = new String(msg.getBody());
 			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
 			String issueKey = jiraEventIssue.getIssue().getKey();
-			logger.info("[JIRA] - " + issueKey + jiraEventIssue.getIssueEventTypeName().name());
+			logger.info("[REQUISITANTE][JIRA] - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
 			jiraEventHandler.handle(jiraEventIssue);
 		}
 	}	
-	
+
+	@RabbitListener(
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.classification-queue}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.jira.issue-created.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
+		)
+	public void receiveIssueToCheckEpicTheme(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
+			String issueKey = jiraEventIssue.getIssue().getKey();
+			logger.info("[CLASSIFICACAO][JIRA] - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+			jiraEventHandlerClassification.handle(jiraEventIssue);
+		}
+	}	
+
 }
