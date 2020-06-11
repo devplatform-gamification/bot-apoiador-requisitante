@@ -18,7 +18,7 @@ import com.devplatform.model.jira.event.JiraWebhookEventEnum;
 import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
 
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
-import dev.pje.bots.apoiadorrequisitante.services.SlackService;
+import dev.pje.bots.apoiadorrequisitante.services.TelegramService;
 
 @Component
 public class JiraEventHandler {
@@ -29,10 +29,10 @@ public class JiraEventHandler {
 	private JiraService jiraService;
 
 	@Autowired
-	private SlackService slackService;
+	private TelegramService telegramService;
 
 	public void handle(JiraEventIssue jiraEventIssue) {
-		slackService.sendBotMessage("[REQUISITANTE][JIRA] - " + jiraEventIssue.getIssue().getKey() + " - " + jiraEventIssue.getIssueEventTypeName().name());
+		telegramService.sendBotMessage("[REQUISITANTE][JIRA] - " + jiraEventIssue.getIssue().getKey() + " - " + jiraEventIssue.getIssueEventTypeName().name());
 		JiraUser reporter = jiraService.getIssueReporter(jiraEventIssue.getIssue());
 		String tribunalUsuario = jiraService.getTribunalUsuario(reporter);
 		adicionarTribunalRequisitanteDemanda(
@@ -72,10 +72,10 @@ public class JiraEventHandler {
 					if(edicaoAvancada != null) {
 						JiraIssueTransitionUpdate issueTransitionUpdate = new JiraIssueTransitionUpdate(edicaoAvancada, updateFields);
 						jiraService.updateIssue(issue, issueTransitionUpdate);
-						slackService.sendBotMessage("[REQUISITANTE][" + issue.getKey() + "] Issue atualizada");
+						telegramService.sendBotMessage("[REQUISITANTE][" + issue.getKey() + "] Issue atualizada");
 						logger.info("Issue atualizada");
 					}else {
-						slackService.sendBotMessage("*[REQUISITANTE][" + issue.getKey() + "] Erro!!* \n Não há transição para realizar esta alteração");
+						telegramService.sendBotMessage("*[REQUISITANTE][" + issue.getKey() + "] Erro!!* \n Não há transição para realizar esta alteração");
 						logger.error("Não há transição para realizar esta alteração");
 					}
 				}

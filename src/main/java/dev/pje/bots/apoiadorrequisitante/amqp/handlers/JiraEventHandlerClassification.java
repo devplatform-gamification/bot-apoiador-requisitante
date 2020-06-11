@@ -15,7 +15,7 @@ import com.devplatform.model.jira.event.JiraEventIssue;
 import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
 
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
-import dev.pje.bots.apoiadorrequisitante.services.SlackService;
+import dev.pje.bots.apoiadorrequisitante.services.TelegramService;
 
 @Component
 public class JiraEventHandlerClassification {
@@ -26,10 +26,10 @@ public class JiraEventHandlerClassification {
 	private JiraService jiraService;
 	
 	@Autowired
-	private SlackService slackService;
+	private TelegramService telegramService;
 
 	public void handle(JiraEventIssue jiraEventIssue) {
-		slackService.sendBotMessage("[AREA-CONHECIMENTO][JIRA] - " + jiraEventIssue.getIssue().getKey() + " - " + jiraEventIssue.getIssueEventTypeName().name());
+		telegramService.sendBotMessage("[AREA-CONHECIMENTO][JIRA] - " + jiraEventIssue.getIssue().getKey() + " - " + jiraEventIssue.getIssueEventTypeName().name());
 		List<String> epicThemeList = jiraEventIssue.getIssue().getFields().getEpicTheme();
 		List<String> superEpicThemeList = jiraService.findSuperEpicTheme(epicThemeList);
 
@@ -45,10 +45,10 @@ public class JiraEventHandlerClassification {
 				if(edicaoAvancada != null) {
 					JiraIssueTransitionUpdate issueTransitionUpdate = new JiraIssueTransitionUpdate(edicaoAvancada, updateFields);
 					jiraService.updateIssue(issue, issueTransitionUpdate);
-					slackService.sendBotMessage("[AREA-CONHECIMENTO][" + issue.getKey() + "] Issue atualizada");
+					telegramService.sendBotMessage("[AREA-CONHECIMENTO][" + issue.getKey() + "] Issue atualizada");
 					logger.info("Issue atualizada");
 				}else {
-					slackService.sendBotMessage("*[AREA-CONHECIMENTO][" + issue.getKey() + "] Erro!!* \n Não há transição para realizar esta alteração");
+					telegramService.sendBotMessage("*[AREA-CONHECIMENTO][" + issue.getKey() + "] Erro!!* \n Não há transição para realizar esta alteração");
 					logger.error("Não há transição para realizar esta alteração");
 				}
 			}

@@ -46,6 +46,9 @@ public class JiraService {
 	@Autowired
 	private SlackService slackService;
 
+	@Autowired
+	private TelegramService telegramService;
+
 	@Value("${clients.jira.url}") 
 	private String jiraUrl;
 	
@@ -222,13 +225,13 @@ public class JiraService {
 					boolean encontrou = false;
 					for (JiraCustomFieldOption option : customFieldDetails.getOptions()) {
 						String superEpicTheme = option.getValue();
-						if(!superEpicThemes.contains(superEpicTheme)) {
-							if(!option.getCascadingOptions().isEmpty()) {
-								for (JiraCustomFieldOption cascadeOption : option.getCascadingOptions()) {
-									String epicTheme = cascadeOption.getValue();
-									if(Utils.compareAsciiIgnoreCase(epicTheme, epicThemeSearched)) {
+						if(!option.getCascadingOptions().isEmpty()) {
+							for (JiraCustomFieldOption cascadeOption : option.getCascadingOptions()) {
+								String epicTheme = cascadeOption.getValue();
+								if(Utils.compareAsciiIgnoreCase(epicTheme, epicThemeSearched)) {
+									encontrou = true;
+									if(!superEpicThemes.contains(superEpicTheme)) {
 										superEpicThemes.add(superEpicTheme);
-										encontrou = true;
 										break;
 									}
 								}
@@ -239,9 +242,12 @@ public class JiraService {
 						}
 					}
 					if(!encontrou) {
-						// TODO - erro, precisamos enviar uma mensagem para o slack indicando que houve este problema
-						logger.error("Não foi possível encontrar um super Epic/Theme para o Epic/Theme: [" + epicThemeSearched + "]");
-						slackService.sendBotMessage("Não foi possível encontrar um super Epic/Theme para o Epic/Theme: [" + epicThemeSearched + "]");
+						String errorMesasge = "Não foi possível encontrar um super Epic/Theme para o Epic/Theme: [" + epicThemeSearched + "]";
+						logger.error(errorMesasge);
+						slackService.sendBotMessage(errorMesasge);
+						telegramService.sendBotMessage(errorMesasge);
+						// TODO - substituir para msg ao telegram
+						// TODO - deixar as mensagens ao slack apenas nos casos de erro
 					}
 				}				
 			}

@@ -47,3 +47,6 @@ clients:
   slack:
     url: https://slack.com/api/
     token: ${SERVICE_SLACK_TOKEN:my-slack-bot-token}
+  telegram:
+    url: https://api.telegram.org/
+    token: ${SERVICE_TELEGRAM_TOKEN:my-telegram-bot-token}
