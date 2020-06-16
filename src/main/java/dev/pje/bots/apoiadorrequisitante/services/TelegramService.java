@@ -1,5 +1,7 @@
 package dev.pje.bots.apoiadorrequisitante.services;
 
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,10 +35,24 @@ public class TelegramService {
 		}
 		TelegramSendMessage message = new TelegramSendMessage(channel, Utils.escapeTelegramMarkup(text));
 		message.setDisable_notification(silent);
-		TelegramResponse<TelegramMessage> response = telegramClient.sendMessage(message);
-		logger.debug("Message response: "+ response.toString());
-		TelegramResponse<TelegramUser> user = telegramClient.whoami();
-		logger.debug("Message user response: "+ user.toString());
+		boolean passou = false;
+		int tentativas = 0;
+		while(!passou || tentativas < 3) {
+			if(tentativas > 0) {
+				try {
+					logger.debug("waitting 30 seconds before next try....");
+					TimeUnit.SECONDS.sleep(30);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			TelegramResponse<TelegramMessage> response = telegramClient.sendMessage(message);
+			logger.debug("Message response: "+ response.toString());
+			tentativas++;
+			passou = response.getOk();
+		}
+//		TelegramResponse<TelegramUser> user = telegramClient.whoami();
+//		logger.debug("Message user response: "+ user.toString());
 	}
 	
 	public void sendBotMessage(String text) {
