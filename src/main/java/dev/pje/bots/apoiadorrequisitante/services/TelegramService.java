@@ -23,12 +23,14 @@ public class TelegramService {
 	private TelegramClient telegramClient;
 
 	public static final String NOME_GRUPO_BOT_TRIAGEM = "-1001454483737";
+	public static Integer numMessagesSent = 0;
 
 	public void whoami() {
 		TelegramResponse<TelegramUser> response = telegramClient.whoami();
 		logger.debug("User: " +response.toString());
 	}
 	
+	// TODO - transformar isso em um buffer de mensagens quando forem para o mesmo canal.... ter um schedule que limpa esse buffer de 1 em 1 m
 	public void sendSimpleMessage(String channel, String text, Boolean silent) {
 		if(silent == null) {
 			silent = false;
@@ -37,19 +39,27 @@ public class TelegramService {
 		message.setDisable_notification(silent);
 		boolean passou = false;
 		int tentativas = 0;
-		while(!passou || tentativas < 3) {
-			if(tentativas > 0) {
-				try {
-					logger.debug("waitting 30 seconds before next try....");
-					TimeUnit.SECONDS.sleep(30);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+		try {
+			while(!passou && tentativas < 3) {
+				TimeUnit.SECONDS.sleep(2);
+				if(tentativas > 0) {
+					logger.info("waitting 40 seconds before next try....");
+					TimeUnit.SECONDS.sleep(40);
 				}
+				try {
+					numMessagesSent++;
+					TelegramResponse<TelegramMessage> response = telegramClient.sendMessage(message);
+					logger.debug("Message response: "+ response.toString());
+					passou = true;
+				}catch (Exception e) {
+					logger.error(e.getLocalizedMessage());
+					logger.info("Message sent #"+ numMessagesSent);
+					passou = false;
+				}
+				tentativas++;
 			}
-			TelegramResponse<TelegramMessage> response = telegramClient.sendMessage(message);
-			logger.debug("Message response: "+ response.toString());
-			tentativas++;
-			passou = response.getOk();
+		}catch (Exception e) {
+			logger.error(e.getLocalizedMessage());
 		}
 //		TelegramResponse<TelegramUser> user = telegramClient.whoami();
 //		logger.debug("Message user response: "+ user.toString());
