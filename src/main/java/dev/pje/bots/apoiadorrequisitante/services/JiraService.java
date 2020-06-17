@@ -275,6 +275,8 @@ public class JiraService {
 	
 	public void updateIssue(JiraIssue issue, JiraIssueTransitionUpdate issueUpdate) throws JsonProcessingException {
 		String issueKey = issue.getKey();
+		logger.info("issueKey: " + issueKey);
+		logger.info("issueupdate: " + issueUpdate.toString());
 		jiraClient.changeIssueWithTransition(issueKey, issueUpdate);
 	}
 
