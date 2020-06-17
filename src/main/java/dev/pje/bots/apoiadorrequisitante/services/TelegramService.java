@@ -46,14 +46,14 @@ public class TelegramService {
 					logger.info("waitting 40 seconds before next try....");
 					TimeUnit.SECONDS.sleep(40);
 				}
+				int numMessages = ++numMessagesSent;
 				try {
-					numMessagesSent++;
 					TelegramResponse<TelegramMessage> response = telegramClient.sendMessage(message);
 					logger.debug("Message response: "+ response.toString());
 					passou = true;
 				}catch (Exception e) {
 					logger.error(e.getLocalizedMessage());
-					logger.info("Message sent #"+ numMessagesSent);
+					logger.info("Message sent #"+ numMessages);
 					passou = false;
 				}
 				tentativas++;
