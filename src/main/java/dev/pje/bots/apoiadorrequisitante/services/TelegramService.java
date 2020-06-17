@@ -41,7 +41,8 @@ public class TelegramService {
 		int tentativas = 0;
 		try {
 			while(!passou && tentativas < 3) {
-				TimeUnit.SECONDS.sleep(2);
+				int randomInt = (int)(Math.random()) + 1;
+				TimeUnit.SECONDS.sleep(randomInt);
 				if(tentativas > 0) {
 					logger.info("waitting 40 seconds before next try....");
 					TimeUnit.SECONDS.sleep(40);
