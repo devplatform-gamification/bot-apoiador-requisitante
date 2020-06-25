@@ -87,6 +87,8 @@ public class JiraEventHandler {
 	
 	private boolean verificaSeRequisitouIssue(JiraIssueComment comment) {
 		// TODO - verificar se todo comentário de alguém na issue indica que o seu tribunal está interessado, ou se é necessário avaliar alguma expressão específica
-		return Boolean.TRUE;
+		// TODO - o ideal é treinar um modelo de ML com os comentários que significam solicitar interesse na demanda
+		return comment.getBody().toLowerCase().contains("atribuir") || 
+				comment.getBody().toLowerCase().contains("interesse");
 	}
 }
