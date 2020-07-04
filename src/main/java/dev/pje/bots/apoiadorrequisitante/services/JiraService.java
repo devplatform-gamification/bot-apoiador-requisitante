@@ -246,8 +246,6 @@ public class JiraService {
 						logger.error(errorMesasge);
 						slackService.sendBotMessage(errorMesasge);
 						telegramService.sendBotMessage(errorMesasge);
-						// TODO - substituir para msg ao telegram
-						// TODO - deixar as mensagens ao slack apenas nos casos de erro
 					}
 				}				
 			}

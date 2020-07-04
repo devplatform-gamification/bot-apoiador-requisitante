@@ -27,11 +27,15 @@ spring:
       custom:
         # TODO - migrar esta queue para um novo servico separado deste daqui - pre-requisito: o clientejira deve estar separado em um servico fora deste aqui
         classification-queue: ${RABBIT_SUPEREPICTHEME_QUEUE:super-epic-theme.queue}
+        commit-script-queue:  ${RABBIT_COMMIT_SCRIPT_QUEUE:commit-script.queue}
         jira:
           issue-created:
             routing-key: ${RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_CREATED.*}
           issue-updated:
             routing-key: ${RABBIT_JIRA_COMMENT_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*}
+        gitlab:
+          push:
+            routing-key: ${RABBIT_GITLAB_PUSH_ROUTINGKEY_PREFIX:dev-platform.gitlab.PUSH}
         
 springfox:
   documentation:
@@ -47,6 +51,9 @@ clients:
   slack:
     url: https://slack.com/api/
     token: ${SERVICE_SLACK_TOKEN:my-slack-bot-token}
+  gitlab:
+    url: ${SERVICE_GITLAB_URL:my-gitlab-url}
+    token: ${SERVICE_GITLAB_TOKEN:my-gitlab-token}
   telegram:
     url: https://api.telegram.org/
     token: ${SERVICE_TELEGRAM_TOKEN:my-telegram-bot-token}

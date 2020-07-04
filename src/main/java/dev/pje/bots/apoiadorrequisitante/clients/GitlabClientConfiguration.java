@@ -6,16 +6,21 @@ import org.springframework.context.annotation.Bean;
 
 import feign.httpclient.ApacheHttpClient;
 
-public class SlackClientConfiguration {
+public class GitlabClientConfiguration {
 
 	@Bean
 	public ApacheHttpClient client() {
 		return new ApacheHttpClient();
 	}
 
+//	@Bean
+//	public OkHttpClient client() {
+//		return new OkHttpClient();
+//	}
+
 	@Bean
-	@ConditionalOnProperty(name = { "clients.gitlab.token" })
-	public OAuthPrivateTokenRequestInterceptor oauth2FeignRequestInterceptor(@Value("${clients.gitlab.token}") String token) {
-		return new OAuthPrivateTokenRequestInterceptor(token);
+	@ConditionalOnProperty(name = { "clients.slack.token" })
+	public OAuthRequestInterceptor oauth2FeignRequestInterceptor(@Value("${clients.slack.token}") String token) {
+		return new OAuthRequestInterceptor(token);
 	}
 }
