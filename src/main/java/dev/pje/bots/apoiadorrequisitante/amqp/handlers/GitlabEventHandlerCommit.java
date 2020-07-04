@@ -95,7 +95,9 @@ public class GitlabEventHandlerCommit {
 				if(!commit.getAdded().isEmpty()) {
 					for (String addedFile : commit.getAdded()) {
 						if(addedFile.toLowerCase().endsWith(GitlabService.SCRIPT_EXTENSION.toLowerCase())) {
-							listScriptFiles.add(addedFile);
+							if(!listScriptFiles.contains(addedFile)) {
+								listScriptFiles.add(addedFile);
+							}
 						}
 					}
 				}
