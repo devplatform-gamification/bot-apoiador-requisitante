@@ -31,62 +31,65 @@ public class GitlabEventHandlerCommit {
 	private TelegramService telegramService;
 	
 	public void handle(GitlabEventPush gitlabEventPush) {
-		if(gitlabEventPush != null && GitlabService.BRANCH_DEVELOP.equals(gitlabEventPush.getRef())) {
-			String projectName = gitlabEventPush.getProject().getName();
+		if(gitlabEventPush != null) {
 			String[] branchNameSplited = gitlabEventPush.getRef().split("/");
 			String branchName = branchNameSplited[branchNameSplited.length - 1];
-
-			String lastCommitId = gitlabEventPush.getCommits().get(0).getId();
-			String commitMessage = gitlabEventPush.getCommits().get(0).getMessage();
-
-			telegramService.sendBotMessage("[COMMIT][GITLAB] - project: " + projectName + " branch: " + branchName + " - " + commitMessage);
-			
-			ArrayList<String> addedScripts = getAddedFiles(gitlabEventPush.getCommits());
-			ArrayList<GitlabScriptVersaoVO> scriptsToChange = new ArrayList<>();
-			if(addedScripts != null && !addedScripts.isEmpty()) {
-				// identificar qual é o número da versão atual
-				String currentVersion = gitlabService.getBranchVersion(gitlabEventPush.getProject(), branchName);
-				// verificar se todos os arquivos adicionados estão no caminho correto
-				String destinationPath = GitlabService.SCRIPS_MIGRATION_BASE_PATH + currentVersion;
-				// buscar todos os scripts que estao na basta de migrations
-				List<GitlabRepositoryTree> currentScriptList = gitlabService.getFilesFromPath(gitlabEventPush.getProject(), branchName, destinationPath);
-				boolean scriptsOutOfOrder = false;
-				for (String addedScript : addedScripts) {
-					GitlabScriptVersaoVO addedScriptObj = new GitlabScriptVersaoVO(addedScript);
-					if(addedScript.startsWith(GitlabService.SCRIPS_MIGRATION_BASE_PATH)) {
-						if(!addedScript.startsWith(destinationPath)) {
-							scriptsToChange.add(addedScriptObj);
-						}else{
-							// check if some added script is in the same order of a current script
-							if(addedScriptObj.getSpecificName() != null && !currentScriptList.isEmpty() && currentScriptList.size() > 0) {
-								for (GitlabRepositoryTree elmentFromTree : currentScriptList) {
-									GitlabScriptVersaoVO currentScriptObj = new GitlabScriptVersaoVO(elmentFromTree.getPath());
-									if(!currentScriptObj.getName().equals(addedScriptObj.getName())) {
-										if(addedScriptObj.getVersion().equals(currentScriptObj.getVersion()) 
-												&& addedScriptObj.getOrder().equals(currentScriptObj.getOrder())) {
-											scriptsOutOfOrder = true;
-											break;
+	
+			if(gitlabService.isMonitoredBranch(gitlabEventPush.getProject(), branchName)) {
+				String projectName = gitlabEventPush.getProject().getName();
+	
+				String lastCommitId = gitlabEventPush.getCommits().get(0).getId();
+				String commitMessage = gitlabEventPush.getCommits().get(0).getMessage();
+	
+				telegramService.sendBotMessage("[COMMIT][GITLAB] - project: " + projectName + " branch: " + branchName + " - " + commitMessage);
+				
+				ArrayList<String> addedScripts = getAddedFiles(gitlabEventPush.getCommits());
+				ArrayList<GitlabScriptVersaoVO> scriptsToChange = new ArrayList<>();
+				if(addedScripts != null && !addedScripts.isEmpty()) {
+					// identificar qual é o número da versão atual
+					String currentVersion = gitlabService.getBranchVersion(gitlabEventPush.getProject(), branchName);
+					// verificar se todos os arquivos adicionados estão no caminho correto
+					String destinationPath = GitlabService.SCRIPS_MIGRATION_BASE_PATH + currentVersion;
+					// buscar todos os scripts que estao na basta de migrations
+					List<GitlabRepositoryTree> currentScriptList = gitlabService.getFilesFromPath(gitlabEventPush.getProject(), branchName, destinationPath);
+					boolean scriptsOutOfOrder = false;
+					for (String addedScript : addedScripts) {
+						GitlabScriptVersaoVO addedScriptObj = new GitlabScriptVersaoVO(addedScript);
+						if(addedScript.startsWith(GitlabService.SCRIPS_MIGRATION_BASE_PATH)) {
+							if(!addedScript.startsWith(destinationPath)) {
+								scriptsToChange.add(addedScriptObj);
+							}else{
+								// check if some added script is in the same order of a current script
+								if(addedScriptObj.getSpecificName() != null && !currentScriptList.isEmpty() && currentScriptList.size() > 0) {
+									for (GitlabRepositoryTree elmentFromTree : currentScriptList) {
+										GitlabScriptVersaoVO currentScriptObj = new GitlabScriptVersaoVO(elmentFromTree.getPath());
+										if(!currentScriptObj.getName().equals(addedScriptObj.getName())) {
+											if(addedScriptObj.getVersion().equals(currentScriptObj.getVersion()) 
+													&& addedScriptObj.getOrder().equals(currentScriptObj.getOrder())) {
+												scriptsOutOfOrder = true;
+												break;
+											}
 										}
 									}
-								}
-								if(scriptsOutOfOrder) {
-									break;
+									if(scriptsOutOfOrder) {
+										break;
+									}
 								}
 							}
 						}
 					}
-				}
-				if(scriptsOutOfOrder) {
-					scriptsToChange = new ArrayList<>();
-					for (String addedScript : addedScripts) {
-						GitlabScriptVersaoVO addedScriptObj = new GitlabScriptVersaoVO(addedScript);
-						scriptsToChange.add(addedScriptObj);
+					if(scriptsOutOfOrder) {
+						scriptsToChange = new ArrayList<>();
+						for (String addedScript : addedScripts) {
+							GitlabScriptVersaoVO addedScriptObj = new GitlabScriptVersaoVO(addedScript);
+							scriptsToChange.add(addedScriptObj);
+						}
 					}
+					logger.info(scriptsToChange.toString());
+					this.changeScriptsPath(
+							gitlabEventPush.getProject(), branchName, lastCommitId,
+							scriptsToChange, destinationPath, currentScriptList);
 				}
-				logger.info(scriptsToChange.toString());
-				this.changeScriptsPath(
-						gitlabEventPush.getProject(), branchName, lastCommitId,
-						scriptsToChange, destinationPath, currentScriptList);
 			}
 		}
 	}

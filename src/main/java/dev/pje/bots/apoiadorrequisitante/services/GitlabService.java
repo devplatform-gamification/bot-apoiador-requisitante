@@ -43,6 +43,7 @@ public class GitlabService {
 	
 	public static final String BRANCH_DEVELOP = "develop";
 	public static final String BRANCH_MASTER = "master";
+	public static final String BRANCH_RELEASE_CANDIDATE_PREFIX = "release-";
 	
 	public static final String SCRIPS_MIGRATION_BASE_PATH = "pje-comum/src/main/resources/migrations/";
 	public static final String SCRIPT_EXTENSION = ".sql";
@@ -136,5 +137,10 @@ public class GitlabService {
 			}
 		}
 	}
-
+	
+	public boolean isMonitoredBranch(GitlabProject project, String branchName) {
+		return BRANCH_DEVELOP.equals(branchName) 
+				|| branchName.toLowerCase().startsWith(BRANCH_RELEASE_CANDIDATE_PREFIX)
+				|| BRANCH_MASTER.equals(branchName);
+	}
 }
