@@ -33,10 +33,13 @@ public class GitlabEventHandlerCommit {
 	public void handle(GitlabEventPush gitlabEventPush) {
 		if(gitlabEventPush != null && GitlabService.BRANCH_DEVELOP.equals(gitlabEventPush.getRef())) {
 			String projectName = gitlabEventPush.getProject().getName();
-			String branchName = gitlabEventPush.getRef();
-			String lastCommitId = gitlabEventPush.getCommits().get(0).getId();
+			String[] branchNameSplited = gitlabEventPush.getRef().split("/");
+			String branchName = branchNameSplited[branchNameSplited.length - 1];
 
-			telegramService.sendBotMessage("[COMMIT][GITLAB] - project: " + projectName + " branch: " + branchName);
+			String lastCommitId = gitlabEventPush.getCommits().get(0).getId();
+			String commitMessage = gitlabEventPush.getCommits().get(0).getMessage();
+
+			telegramService.sendBotMessage("[COMMIT][GITLAB] - project: " + projectName + " branch: " + branchName + " - " + commitMessage);
 			
 			ArrayList<String> addedScripts = getAddedFiles(gitlabEventPush.getCommits());
 			ArrayList<GitlabScriptVersaoVO> scriptsToChange = new ArrayList<>();

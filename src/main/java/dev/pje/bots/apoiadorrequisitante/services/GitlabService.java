@@ -41,22 +41,21 @@ public class GitlabService {
 	@Value("${clients.gitlab.url}") 
 	private String gitlabUrl;
 	
-	public static final String BRANCH_DEVELOP = "refs/heads/develop";
-	public static final String BRANCH_MASTER = "refs/heads/master";
+	public static final String BRANCH_DEVELOP = "develop";
+	public static final String BRANCH_MASTER = "master";
 	
 	public static final String SCRIPS_MIGRATION_BASE_PATH = "pje-comum/src/main/resources/migrations/";
 	public static final String SCRIPT_EXTENSION = ".sql";
 	public static final String POMXML = "pom.xml";
 	public static final String AUTHOR_NAME = "Bot Revisor do PJe";
 	public static final String AUTHOR_EMAIL = "bot.revisor.pje@cnj.jus.br";
-//	public static final String AUTHOR_EMAIL = "zeniel@cnj.jus.br";
 	
 	public String getBranchVersion(GitlabProject project, String branch) {
 		String ref;
 		if(BRANCH_MASTER.equals(branch)) {
-			ref = branch.split("/")[2];
+			ref = branch;
 		}else {
-			ref = BRANCH_DEVELOP.split("/")[2];
+			ref = BRANCH_DEVELOP;
 		}
 		String projectId = project.getId().toString();
 		String pomxml = gitlabClient.getRawFile(projectId, POMXML, ref);
@@ -72,9 +71,9 @@ public class GitlabService {
 	public List<GitlabRepositoryTree> getFilesFromPath(GitlabProject project, String branch, String path) {
 		String ref;
 		if(BRANCH_MASTER.equals(branch)) {
-			ref = branch.split("/")[2];
+			ref = branch;
 		}else {
-			ref = BRANCH_DEVELOP.split("/")[2];
+			ref = BRANCH_DEVELOP;
 		}
 		String projectId = project.getId().toString();
 		List<GitlabRepositoryTree> listElements = gitlabClient.getRepositoryTree(projectId, path, ref);
@@ -94,8 +93,6 @@ public class GitlabService {
 
 		if(scriptsToChange != null && !scriptsToChange.isEmpty()) {
 			String projectId = project.getId().toString();
-			String[] branchNameSplited = branch.split("/");
-			String branchName = branchNameSplited[branchNameSplited.length - 1];
 			GitlabCommitRequest commit = new GitlabCommitRequest();
 			String id = "";
 			try {
@@ -104,7 +101,7 @@ public class GitlabService {
 				id = UUID.randomUUID().toString();
 			}
 			commit.setId(id);
-			commit.setBranch(branchName);
+			commit.setBranch(branch);
 			commit.commitMessage(commitMessage);
 			commit.setAuthorName(AUTHOR_NAME);
 			commit.setAuthorEmail(AUTHOR_EMAIL);
@@ -128,7 +125,7 @@ public class GitlabService {
 			try {
 				GitlabCommitResponse response = gitlabClient.sendCommit(projectId, commit);
 				if(response != null && response.getId() != null) {
-					logger.info("deu bom");
+					logger.info("ok");
 				}
 			}catch(Exception e) {
 				String errorMessage = "Não foi possível mover os arquivos do commit: " + lastCommitId + "\n"
