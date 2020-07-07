@@ -142,7 +142,7 @@ public class GitlabService {
 	}
 	
 	public void cherryPick(GitlabProject project, String branchName, List<GitlabCommit> commits) {
-		if(project != null && (branchName != null && !branchName.isEmpty()) && commits != null && !commits.isEmpty() && !project.getName().toLowerCase().contains("pje")) {
+		if(project != null && (branchName != null && !branchName.isEmpty()) && commits != null && !commits.isEmpty()) {
 			String projectName = project.getName();
 			String projectId = project.getId().toString();
 			for (GitlabCommit commit : commits) {
