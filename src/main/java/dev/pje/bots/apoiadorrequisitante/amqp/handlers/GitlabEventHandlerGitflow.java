@@ -31,23 +31,27 @@ public class GitlabEventHandlerGitflow {
 			String branchName = branchNameSplited[branchNameSplited.length - 1];
 			List<GitlabCommit> commits = gitlabEventPush.getCommits();
 	
-			if(commits != null && commits.size() > 0 &&
-				(gitlabService.isBranchMaster(gitlabEventPush.getProject(), branchName)
-				|| gitlabService.isBranchRelease(gitlabEventPush.getProject(), branchName))) {
-				GitlabProject project = gitlabEventPush.getProject();
-								
-				boolean isThereAReleaseBranch = true;
-				if(gitlabService.isBranchMaster(project, branchName)) {
-					String targetBranch = gitlabService.getActualReleaseBranch(project);
-					if(targetBranch == null || targetBranch.isEmpty()) {
-						isThereAReleaseBranch = false;
-					}else {
-						gitlabService.cherryPick(project, targetBranch, commits);
+			if(commits != null && commits.size() > 0) {
+				if(gitlabService.isBranchMaster(gitlabEventPush.getProject(), branchName)
+				|| gitlabService.isBranchRelease(gitlabEventPush.getProject(), branchName)) {
+					GitlabProject project = gitlabEventPush.getProject();
+					if(gitlabService.isDevelopDefaultBranch(project)) {
+						
 					}
-				}
-				if(!isThereAReleaseBranch || gitlabService.isBranchRelease(project, branchName)) {
-					String targetBranch = GitlabService.BRANCH_DEVELOP;
-					gitlabService.cherryPick(project, targetBranch, commits);					
+					
+					boolean isThereAReleaseBranch = true;
+					if(gitlabService.isBranchMaster(project, branchName)) {
+						String targetBranch = gitlabService.getActualReleaseBranch(project);
+						if(targetBranch == null || targetBranch.isEmpty()) {
+							isThereAReleaseBranch = false;
+						}else {
+							gitlabService.cherryPick(project, targetBranch, commits);
+						}
+					}
+					if(!isThereAReleaseBranch || gitlabService.isBranchRelease(project, branchName)) {
+						String targetBranch = GitlabService.BRANCH_DEVELOP;
+						gitlabService.cherryPick(project, targetBranch, commits);					
+					}
 				}
 			}
 		}

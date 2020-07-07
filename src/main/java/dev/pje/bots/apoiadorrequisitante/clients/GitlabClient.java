@@ -40,6 +40,12 @@ public interface GitlabClient {
 			@PathVariable("projectId") String projectId,
 			@PathVariable("search") String search
 			);
+	
+	@GetMapping(value = "/api/v4/projects/{projectId}/repository/branches/{branch}", consumes = "application/json")
+	public GitlabBranchResponse getSingleRepositoryBranch(
+			@PathVariable("projectId") String projectId,
+			@PathVariable("branch") String branch
+			);
 
 	@PostMapping(value = "/api/v4/projects/{projectId}/repository/commits", consumes = "application/json")
 	public GitlabCommitResponse sendCommit(
