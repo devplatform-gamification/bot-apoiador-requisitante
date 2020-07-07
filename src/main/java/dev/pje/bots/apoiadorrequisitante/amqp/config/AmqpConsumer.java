@@ -16,6 +16,7 @@ import com.devplatform.model.jira.event.JiraEventIssue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.GitlabEventHandlerCommit;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.GitlabEventHandlerGitflow;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraEventHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraEventHandlerClassification;
 
@@ -35,6 +36,9 @@ public class AmqpConsumer {
 
 	@Autowired
 	private GitlabEventHandlerCommit gitlabEventHandlerCommit;
+
+	@Autowired
+	private GitlabEventHandlerGitflow gitlabEventHandlerGitflow;
 
 	@RabbitListener(
 			bindings = @QueueBinding(
@@ -82,6 +86,23 @@ public class AmqpConsumer {
 			String branchName = gitEventPush.getRef();
 			logger.info("[COMMIT][GITLAB] - project: " + projectName + " branch: " + branchName);
 			gitlabEventHandlerCommit.handle(gitEventPush);
+		}
+	}	
+
+	@RabbitListener(
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.gitflow-queue}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.gitlab.push.routing-key}"})
+		)
+	public void gitlabGitflowPush(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			GitlabEventPush gitEventPush = objectMapper.readValue(body, GitlabEventPush.class);
+			String projectName = gitEventPush.getProject().getName();
+			String branchName = gitEventPush.getRef();
+			logger.info("[GITFLOW][GITLAB] - project: " + projectName + " branch: " + branchName);
+			gitlabEventHandlerGitflow.handle(gitEventPush);
 		}
 	}	
 

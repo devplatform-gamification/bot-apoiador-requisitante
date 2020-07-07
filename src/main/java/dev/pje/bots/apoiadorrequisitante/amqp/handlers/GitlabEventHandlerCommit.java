@@ -35,9 +35,10 @@ public class GitlabEventHandlerCommit {
 			String[] branchNameSplited = gitlabEventPush.getRef().split("/");
 			String branchName = branchNameSplited[branchNameSplited.length - 1];
 	
-			if(gitlabService.isMonitoredBranch(gitlabEventPush.getProject(), branchName)) {
+			if(gitlabService.isMonitoredBranch(gitlabEventPush.getProject(), branchName)
+					&& gitlabEventPush.getTotalCommitsCount() > 0) {
 				String projectName = gitlabEventPush.getProject().getName();
-	
+				
 				String lastCommitId = gitlabEventPush.getCommits().get(0).getId();
 				String commitMessage = gitlabEventPush.getCommits().get(0).getMessage();
 	

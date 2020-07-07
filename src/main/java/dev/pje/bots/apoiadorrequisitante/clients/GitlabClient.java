@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import com.devplatform.model.gitlab.GitlabUser;
+import com.devplatform.model.gitlab.request.GitlabCherryPickRequest;
 import com.devplatform.model.gitlab.request.GitlabCommitRequest;
+import com.devplatform.model.gitlab.response.GitlabBranchResponse;
 import com.devplatform.model.gitlab.response.GitlabCommitResponse;
 import com.devplatform.model.gitlab.response.GitlabRepositoryTree;
 
@@ -33,10 +35,24 @@ public interface GitlabClient {
 			@PathVariable("ref") String ref
 			);
 
+	@GetMapping(value = "/api/v4/projects/{projectId}/repository/branches?search={search}", consumes = "application/json")
+	public List<GitlabBranchResponse> searchBranches(
+			@PathVariable("projectId") String projectId,
+			@PathVariable("search") String search
+			);
+
 	@PostMapping(value = "/api/v4/projects/{projectId}/repository/commits", consumes = "application/json")
 	public GitlabCommitResponse sendCommit(
 			@PathVariable("projectId") String projectId,
 			@RequestBody GitlabCommitRequest codeCommit
 			);
+
 	
+	@PostMapping(value = "/api/v4/projects/{projectId}/repository/commits/{commitSHA}/cherry_pick", consumes = "application/json")
+	public GitlabCommitResponse cherryPick(
+			@PathVariable("projectId") String projectId,
+			@PathVariable("commitSHA") String commitSHA,
+			@RequestBody GitlabCherryPickRequest cherryPick
+			);
+
 }
