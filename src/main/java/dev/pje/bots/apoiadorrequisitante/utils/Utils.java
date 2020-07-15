@@ -1,6 +1,13 @@
 package dev.pje.bots.apoiadorrequisitante.utils;
 
+import java.io.IOException;
 import java.io.StringReader;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -15,6 +22,10 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
+
+import com.devplatform.model.jira.JiraVersionReleaseNotes;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class Utils {
 	public static boolean compareAsciiIgnoreCase(String valueA, String valueB) {
@@ -86,5 +97,86 @@ public class Utils {
 	       return cd.getData();
 	    }
 	    return "?";
-	  }
+	}
+
+	public static String calculateNextOrdinaryVersion(String currentVersion, int changeIndex) {
+		String[] currentVersionArr = currentVersion.split("\\.");
+		String nextVersion = "";
+		
+		for(int i=0; i < currentVersionArr.length && i < changeIndex; i++) {
+			if(i > 0) {
+				nextVersion += ".";
+			}
+			nextVersion += currentVersionArr[i];
+		}
+		
+		if(changeIndex > 0) {
+			nextVersion += ".";
+		}
+		Integer changedItem = 0;
+		if(currentVersionArr.length >= changeIndex) {
+			String changedItemStr = currentVersionArr[changeIndex];
+			changedItem = Integer.valueOf(changedItemStr) + 1;
+		}
+		nextVersion += changedItem.toString();
+		
+		switch (changeIndex) {
+		case 0:
+			nextVersion += ".0.0.0";
+			break;
+		case 1:
+			nextVersion += ".0.0";
+			break;
+		case 2:
+			nextVersion += ".0";
+			break;
+		}
+		
+		return nextVersion;
+	}
+	
+	public static String convertObjectToJson(Object obj) {
+		ObjectMapper mapper = new ObjectMapper(); 
+		String jsonStr = null;
+        try { 
+            jsonStr = mapper.writeValueAsString(obj); 
+        }catch (IOException e) { 
+            e.printStackTrace(); 
+        }
+        return jsonStr;
+	}
+	
+	public static JiraVersionReleaseNotes convertJsonToJiraReleaseNotes(String jsonString) {
+		JiraVersionReleaseNotes  obj = null;
+		try {
+			obj = new ObjectMapper().readValue(jsonString, JiraVersionReleaseNotes.class);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+		}
+		return obj;
+	}
+	
+	public static String cleanSummary(String summary) {
+		String summaryCleaned = summary.replaceAll("\\[.*\\]", "").replaceAll("^[ ]*\\-", "").trim();
+		if(StringUtils.isNotBlank(summaryCleaned)) {
+			summaryCleaned = summaryCleaned.substring(0, 1).toUpperCase() + summaryCleaned.substring(1);
+		}
+		
+		return summaryCleaned;
+	}
+	
+	public static Date stringToDate(String stringDate, String pattern) throws ParseException {
+		DateTimeFormatter formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+		if(StringUtils.isNotBlank(pattern)) {
+			formatter = DateTimeFormatter.ofPattern(pattern);
+		}
+		ZonedDateTime zonedDateTime = ZonedDateTime.parse(stringDate, formatter);
+		
+		return Date.from(zonedDateTime.toInstant());
+	}
+	
+	public static String dateToStringPattern(Date date, String pattern) {
+		DateFormat df = new SimpleDateFormat(pattern);
+		return df.format(date);
+	}
 }

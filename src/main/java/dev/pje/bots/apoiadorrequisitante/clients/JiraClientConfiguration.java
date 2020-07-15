@@ -26,4 +26,11 @@ public class JiraClientConfiguration {
 			@Value("${clients.jira.pass}") String pass) {
 		return new BasicAuthRequestInterceptor(username, pass);
 	}
+	
+	@Bean
+	@ConditionalOnProperty(name = { "clients.slack.token" })
+	public JiraAttachmentRequestInterceptor jiraAttachmentRequestInterceptor() {
+		return new JiraAttachmentRequestInterceptor();
+	}
+
 }

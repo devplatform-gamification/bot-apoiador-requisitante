@@ -68,7 +68,7 @@ public class JiraEventHandler {
 						textoInclusao = "Incluindo " + linkTribunal +" como requisitante desta demanda de acordo com a participação de: [~" + usuario.getName() + "]";
 					}
 					jiraService.adicionarComentario(issue,textoInclusao, updateFields);
-					JiraIssueTransition edicaoAvancada = jiraService.findTransicao(issue, JiraService.TRANSICION_DEFAULT_EDICAO_AVANCADA);
+					JiraIssueTransition edicaoAvancada = jiraService.findTransicao(issue, JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA);
 					if(edicaoAvancada != null) {
 						JiraIssueTransitionUpdate issueTransitionUpdate = new JiraIssueTransitionUpdate(edicaoAvancada, updateFields);
 						jiraService.updateIssue(issue, issueTransitionUpdate);

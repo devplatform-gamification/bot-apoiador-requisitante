@@ -8,7 +8,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import com.devplatform.model.gitlab.GitlabTag;
 import com.devplatform.model.gitlab.GitlabUser;
+import com.devplatform.model.gitlab.request.GitlabBranchRequest;
 import com.devplatform.model.gitlab.request.GitlabCherryPickRequest;
 import com.devplatform.model.gitlab.request.GitlabCommitRequest;
 import com.devplatform.model.gitlab.response.GitlabBranchResponse;
@@ -46,6 +48,13 @@ public interface GitlabClient {
 			@PathVariable("projectId") String projectId,
 			@PathVariable("branch") String branch
 			);
+	
+	@PostMapping(value = "/api/v4/projects/{projectId}/repository/branches", consumes = "application/json")
+	public GitlabBranchResponse createRepositoryBranch(
+			@PathVariable("projectId") String projectId,
+			@RequestBody GitlabBranchRequest branchRequest
+			);
+	
 
 	@PostMapping(value = "/api/v4/projects/{projectId}/repository/commits", consumes = "application/json")
 	public GitlabCommitResponse sendCommit(
@@ -60,5 +69,12 @@ public interface GitlabClient {
 			@PathVariable("commitSHA") String commitSHA,
 			@RequestBody GitlabCherryPickRequest cherryPick
 			);
+	
+	@GetMapping(value = "/api/v4/projects/{projectId}/repository/tags/{tagname}", consumes = "application/json")
+	public GitlabTag getSingleRepositoryTag(
+			@PathVariable("projectId") String projectId,
+			@PathVariable("tagname") String tagName
+			);
+	
 
 }

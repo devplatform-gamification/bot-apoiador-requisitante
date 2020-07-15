@@ -28,7 +28,9 @@ spring:
         # TODO - migrar esta queue para um novo servico separado deste daqui - pre-requisito: o clientejira deve estar separado em um servico fora deste aqui
         classification-queue: ${RABBIT_SUPEREPICTHEME_QUEUE:super-epic-theme.queue}
         commit-script-queue:  ${RABBIT_COMMIT_SCRIPT_QUEUE:commit-script.queue}
-        gitflow-queue: ${RABBIT_COMMIT_SCRIPT_QUEUE:gitflow-queue}
+        gitflow-queue: ${RABBIT_GITFLOW_QUEUE:gitflow-queue}
+        release-notes-queue: ${JIRA_RELEASE_NOTES_QUEUE:release-notes-queue}
+        version-launch-queue: ${JIRA_VERSION_LAUNCH_QUEUE:version-launch-queue}
         jira:
           issue-created:
             routing-key: ${RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_CREATED.*}

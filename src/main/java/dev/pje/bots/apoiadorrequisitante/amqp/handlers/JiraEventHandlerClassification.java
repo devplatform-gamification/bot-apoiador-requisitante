@@ -41,7 +41,7 @@ public class JiraEventHandlerClassification {
 		try {
 			jiraService.atualizarAreasConhecimento(issue, areasConhecimento, updateFields);
 			if(!updateFields.isEmpty()) {
-				JiraIssueTransition edicaoAvancada = jiraService.findTransicao(issue, JiraService.TRANSICION_DEFAULT_EDICAO_AVANCADA);
+				JiraIssueTransition edicaoAvancada = jiraService.findTransicao(issue, JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA);
 				if(edicaoAvancada != null) {
 					JiraIssueTransitionUpdate issueTransitionUpdate = new JiraIssueTransitionUpdate(edicaoAvancada, updateFields);
 					jiraService.updateIssue(issue, issueTransitionUpdate);

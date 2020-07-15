@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 
 import com.devplatform.model.gitlab.GitlabCommit;
 import com.devplatform.model.gitlab.GitlabProject;
+import com.devplatform.model.gitlab.GitlabTag;
+import com.devplatform.model.gitlab.request.GitlabBranchRequest;
 import com.devplatform.model.gitlab.request.GitlabCherryPickRequest;
 import com.devplatform.model.gitlab.request.GitlabCommitActionRequest;
 import com.devplatform.model.gitlab.request.GitlabCommitActionsEnum;
@@ -49,11 +51,15 @@ public class GitlabService {
 	public static final String BRANCH_MASTER = "master";
 	public static final String BRANCH_RELEASE_CANDIDATE_PREFIX = "release-";
 	
+	public static final String PROJECT_DOCUMENTACO = "276";
+	
 	public static final String SCRIPS_MIGRATION_BASE_PATH = "pje-comum/src/main/resources/migrations/";
 	public static final String SCRIPT_EXTENSION = ".sql";
 	public static final String POMXML = "pom.xml";
 	public static final String AUTHOR_NAME = "Bot Revisor do PJe";
 	public static final String AUTHOR_EMAIL = "bot.revisor.pje@cnj.jus.br";
+	
+	public static final String GITLAB_DATETIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSS";
 	
 	public String getBranchVersion(GitlabProject project, String branch) {
 		String ref;
@@ -115,9 +121,9 @@ public class GitlabService {
 			for (GitlabScriptVersaoVO scriptToChange : scriptsToChange) {
 				GitlabCommitActionRequest action = new GitlabCommitActionRequest();
 				action.setAction(GitlabCommitActionsEnum.MOVE);
-				action.setPrevious_path(scriptToChange.getNameWithPath());
-				action.setFile_path(scriptToChange.getNewNameWithPath());
-				action.setLast_commit_id(lastCommitId);
+				action.setPreviousPath(scriptToChange.getNameWithPath());
+				action.setFilePath(scriptToChange.getNewNameWithPath());
+				action.setLastCommitId(lastCommitId);
 				
 				actions.add(action);
 			}
@@ -139,6 +145,37 @@ public class GitlabService {
 				telegramService.sendBotMessage(errorMessage);
 			}
 		}
+	}
+	
+	public GitlabCommitResponse sendTextAsFileToBranch(String projectId, GitlabBranchResponse branch, String filePath, String content, String commitMessage) {
+		GitlabCommitRequest commit = new GitlabCommitRequest();
+		commit.setBranch(branch.getBranchName());
+		StringBuilder sb = new StringBuilder();
+		sb
+			.append("[")
+			.append(branch.getBranchName())
+			.append("] ");
+		if(commitMessage != null){
+			sb.append(commitMessage);
+		}else{
+			sb.append("Adicionando arquivo - ")
+				.append(filePath);
+		}
+		commit.setCommitMessage(sb.toString());
+		commit.setAuthorName(AUTHOR_NAME);
+		commit.setAuthorEmail(AUTHOR_EMAIL);
+		
+		GitlabCommitActionRequest actionRequest = new GitlabCommitActionRequest();
+		// TODO - verificar se o arquivo já existe, se já existir substitui
+		actionRequest.setAction(GitlabCommitActionsEnum.CREATE);
+		actionRequest.setContent(content);
+		actionRequest.setFilePath(filePath);
+		
+		List<GitlabCommitActionRequest> actionRequestList = new ArrayList<>();
+		actionRequestList.add(actionRequest);
+		commit.setActions(actionRequestList);
+		
+		return gitlabClient.sendCommit(projectId, commit);
 	}
 	
 	public void cherryPick(GitlabProject project, String branchName, List<GitlabCommit> commits) {
@@ -173,6 +210,18 @@ public class GitlabService {
 		}
 	}
 	
+	public GitlabTag getVersionTag(String projectId, String version) {
+		GitlabTag tag = null;
+		if(StringUtils.isNotBlank(version) && StringUtils.isNotBlank(projectId)) {
+			try {
+				tag = gitlabClient.getSingleRepositoryTag(projectId, version);
+			}catch (Exception e) {
+				logger.error(e.getLocalizedMessage());
+			}
+		}
+		return tag;
+	}
+	
 	public boolean isDevelopDefaultBranch(GitlabProject project) {
 		String projectId = project.getId().toString();
 		GitlabBranchResponse develop = gitlabClient.getSingleRepositoryBranch(projectId, BRANCH_DEVELOP);
@@ -193,6 +242,34 @@ public class GitlabService {
 		return branchName.toLowerCase().startsWith(BRANCH_RELEASE_CANDIDATE_PREFIX);
 	}
 	
+	public GitlabBranchResponse createBranch(String projectId, String branchName, String branchRef) {
+		GitlabBranchRequest branch = new GitlabBranchRequest();
+
+		branch.setBranch(branchName);
+		branch.setRef(branchRef);
+		
+		return gitlabClient.createRepositoryBranch(projectId, branch);
+	}
+	
+	public GitlabBranchResponse getSingleRepositoryBranch(String projectId, String branchName){
+		GitlabBranchResponse branch = null;
+		try{
+			branch = gitlabClient.getSingleRepositoryBranch(projectId, branchName);
+		}catch (Exception e) {
+			logger.error("Branch Not Found: " + e.getLocalizedMessage());
+		}
+		return branch;
+	}
+	
+	public GitlabBranchResponse createBranchProjetoDocumentacao(String projectId, String branchName) {
+		// verifica se já existe o branch, se já existir
+		GitlabBranchResponse branch = getSingleRepositoryBranch(projectId, branchName);
+		if(branch == null) {
+			branch = createBranch(projectId, branchName, BRANCH_MASTER);
+		}
+		return branch;
+	}
+	
 	public String getActualReleaseBranch(GitlabProject project) {
 		String actualReleaseBranch = null;
 		List<GitlabBranchResponse> branches = gitlabClient.searchBranches(project.getId().toString(), BRANCH_RELEASE_CANDIDATE_PREFIX);
@@ -210,9 +287,9 @@ public class GitlabService {
 						int diff = 0;
 				    	if(versionNumbers != null && lastVersionNumbers != null) {
 				    		if(versionNumbers.size() >= lastVersionNumbers.size()) {
-				    			diff = compareVersions(versionNumbers, lastVersionNumbers);
-				    		}else {
 				    			diff = (-1) * compareVersions(lastVersionNumbers, versionNumbers);
+				    		}else {
+				    			diff = compareVersions(versionNumbers, lastVersionNumbers);
 				    		}
 				    	}
 				    	if(diff > 0) {
