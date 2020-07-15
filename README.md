@@ -1,3 +1,5 @@
+![Java CI with Maven](https://github.com/devplatform-gamification/bot-apoiador-requisitante/workflows/Java%20CI%20with%20Maven/badge.svg?branch=master)
+
 # bot-apoiador-requisitante
 Bot para gerenciar a identificação de apoiador requisitante nas issues do jira.
 - jira -- issue created + issue updated
