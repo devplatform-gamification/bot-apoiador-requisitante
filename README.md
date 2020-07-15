@@ -27,6 +27,7 @@ Bot para gerenciar a identificação de apoiador requisitante nas issues do jira
 - APP_PORT [APP-PORT] # default: 8901
 - RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX [jira-issuecreated-routingkey-prefix] # default: dev-platform.jira.ISSUE_CREATED.*
 - RABBIT_JIRA_COMMENT_CREATED_ROUTINGKEY_PREFIX [jira-issueupdated-routingkey-prefix] # default: dev-platform.jira.ISSUE_UPDATED.*
+- RABBIT_GITLAB_PUSH_ROUTINGKEY_PREFIX [gitlab-push-routing-key] # default: dev-platform.gitlab.PUSH
 
 - SERVICE_JIRA_URL [client-jira-url] # default: my-jira-url
 - SERVICE_JIRA_USER [client-jira-user] # default: my-user
