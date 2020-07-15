@@ -30,6 +30,13 @@ public interface GitlabClient {
 			@PathVariable("ref") String ref
 			);
 
+	@GetMapping(value = "/api/v4/projects/{projectId}/repository/files/{filepath}?ref={ref}", consumes = "application/json")
+	public Object getFile(
+			@PathVariable("projectId") String projectId,
+			@PathVariable("filepath") String filepath,
+			@PathVariable("ref") String ref
+			);
+
 	@GetMapping(value = "/api/v4/projects/{projectId}/repository/tree?path={path}&per_pag=300&ref={ref}", consumes = "application/json")
 	public List<GitlabRepositoryTree> getRepositoryTree(
 			@PathVariable("projectId") String projectId,

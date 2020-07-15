@@ -2,11 +2,15 @@ package dev.pje.bots.apoiadorrequisitante.utils;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -178,5 +182,20 @@ public class Utils {
 	public static String dateToStringPattern(Date date, String pattern) {
 		DateFormat df = new SimpleDateFormat(pattern);
 		return df.format(date);
+	}
+	
+	public static String getPathFromFilePath(String filePath) {
+		String[] scriptPath = filePath.split("/");
+		List<String> dirs = new ArrayList<String>();
+		if(scriptPath.length > 0) {
+			for (int i=0; (i < (scriptPath.length - 1)); i++) {
+				dirs.add(scriptPath[i]);
+			}
+		}
+		return String.join("/", dirs);
+	}
+	
+	public static String urlEncode(String text) throws UnsupportedEncodingException {
+		return URLEncoder.encode(text, StandardCharsets.UTF_8.toString());
 	}
 }

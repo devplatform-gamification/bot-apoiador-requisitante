@@ -80,13 +80,16 @@ public class GitlabService {
 	}
 	
 	public List<GitlabRepositoryTree> getFilesFromPath(GitlabProject project, String branch, String path) {
+		String projectId = project.getId().toString();
+		return getFilesFromPath(projectId, branch, path);
+	}
+	public List<GitlabRepositoryTree> getFilesFromPath(String projectId, String branch, String path) {
 		String ref;
 		if(BRANCH_MASTER.equals(branch)) {
 			ref = branch;
 		}else {
 			ref = BRANCH_DEVELOP;
 		}
-		String projectId = project.getId().toString();
 		List<GitlabRepositoryTree> listElements = gitlabClient.getRepositoryTree(projectId, path, ref);
 		
 		List<GitlabRepositoryTree> listFiles = new ArrayList<>();
@@ -148,12 +151,14 @@ public class GitlabService {
 	}
 	
 	public GitlabCommitResponse sendTextAsFileToBranch(String projectId, GitlabBranchResponse branch, String filePath, String content, String commitMessage) {
+		String branchName = branch.getBranchName();
+		
 		GitlabCommitRequest commit = new GitlabCommitRequest();
-		commit.setBranch(branch.getBranchName());
+		commit.setBranch(branchName);
 		StringBuilder sb = new StringBuilder();
 		sb
 			.append("[")
-			.append(branch.getBranchName())
+			.append(branchName)
 			.append("] ");
 		if(commitMessage != null){
 			sb.append(commitMessage);
@@ -167,7 +172,13 @@ public class GitlabService {
 		
 		GitlabCommitActionRequest actionRequest = new GitlabCommitActionRequest();
 		// TODO - verificar se o arquivo já existe, se já existir substitui
-		actionRequest.setAction(GitlabCommitActionsEnum.CREATE);
+		GitlabCommitActionsEnum commitAction = GitlabCommitActionsEnum.CREATE;
+		
+		String releaseFile = getRawFile(projectId, filePath, branchName);
+		if(StringUtils.isNotBlank(releaseFile)){
+			commitAction = GitlabCommitActionsEnum.UPDATE;
+		}
+		actionRequest.setAction(commitAction);
 		actionRequest.setContent(content);
 		actionRequest.setFilePath(filePath);
 		
@@ -176,6 +187,21 @@ public class GitlabService {
 		commit.setActions(actionRequestList);
 		
 		return gitlabClient.sendCommit(projectId, commit);
+	}
+	
+	public String getRawFile(String projectId, String filePath, String ref){
+		String releaseFile = null;
+		try{
+			String filePathEncoded = Utils.urlEncode(filePath);
+			releaseFile = gitlabClient.getRawFile(projectId, filePathEncoded, ref);
+		}catch (Exception e) {
+			if(e instanceof UnsupportedEncodingException){
+				logger.error("Filepath could not be used: " + filePath + " - error: " + e.getLocalizedMessage());
+			}else{
+				logger.error("File not found " + e.getLocalizedMessage());
+			}
+		}
+		return releaseFile;
 	}
 	
 	public void cherryPick(GitlabProject project, String branchName, List<GitlabCommit> commits) {
