@@ -29,3 +29,9 @@ Bot para gerenciar a identificação de apoiador requisitante nas issues do jira
 - SERVICE_JIRA_URL [client-jira-url] # default: my-jira-url
 - SERVICE_JIRA_USER [client-jira-user] # default: my-user
 - SERVICE_JIRA_PASSWORD [client-jira-pass] # default: my-pass
+
+- SERVICE_GITLAB_URL [client-gitlab-url] # default: my-gitlab-url
+- SERVICE_GITLAB_TOKEN [client-gitlab-token] # default: my-gitlab-token
+
+- SERVICE_TELEGRAM_TOKEN [client-telegram-token] # default: my-telegram-bot-token
+	
