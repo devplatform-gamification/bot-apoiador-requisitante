@@ -455,7 +455,7 @@ public class JiraService {
 		JiraIssueTransition founded = null;
 		JiraIssueTransitions transitions = this.recuperarTransicoesIssue(issue);
 		for (JiraIssueTransition transition : transitions.getTransitions()) {
-			if(transition.getId().equalsIgnoreCase(transitionName)) {
+			if(transition.getName().equalsIgnoreCase(transitionName)) {
 				founded = transition;
 				break;
 			}
