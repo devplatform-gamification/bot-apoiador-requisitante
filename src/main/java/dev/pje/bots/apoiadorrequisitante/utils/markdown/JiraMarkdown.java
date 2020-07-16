@@ -8,6 +8,8 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 
 public class JiraMarkdown implements MarkdownInterface{
+	
+	public static final String NAME = "JiraMarkdown";
 
 	@Override
 	public String normal(String text) {
@@ -115,8 +117,13 @@ public class JiraMarkdown implements MarkdownInterface{
 	}
 	
 	@Override
+	public String listItem(String text) {
+		return newLine() + "- " + text;
+	}
+	
+	@Override
 	public String paragraph(String text) {
-		return "\n" + text;
+		return newLine() + text;
 	}
 
 	@Override

@@ -60,3 +60,9 @@ clients:
   telegram:
     url: https://api.telegram.org/
     token: ${SERVICE_TELEGRAM_TOKEN:my-telegram-bot-token}
+
+project:
+  documentation.url: ${PROJECT_DOCUMENTATION_URL:my-documentation-url}
+  telegram.channel:
+    name: ${PROJECT_TELEGRAM_CHANNEL_NAME:my-telegram-channel-name}
+    url: ${PROJECT_TELEGRAM_CHANNEL_URL:my-telegram-channel-url}

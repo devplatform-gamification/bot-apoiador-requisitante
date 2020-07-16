@@ -116,6 +116,10 @@ public class VersionLaunchHandler {
 				filePath, texto, "Gerando release notes da versão " + releaseNotes.getVersion());
 
 		logger.info(commitResponse.toString());
+		
+		// TODO - criar include do documento gerado no arquivo: release-notes-completo.adoc
+		// TODO - criar include do documento gerado no arquivo: index.adoc
+		
 	}
 	
 	private String getPathNameReleaseNotes(JiraProject project, String versao) {

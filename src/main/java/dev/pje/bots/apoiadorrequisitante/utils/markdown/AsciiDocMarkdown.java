@@ -9,6 +9,8 @@ import java.util.UUID;
 import org.apache.commons.lang3.StringUtils;
 
 public class AsciiDocMarkdown implements MarkdownInterface{
+	
+	public static final String NAME = "AsciiDocMarkdown";
 
 	@Override
 	public String normal(String text) {
@@ -167,7 +169,12 @@ public class AsciiDocMarkdown implements MarkdownInterface{
 	public String ruler() {
 		return "'''" + newLine();
 	}
-
+	
+	@Override
+	public String listItem(String text) {
+		return newLine() + "* " + text;
+	}
+	
 	@Override
 	public String paragraph(String text) {
 		return newLine() + newLine() + normal(text) + newLine();

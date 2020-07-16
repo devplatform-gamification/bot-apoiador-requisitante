@@ -26,6 +26,13 @@ public class ReleaseNotesConverter {
 	
 	@Value("${clients.jira.url}")
 	private String JIRAURL;
+	@Value("${project.documentation.url}")
+	private String DOCSURL;
+	@Value("${project.telegram.channel.url}")
+	private String TELEGRAM_CHANNEL_URL;
+	@Value("${project.telegram.channel.name}")
+	private String tELEGRAM_CHANNEL_NAME;
+
 	private static final String PATH_JQL = "/issues/?jql=";
 	private static final String PATH_ISSUE = "/browse/";
 	private static final String PATH_USERPROFILE = "/secure/ViewProfile.jspa?name=";
@@ -57,21 +64,22 @@ public class ReleaseNotesConverter {
 	
 	public String convert(JiraVersionReleaseNotes releaseNotes, MarkdownInterface markdown) {
 		this.markdown = markdown;
-		StringBuilder jiraMarkdownText = new StringBuilder();
+		StringBuilder markdownText = new StringBuilder();
 		if(releaseNotes != null && releaseNotes.getVersion() != null && releaseNotes.getVersionType() != null) {
+			markdownText.append(getSpecificMarkdownCode(releaseNotes));
 			// título
 			String linkToVersion = releaseNotes.getVersion();
 			if(StringUtils.isNotBlank(releaseNotes.getJql())) {
 				linkToVersion = markdown.link(getPathJql(releaseNotes.getJql()), releaseNotes.getVersion());
 			}
-			jiraMarkdownText.append(markdown.head1("Versão " + linkToVersion));
+			markdownText.append(markdown.head1("Versão " + linkToVersion));
 			
 			if(StringUtils.isNotBlank(releaseNotes.getProject())) {
-				jiraMarkdownText.append(markdown.head2(releaseNotes.getProject()));
+				markdownText.append(markdown.head2(releaseNotes.getProject()));
 			}
 
 			// autoria
-			jiraMarkdownText
+			markdownText
 				.append(markdown.link(getPathUserProfile(releaseNotes.getAuthor().getName()), releaseNotes.getAuthor().getName()))
 				.append(" disponibilizou esta versão");
 
@@ -79,14 +87,14 @@ public class ReleaseNotesConverter {
 				Date releaseDate;
 				try {
 					releaseDate = Utils.stringToDate(releaseNotes.getReleaseDate(), null);
-					jiraMarkdownText
+					markdownText
 						.append(" em ")
 						.append(Utils.dateToStringPattern(releaseDate, "dd/MM/yyyy"));
 				} catch (ParseException e) {
 					e.printStackTrace();
 				}
 			}
-			jiraMarkdownText.append(markdown.newLine());
+			markdownText.append(markdown.newLine());
 
 			// tipo de versao + resumo das issues (núm de issues de cada tipo)
 			StringBuilder textToHighlight = new StringBuilder()
@@ -136,35 +144,35 @@ public class ReleaseNotesConverter {
 			textToHighlight
 				.append(String.join(" - ", contadorTipoIssue));
 			
-			jiraMarkdownText
+			markdownText
 				.append(markdown.highlight(textToHighlight.toString()));
 			
 			// destaque da versão
 			if(StringUtils.isNotBlank(releaseNotes.getVersionHighlights())) {
-				jiraMarkdownText
+				markdownText
 					.append(markdown.quote(releaseNotes.getVersionHighlights()));
 			}
 			// exibir por tipo
 			if(releaseNotes.getNewFeatures() != null && !releaseNotes.getNewFeatures().isEmpty()) {
-				jiraMarkdownText
+				markdownText
 					.append(getIssuesAsList(
 								JiraVersionReleaseNotesIssueTypeEnum.NEW_FEATURE.toString(), 
 								releaseNotes.getNewFeatures()));
 			}
 			if(releaseNotes.getImprovements() != null && !releaseNotes.getImprovements().isEmpty()) {
-				jiraMarkdownText
+				markdownText
 				.append(getIssuesAsList(
 							JiraVersionReleaseNotesIssueTypeEnum.IMPROVEMENT.toString(), 
 							releaseNotes.getImprovements()));
 			}
 			if(releaseNotes.getBugs() != null && !releaseNotes.getBugs().isEmpty()) {
-				jiraMarkdownText
+				markdownText
 				.append(getIssuesAsList(
 							JiraVersionReleaseNotesIssueTypeEnum.BUGFIX.toString(), 
 							releaseNotes.getBugs()));
 			}
 			if(releaseNotes.getMinorChanges() != null && !releaseNotes.getMinorChanges().isEmpty()) {
-				jiraMarkdownText
+				markdownText
 				.append(getIssuesAsList(
 							JiraVersionReleaseNotesIssueTypeEnum.MINOR_CHANGES.toString(), 
 							releaseNotes.getMinorChanges()));
@@ -172,11 +180,11 @@ public class ReleaseNotesConverter {
 			
 			// desenvolvedores
 			if(desenvs != null && !desenvs.isEmpty()) {
-				jiraMarkdownText
+				markdownText
 					.append(markdown.head3("Desenvolvedores"));
 				
 				for (IssueAuthorPointsVO desenv : desenvs) {
-					jiraMarkdownText
+					markdownText
 						.append("- ")
 						.append(markdown.link(getPathUserProfile(desenv.getAuthor().getName()), "@"+desenv.getAuthor().getName()))
 						.append(" +")
@@ -197,20 +205,59 @@ public class ReleaseNotesConverter {
 						break;
 					}
 					if(icon != null) {
-						jiraMarkdownText.append(icon);
+						markdownText.append(icon);
 					}
 					if(desenv.isMvp()) {
-						jiraMarkdownText.append(markdown.MVPIco());
+						markdownText.append(markdown.MVPIco());
 					}
-					jiraMarkdownText.append(markdown.newLine());
+					markdownText.append(markdown.newLine());
 				}
 			}
 			
+			// outras informações
+			markdownText
+				.append(markdown.head3("Outras informações"))
+				.append(markdown.listItem("Link desta versão no jira: Versão " + linkToVersion))
+				.append(markdown.listItem("Veja outros release notes: " 
+						+ markdown.link(DOCSURL + "/projetos/pje-legacy/release-notes/index.html", "aqui")))
+				.append(markdown.listItem("Para mais informações, acesse a documentação do projeto em " 
+						+ markdown.link(DOCSURL)))
+				.append(markdown.highlight("Acompanhe as notícias do PJe em primeira-mão no canal (público) do telegram: " 
+						+ markdown.link(TELEGRAM_CHANNEL_URL, "@" + tELEGRAM_CHANNEL_NAME)));
 		}else {
-			jiraMarkdownText.append(markdown.head1("Não foi possível gerar versão para o jira, não há informações obrigatórias como versão e tipo de versão."));
+			markdownText.append(markdown.head1("Não foi possível gerar versão para o jira, não há informações obrigatórias como versão e tipo de versão."));
 		}
 		
-		return jiraMarkdownText.toString();
+		return markdownText.toString();
+	}
+	
+	private String getSpecificMarkdownCode(JiraVersionReleaseNotes releaseNotes) {
+		StringBuilder sb = new StringBuilder();
+		if(markdown.getName().equals("AsciiDocMarkdown")) {
+			sb.append(":releaseVersion: ")
+				.append(releaseNotes.getVersion())
+				.append(markdown.newLine());
+			if(StringUtils.isNotBlank(releaseNotes.getReleaseDate())) {
+				Date releaseDate;
+				try {
+					releaseDate = Utils.stringToDate(releaseNotes.getReleaseDate(), null);
+					sb.append(":releaseDate: ")
+					.append(Utils.dateToStringPattern(releaseDate, "dd/MM/yyyy"))
+					.append(markdown.newLine());
+				} catch (ParseException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		sb.append("include::{docdir}/projetos/pje-legacy/_service-attributes.adoc[]")
+			.append(markdown.newLine())
+			.append("include::{docdir}/projetos/_general-attributes.adoc[]")
+			.append(markdown.newLine())
+			.append(markdown.newLine())
+			.append("[#{serviceTitle}-v" + releaseNotes.getVersion() + "]")
+			.append(markdown.newLine());
+		
+		return sb.toString();
 	}
 	
 	private String getIssuesAsList(String title, List<JiraVersionReleaseNoteIssues> issuesList) {

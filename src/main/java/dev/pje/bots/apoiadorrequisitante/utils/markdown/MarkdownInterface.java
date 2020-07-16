@@ -3,6 +3,12 @@ package dev.pje.bots.apoiadorrequisitante.utils.markdown;
 import java.util.Map;
 
 public interface MarkdownInterface {
+
+	public String NAME = "MarkdownInterface";
+	public default String getName() {
+		return NAME;
+	}
+	
 	public String normal(String text);
 	
 	public String head1(String text);
@@ -44,6 +50,8 @@ public interface MarkdownInterface {
 	public String newLine();
 
 	public String ruler();
+	
+	public String listItem(String text);
 	
 	public String paragraph(String text);
 
