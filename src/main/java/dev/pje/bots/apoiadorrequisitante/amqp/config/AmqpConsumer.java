@@ -65,8 +65,9 @@ public class AmqpConsumer {
 	}	
 
 	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.classification-queue.auto-startup}",
 			bindings = @QueueBinding(
-				value = @Queue(value = "${spring.rabbitmq.template.custom.classification-queue}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				value = @Queue(value = "${spring.rabbitmq.template.custom.classification-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
 				key = {"${spring.rabbitmq.template.custom.jira.issue-created.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
 		)
@@ -81,8 +82,9 @@ public class AmqpConsumer {
 	}	
 
 	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.commit-script-queue.auto-startup}",
 			bindings = @QueueBinding(
-				value = @Queue(value = "${spring.rabbitmq.template.custom.commit-script-queue}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				value = @Queue(value = "${spring.rabbitmq.template.custom.commit-script-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
 				key = {"${spring.rabbitmq.template.custom.gitlab.push.routing-key}"})
 		)
@@ -98,8 +100,9 @@ public class AmqpConsumer {
 	}	
 
 	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.gitflow-queue.auto-startup}",
 			bindings = @QueueBinding(
-				value = @Queue(value = "${spring.rabbitmq.template.custom.gitflow-queue}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				value = @Queue(value = "${spring.rabbitmq.template.custom.gitflow-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
 				key = {"${spring.rabbitmq.template.custom.gitlab.push.routing-key}"})
 		)
@@ -114,35 +117,37 @@ public class AmqpConsumer {
 		}
 	}	
 
-//	@RabbitListener(
-//			bindings = @QueueBinding(
-//				value = @Queue(value = "${spring.rabbitmq.template.custom.release-notes-queue}", durable = "true", autoDelete = "false", exclusive = "false"), 
-//				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
-//				key = {"${spring.rabbitmq.template.custom.jira.issue-created.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
-//		)
-//	public void generateReleaseNotes(Message msg) throws Exception {
-//		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
-//			String body = new String(msg.getBody());
-//			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
-//			String issueKey = jiraEventIssue.getIssue().getKey();
-//			logger.info(JiraEventHandlerReleaseNotes.MESSAGE_PREFIX + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
-//			jiraEventHandlerReleaseNotes.handle(jiraEventIssue);
-//		}
-//	}	
-//
-//	@RabbitListener(
-//			bindings = @QueueBinding(
-//				value = @Queue(value = "${spring.rabbitmq.template.custom.version-launch-queue}", durable = "true", autoDelete = "false", exclusive = "false"), 
-//				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
-//				key = {"${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
-//		)
-//	public void versionLaunch(Message msg) throws Exception {
-//		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
-//			String body = new String(msg.getBody());
-//			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
-//			String issueKey = jiraEventIssue.getIssue().getKey();
-//			logger.info(VersionLaunchHandler.MESSAGE_PREFIX + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
-//			versionLaunchHandler.handle(jiraEventIssue);
-//		}
-//	}
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.release-notes-queue.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.release-notes-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.jira.issue-created.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
+		)
+	public void generateReleaseNotes(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
+			String issueKey = jiraEventIssue.getIssue().getKey();
+			logger.info(JiraEventHandlerReleaseNotes.MESSAGE_PREFIX + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+			jiraEventHandlerReleaseNotes.handle(jiraEventIssue);
+		}
+	}	
+
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.version-launch-queue.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.version-launch-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
+		)
+	public void versionLaunch(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
+			String issueKey = jiraEventIssue.getIssue().getKey();
+			logger.info(VersionLaunchHandler.MESSAGE_PREFIX + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+			versionLaunchHandler.handle(jiraEventIssue);
+		}
+	}
 }
