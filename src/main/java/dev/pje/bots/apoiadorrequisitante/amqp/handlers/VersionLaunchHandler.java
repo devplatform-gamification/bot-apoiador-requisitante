@@ -205,7 +205,7 @@ public class VersionLaunchHandler {
 	
 	private void enviaAlteracao(JiraIssue issue, Map<String, Object> updateFields) throws JsonProcessingException{
 		if(!updateFields.isEmpty()) {
-			JiraIssueTransition generateReleaseNotes = jiraService.findTransicao(issue, TRANSICTION_REGENERATE_RELEASE_NOTES);
+			JiraIssueTransition generateReleaseNotes = jiraService.findTransitionByName(issue, TRANSICTION_REGENERATE_RELEASE_NOTES);
 			if(generateReleaseNotes != null) {
 				JiraIssueTransitionUpdate issueTransitionUpdate = new JiraIssueTransitionUpdate(generateReleaseNotes, updateFields);
 				logger.info("update string: " + Utils.convertObjectToJson(issueTransitionUpdate));

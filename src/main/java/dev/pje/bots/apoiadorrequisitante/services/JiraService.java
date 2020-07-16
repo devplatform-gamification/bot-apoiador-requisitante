@@ -450,18 +450,31 @@ public class JiraService {
 		}
 		return superEpicThemes;
 	}
-	
-	public JiraIssueTransition findTransicao(JiraIssue issue, String transitionId) {
-		JiraIssueTransition transicaoEncontrada = null;
-		JiraIssueTransitions transicoes = this.recuperarTransicoesIssue(issue);
-		for (JiraIssueTransition transicao : transicoes.getTransitions()) {
-			if(transicao.getId().equalsIgnoreCase(transitionId)) {
-				transicaoEncontrada = transicao;
+
+	public JiraIssueTransition findTransitionByName(JiraIssue issue, String transitionName) {
+		JiraIssueTransition founded = null;
+		JiraIssueTransitions transitions = this.recuperarTransicoesIssue(issue);
+		for (JiraIssueTransition transition : transitions.getTransitions()) {
+			if(transition.getId().equalsIgnoreCase(transitionName)) {
+				founded = transition;
 				break;
 			}
 		}
 		
-		return transicaoEncontrada;
+		return founded;
+	}
+	
+	public JiraIssueTransition findTransitionById(JiraIssue issue, String transitionId) {
+		JiraIssueTransition founded = null;
+		JiraIssueTransitions transitions = this.recuperarTransicoesIssue(issue);
+		for (JiraIssueTransition transition : transitions.getTransitions()) {
+			if(transition.getId().equalsIgnoreCase(transitionId)) {
+				founded = transition;
+				break;
+			}
+		}
+		
+		return founded;
 	}
 	
 	public String getJqlIssuesPendentesTribunalRequisitante(String tribunal) {

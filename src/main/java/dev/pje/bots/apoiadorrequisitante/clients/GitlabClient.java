@@ -15,15 +15,19 @@ import com.devplatform.model.gitlab.request.GitlabCherryPickRequest;
 import com.devplatform.model.gitlab.request.GitlabCommitRequest;
 import com.devplatform.model.gitlab.response.GitlabBranchResponse;
 import com.devplatform.model.gitlab.response.GitlabCommitResponse;
+import com.devplatform.model.gitlab.response.GitlabRepositoryFile;
 import com.devplatform.model.gitlab.response.GitlabRepositoryTree;
 
-@FeignClient(name = "gitlab", url = "${clients.gitlab.url}", configuration = SlackClientConfiguration.class)
+import dev.pje.bots.apoiadorrequisitante.annotations.DecodeSlash;
+
+@FeignClient(name = "gitlab", url = "${clients.gitlab.url}", configuration = GitlabClientConfiguration.class)
 public interface GitlabClient {
 
 	@GetMapping(value = "/api/v4/user", consumes = "application/json")
 	public GitlabUser whoami();
 	
 	@GetMapping(value = "/api/v4/projects/{projectId}/repository/files/{filepath}/raw?ref={ref}", consumes = "application/json")
+	@DecodeSlash(value = false)
 	public String getRawFile(
 			@PathVariable("projectId") String projectId,
 			@PathVariable("filepath") String filepath,
@@ -31,11 +35,13 @@ public interface GitlabClient {
 			);
 
 	@GetMapping(value = "/api/v4/projects/{projectId}/repository/files/{filepath}?ref={ref}", consumes = "application/json")
-	public Object getFile(
+	@DecodeSlash(value = false)
+	public GitlabRepositoryFile getFile(
 			@PathVariable("projectId") String projectId,
 			@PathVariable("filepath") String filepath,
 			@PathVariable("ref") String ref
 			);
+	
 
 	@GetMapping(value = "/api/v4/projects/{projectId}/repository/tree?path={path}&per_pag=300&ref={ref}", consumes = "application/json")
 	public List<GitlabRepositoryTree> getRepositoryTree(

@@ -24,6 +24,7 @@ import com.devplatform.model.gitlab.request.GitlabCommitActionsEnum;
 import com.devplatform.model.gitlab.request.GitlabCommitRequest;
 import com.devplatform.model.gitlab.response.GitlabBranchResponse;
 import com.devplatform.model.gitlab.response.GitlabCommitResponse;
+import com.devplatform.model.gitlab.response.GitlabRepositoryFile;
 import com.devplatform.model.gitlab.response.GitlabRepositoryTree;
 import com.devplatform.model.gitlab.vo.GitlabScriptVersaoVO;
 
@@ -174,8 +175,8 @@ public class GitlabService {
 		// TODO - verificar se o arquivo já existe, se já existir substitui
 		GitlabCommitActionsEnum commitAction = GitlabCommitActionsEnum.CREATE;
 		
-		String releaseFile = getRawFile(projectId, filePath, branchName);
-		if(StringUtils.isNotBlank(releaseFile)){
+		GitlabRepositoryFile releaseFile = getFile(projectId, filePath, branchName);
+		if(releaseFile != null){
 			commitAction = GitlabCommitActionsEnum.UPDATE;
 		}
 		actionRequest.setAction(commitAction);
@@ -189,11 +190,11 @@ public class GitlabService {
 		return gitlabClient.sendCommit(projectId, commit);
 	}
 	
-	public String getRawFile(String projectId, String filePath, String ref){
-		String releaseFile = null;
+	public GitlabRepositoryFile getFile(String projectId, String filePath, String ref){
+		GitlabRepositoryFile file = null;
 		try{
 			String filePathEncoded = Utils.urlEncode(filePath);
-			releaseFile = gitlabClient.getRawFile(projectId, filePathEncoded, ref);
+			file = gitlabClient.getFile(projectId, filePathEncoded, ref);
 		}catch (Exception e) {
 			if(e instanceof UnsupportedEncodingException){
 				logger.error("Filepath could not be used: " + filePath + " - error: " + e.getLocalizedMessage());
@@ -201,7 +202,22 @@ public class GitlabService {
 				logger.error("File not found " + e.getLocalizedMessage());
 			}
 		}
-		return releaseFile;
+		return file;
+	}
+	
+	public String getRawFile(String projectId, String filePath, String ref){
+		String fileRawContent = null;
+		try{
+			String filePathEncoded = Utils.urlEncode(filePath);
+			fileRawContent = gitlabClient.getRawFile(projectId, filePathEncoded, ref);
+		}catch (Exception e) {
+			if(e instanceof UnsupportedEncodingException){
+				logger.error("Filepath could not be used: " + filePath + " - error: " + e.getLocalizedMessage());
+			}else{
+				logger.error("File not found " + e.getLocalizedMessage());
+			}
+		}
+		return fileRawContent;
 	}
 	
 	public void cherryPick(GitlabProject project, String branchName, List<GitlabCommit> commits) {
