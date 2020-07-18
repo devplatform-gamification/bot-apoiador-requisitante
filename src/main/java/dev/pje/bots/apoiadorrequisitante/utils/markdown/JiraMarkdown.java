@@ -12,6 +12,11 @@ public class JiraMarkdown implements MarkdownInterface{
 	public static final String NAME = "JiraMarkdown";
 
 	@Override
+	public String getName() {
+		return NAME;
+	}
+
+	@Override
 	public String normal(String text) {
 		return text;
 	}

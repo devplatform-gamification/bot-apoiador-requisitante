@@ -84,12 +84,12 @@ public class JiraEventHandlerReleaseNotes {
 						Boolean versaoLancada = false;
 						String dataLancamentoVersao = null;
 						JiraUser usuarioCommiter = null;
+						String gitlabProjectId = jiraService.getGitlabProjectFromIssue(issue);
 						if(issue.getFields().getVersaoSeraLancada() == null){
 							versaoASerLancada = getVersaoAfetada(issue.getFields().getVersions());
 						}
 						if(!versaoASerLancada.isEmpty()){
 							// verifica se a versão a ser lançada já não foi lançada - identifica isso no gitlab, tentando identificar uma tag relacionada
-							String gitlabProjectId = jiraService.getGitlabProjectFromIssue(issue);
 							if(StringUtils.isNotBlank(gitlabProjectId)) {
 								GitlabTag tag = gitlabService.getVersionTag(gitlabProjectId, versaoASerLancada);
 								if(tag != null && tag.getCommit() != null) {
@@ -116,6 +116,8 @@ public class JiraEventHandlerReleaseNotes {
 							List<JiraIssue> issues = jiraService.getIssuesFromJql(jql);
 							if(issues != null && issues.size() > 0){
 								JiraVersionReleaseNotes releaseNotes = new JiraVersionReleaseNotes();
+								releaseNotes.setGitlabProjectId(gitlabProjectId);
+								releaseNotes.setIssueKey(issue.getKey());
 								releaseNotes.setJql(jql);
 								releaseNotes.setAuthor(jiraEventIssue.getUser());
 								if(usuarioCommiter != null) {

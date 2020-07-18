@@ -67,7 +67,9 @@ public class JiraService {
 	public static final String GRUPO_LANCADORES_VERSAO = "PJE_LancadoresDeVersao";
 	public static final String PREFIXO_GRUPO_TRIBUNAL = "PJE_TRIBUNAL_";
 	public static final String TRANSICTION_DEFAULT_EDICAO_AVANCADA = "Edição avançada";
-	
+
+	public static final String RELEASE_NOTES_JSON_FILENAME = "release-notes.json";
+
 	public static final String FIELD_STATUS = "status";
 	public static final String FIELD_DESCRIPTION = "description";
 	public static final Integer TEXT_FIELD_CHARACTER_LIMIT = 327670;
@@ -577,6 +579,9 @@ public class JiraService {
 
 	public JiraIssue recuperaIssueDetalhada(JiraIssue issue) {
 		String issueKey = issue.getKey();
+		return recuperaIssueDetalhada(issueKey);
+	}
+	public JiraIssue recuperaIssueDetalhada(String issueKey) {
 		Map<String, String> options = new HashMap<>();
 		options.put("expand", "operations");
 		return recuperaIssue(issueKey, options);

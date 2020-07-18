@@ -13,6 +13,11 @@ public class AsciiDocMarkdown implements MarkdownInterface{
 	public static final String NAME = "AsciiDocMarkdown";
 
 	@Override
+	public String getName() {
+		return NAME;
+	}
+
+	@Override
 	public String normal(String text) {
 		return text;
 	}
@@ -96,7 +101,8 @@ public class AsciiDocMarkdown implements MarkdownInterface{
 	@Override
 	public String highlight(String text) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("****")
+		sb.append(newLine())
+			.append("****")
 			.append(newLine())
 			.append(text)
 			.append(newLine())
@@ -182,6 +188,9 @@ public class AsciiDocMarkdown implements MarkdownInterface{
 
 	@Override
 	public String link(String url, String text) {
+		if(text == null || text.equals(url)) {
+			text = "";
+		}
 		StringBuilder sb = new StringBuilder();
 		sb.append("link:")
 			.append("+++")
@@ -189,7 +198,7 @@ public class AsciiDocMarkdown implements MarkdownInterface{
 			.append("+++")
 			.append("[")
 			.append(text)
-			.append("^")
+			.append(",window=_blank")
 			.append("]");
 
 		return sb.toString();
@@ -197,7 +206,7 @@ public class AsciiDocMarkdown implements MarkdownInterface{
 
 	@Override
 	public String link(String url) {
-		return link(url, null);
+		return link(url, url);
 	}
 
 	@Override

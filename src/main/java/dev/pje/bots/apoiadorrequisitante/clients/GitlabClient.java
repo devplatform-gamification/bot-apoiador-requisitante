@@ -1,20 +1,29 @@
 package dev.pje.bots.apoiadorrequisitante.clients;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.cloud.openfeign.SpringQueryMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import com.devplatform.model.gitlab.GitlabPipeline;
+import com.devplatform.model.gitlab.GitlabProjectExtended;
 import com.devplatform.model.gitlab.GitlabTag;
 import com.devplatform.model.gitlab.GitlabUser;
+import com.devplatform.model.gitlab.request.GitlabAcceptMRRequest;
 import com.devplatform.model.gitlab.request.GitlabBranchRequest;
 import com.devplatform.model.gitlab.request.GitlabCherryPickRequest;
 import com.devplatform.model.gitlab.request.GitlabCommitRequest;
+import com.devplatform.model.gitlab.request.GitlabMRRequest;
 import com.devplatform.model.gitlab.response.GitlabBranchResponse;
 import com.devplatform.model.gitlab.response.GitlabCommitResponse;
+import com.devplatform.model.gitlab.response.GitlabMRResponse;
 import com.devplatform.model.gitlab.response.GitlabRepositoryFile;
 import com.devplatform.model.gitlab.response.GitlabRepositoryTree;
 
@@ -89,5 +98,33 @@ public interface GitlabClient {
 			@PathVariable("tagname") String tagName
 			);
 	
+	@GetMapping(value = "/api/v4/projects/{projectId}", consumes = "application/json")
+	public GitlabProjectExtended getSingleProject(
+			@PathVariable("projectId") String projectId
+			);
 
+	@GetMapping(value = "/api/v4/projects/{projectId}/merge_requests?{options}", consumes = "application/json")
+	public List<GitlabMRResponse> findMergeRequest(
+			@PathVariable("projectId") String projectId,
+			@SpringQueryMap Map<String, String> options
+			);
+
+	@PostMapping(value = "/api/v4/projects/{projectId}/merge_requests", consumes = "application/json")
+	public GitlabMRResponse createMergeRequest(
+			@PathVariable("projectId") String projectId,
+			@RequestBody GitlabMRRequest mergeRequest
+			);
+	
+	@PutMapping(value = "/api/v4/projects/{projectId}/merge_requests/{mergeRequestIid}/merge", consumes = "application/json")
+	public GitlabMRResponse acceptMergeRequest(
+			@PathVariable("projectId") String projectId,
+			@PathVariable("mergeRequestIid") BigDecimal mergeRequestIId,
+			@RequestBody GitlabAcceptMRRequest acceptMerge
+			);
+	
+	@GetMapping(value = "/api/v4/projects/{projectId}/merge_requests/{mergeRequestIid}/pipelines", consumes = "application/json")
+	public List<GitlabPipeline> listMRPipelines(
+			@PathVariable("projectId") String projectId,
+			@PathVariable("mergeRequestIid") BigDecimal mergeRequestIId
+			);
 }

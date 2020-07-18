@@ -17,10 +17,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.GitlabEventHandlerCommit;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.GitlabEventHandlerGitflow;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.GitlabEventHandlerPublishReleaseNotes;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraEventHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraEventHandlerClassification;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraEventHandlerReleaseNotes;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.VersionLaunchHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraEventHandlerVersionTag;
 
 @Component
 public class AmqpConsumer {
@@ -46,7 +47,11 @@ public class AmqpConsumer {
 	private GitlabEventHandlerGitflow gitlabEventHandlerGitflow;
 
 	@Autowired
-	private VersionLaunchHandler versionLaunchHandler;
+	private JiraEventHandlerVersionTag jiraEventHandlerVersionTag;
+	
+	@Autowired
+	private GitlabEventHandlerPublishReleaseNotes gitlabEventHandlerPublishReleaseNotes;
+	
 
 	@RabbitListener(
 			bindings = @QueueBinding(
@@ -141,13 +146,32 @@ public class AmqpConsumer {
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
 				key = {"${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
 		)
-	public void versionLaunch(Message msg) throws Exception {
+	public void versionTagLaunch(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
 			String body = new String(msg.getBody());
 			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
 			String issueKey = jiraEventIssue.getIssue().getKey();
-			logger.info(VersionLaunchHandler.MESSAGE_PREFIX + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
-			versionLaunchHandler.handle(jiraEventIssue);
+			logger.info(JiraEventHandlerVersionTag.MESSAGE_PREFIX + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+			jiraEventHandlerVersionTag.handle(jiraEventIssue);
 		}
 	}
+	
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.publish-release-notes-queue.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.publish-release-notes-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.gitlab.tag-push.routing-key}"})
+		)
+	public void publishReleaseNotes(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			GitlabEventPush gitEventPushTag = objectMapper.readValue(body, GitlabEventPush.class);
+			String projectName = gitEventPushTag.getProject().getName();
+			String tagName = gitEventPushTag.getRef();
+			logger.info(GitlabEventHandlerPublishReleaseNotes.MESSAGE_PREFIX + " - project: " + projectName + " - tag: " + tagName);
+			gitlabEventHandlerPublishReleaseNotes.handle(gitEventPushTag);
+		}
+	}
+
 }

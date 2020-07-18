@@ -1,10 +1,13 @@
 package dev.pje.bots.apoiadorrequisitante.services;
 
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
@@ -15,15 +18,21 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.devplatform.model.gitlab.GitlabCommit;
+import com.devplatform.model.gitlab.GitlabMergeRequestStateEnum;
+import com.devplatform.model.gitlab.GitlabPipeline;
 import com.devplatform.model.gitlab.GitlabProject;
+import com.devplatform.model.gitlab.GitlabProjectExtended;
 import com.devplatform.model.gitlab.GitlabTag;
+import com.devplatform.model.gitlab.request.GitlabAcceptMRRequest;
 import com.devplatform.model.gitlab.request.GitlabBranchRequest;
 import com.devplatform.model.gitlab.request.GitlabCherryPickRequest;
 import com.devplatform.model.gitlab.request.GitlabCommitActionRequest;
 import com.devplatform.model.gitlab.request.GitlabCommitActionsEnum;
 import com.devplatform.model.gitlab.request.GitlabCommitRequest;
+import com.devplatform.model.gitlab.request.GitlabMRRequest;
 import com.devplatform.model.gitlab.response.GitlabBranchResponse;
 import com.devplatform.model.gitlab.response.GitlabCommitResponse;
+import com.devplatform.model.gitlab.response.GitlabMRResponse;
 import com.devplatform.model.gitlab.response.GitlabRepositoryFile;
 import com.devplatform.model.gitlab.response.GitlabRepositoryTree;
 import com.devplatform.model.gitlab.vo.GitlabScriptVersaoVO;
@@ -59,6 +68,8 @@ public class GitlabService {
 	public static final String POMXML = "pom.xml";
 	public static final String AUTHOR_NAME = "Bot Revisor do PJe";
 	public static final String AUTHOR_EMAIL = "bot.revisor.pje@cnj.jus.br";
+	
+	public static final String LABEL_MR_LANCAMENTO_VERSAO = "Lancamento de versao";
 	
 	public static final String GITLAB_DATETIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSS";
 	
@@ -150,44 +161,56 @@ public class GitlabService {
 			}
 		}
 	}
-	
 	public GitlabCommitResponse sendTextAsFileToBranch(String projectId, GitlabBranchResponse branch, String filePath, String content, String commitMessage) {
 		String branchName = branch.getBranchName();
-		
-		GitlabCommitRequest commit = new GitlabCommitRequest();
-		commit.setBranch(branchName);
-		StringBuilder sb = new StringBuilder();
-		sb
-			.append("[")
-			.append(branchName)
-			.append("] ");
-		if(commitMessage != null){
-			sb.append(commitMessage);
-		}else{
-			sb.append("Adicionando arquivo - ")
-				.append(filePath);
+
+		Map<String, String> files = new HashMap<>();
+		files.put(filePath, content);
+		return sendTextAsFileToBranch(projectId, branchName, files, commitMessage);
+	}
+	
+	public GitlabCommitResponse sendTextAsFileToBranch(String projectId, String branchName, Map<String, String> files, String commitMessage) {
+		GitlabCommitResponse response = null;
+		if(files != null && files.size() > 0) {
+			GitlabCommitRequest commit = new GitlabCommitRequest();
+			commit.setBranch(branchName);
+			StringBuilder sb = new StringBuilder();
+			sb
+				.append("[")
+				.append(branchName)
+				.append("] ");
+			if(commitMessage != null){
+				sb.append(commitMessage);
+			}else{
+				sb.append("Adicionando arquivos");
+			}
+			commit.setCommitMessage(sb.toString());
+			commit.setAuthorName(AUTHOR_NAME);
+			commit.setAuthorEmail(AUTHOR_EMAIL);
+			
+			List<GitlabCommitActionRequest> actionRequestList = new ArrayList<>();
+			if(files != null && files.size() > 0) {
+				for (Map.Entry<String, String> file : files.entrySet()) {
+					String filePath = file.getKey();
+					String content = file.getValue();
+					
+					GitlabCommitActionRequest actionRequest = new GitlabCommitActionRequest();
+					GitlabCommitActionsEnum commitAction = GitlabCommitActionsEnum.CREATE;
+					// verifica se o arquivo já existe, se já existir substitui
+					GitlabRepositoryFile releaseFile = getFile(projectId, filePath, branchName);
+					if(releaseFile != null){
+						commitAction = GitlabCommitActionsEnum.UPDATE;
+					}
+					actionRequest.setAction(commitAction);
+					actionRequest.setContent(content);
+					actionRequest.setFilePath(filePath);
+					actionRequestList.add(actionRequest);
+				}
+			}
+			commit.setActions(actionRequestList);
+			response = gitlabClient.sendCommit(projectId, commit);
 		}
-		commit.setCommitMessage(sb.toString());
-		commit.setAuthorName(AUTHOR_NAME);
-		commit.setAuthorEmail(AUTHOR_EMAIL);
-		
-		GitlabCommitActionRequest actionRequest = new GitlabCommitActionRequest();
-		// TODO - verificar se o arquivo já existe, se já existir substitui
-		GitlabCommitActionsEnum commitAction = GitlabCommitActionsEnum.CREATE;
-		
-		GitlabRepositoryFile releaseFile = getFile(projectId, filePath, branchName);
-		if(releaseFile != null){
-			commitAction = GitlabCommitActionsEnum.UPDATE;
-		}
-		actionRequest.setAction(commitAction);
-		actionRequest.setContent(content);
-		actionRequest.setFilePath(filePath);
-		
-		List<GitlabCommitActionRequest> actionRequestList = new ArrayList<>();
-		actionRequestList.add(actionRequest);
-		commit.setActions(actionRequestList);
-		
-		return gitlabClient.sendCommit(projectId, commit);
+		return response;
 	}
 	
 	public GitlabRepositoryFile getFile(String projectId, String filePath, String ref){
@@ -313,14 +336,18 @@ public class GitlabService {
 	}
 	
 	public String getActualReleaseBranch(GitlabProject project) {
+		return getActualReleaseBranch(project.getId().toString());
+	}
+	
+	public String getActualReleaseBranch(String projectId) {
 		String actualReleaseBranch = null;
-		List<GitlabBranchResponse> branches = gitlabClient.searchBranches(project.getId().toString(), BRANCH_RELEASE_CANDIDATE_PREFIX);
+		List<GitlabBranchResponse> branches = gitlabClient.searchBranches(projectId, BRANCH_RELEASE_CANDIDATE_PREFIX);
 		if(branches != null && !branches.isEmpty()) {
 			GitlabBranchResponse lastBranch = null;
 			List<Integer> lastVersionNumbers = null;;
 			for (GitlabBranchResponse branch : branches) {
 				String versionStr = branch.getBranchName().replace(BRANCH_RELEASE_CANDIDATE_PREFIX, "");
-				List<Integer> versionNumbers = getVersionFromString(versionStr);
+				List<Integer> versionNumbers = Utils.getVersionFromString(versionStr);
 				if(versionNumbers != null && !versionNumbers.isEmpty() && !branch.getMerged()) {
 					if(lastBranch == null) {
 						lastVersionNumbers = versionNumbers;
@@ -329,9 +356,9 @@ public class GitlabService {
 						int diff = 0;
 				    	if(versionNumbers != null && lastVersionNumbers != null) {
 				    		if(versionNumbers.size() >= lastVersionNumbers.size()) {
-				    			diff = (-1) * compareVersions(lastVersionNumbers, versionNumbers);
+				    			diff = Utils.compareVersionsDesc(versionNumbers, lastVersionNumbers);
 				    		}else {
-				    			diff = compareVersions(versionNumbers, lastVersionNumbers);
+				    			diff = (-1) * Utils.compareVersionsDesc(lastVersionNumbers, versionNumbers);
 				    		}
 				    	}
 				    	if(diff > 0) {
@@ -348,37 +375,125 @@ public class GitlabService {
 		return actualReleaseBranch;
 	}
 	
-	public int compareVersions(List<Integer> versionNumbersA, List<Integer> versionNumbersB) {
-		int diff = 0;
-		if(versionNumbersA != null && versionNumbersB != null) {
-			for (int i=0; i < versionNumbersA.size(); i++) {
-				if(i < versionNumbersB.size()) {
-					diff = versionNumbersA.get(i) - versionNumbersB.get(i);
-				}else {
-					diff = versionNumbersA.get(i) - 0; // versionB will be considered 0 in this case
-				}
-				if(diff != 0) {
-					break;
-				}
-			}
+	public boolean isProjectImplementsGitflow(String projectId) {
+		Boolean doesGitflow = false;
+		GitlabProjectExtended project = gitlabClient.getSingleProject(projectId);
+		if(project != null & StringUtils.isNotBlank(project.getDefaultBranch())) {
+			doesGitflow = BRANCH_DEVELOP.equalsIgnoreCase(project.getDefaultBranch());
 		}
-		return diff;
+		return doesGitflow;
 	}
 	
-	public List<Integer> getVersionFromString(String version){
-		List<Integer> versionNumbers = new ArrayList<>();
-		boolean isValid = false;
-		if(version != null && !version.isEmpty()) {
-			String[] versionParts = version.split("\\.");
-			for(int i=0; i < versionParts.length; i++) {
-				if(!StringUtils.isNumericSpace(versionParts[i])) {
-					isValid = false;
-					break;
-				}
-				versionNumbers.add(Integer.valueOf(versionParts[i]));
-				isValid = true;
+	public List<GitlabMRResponse> findMergeRequest(String projectId, Map<String, String> options){
+		List<GitlabMRResponse> MRs = null;
+		try {
+			MRs = gitlabClient.findMergeRequest(projectId, options);
+		}catch (Exception e) {
+			String msgError = "Erro ao buscar MRs do projeto: " + projectId + " - erro: " + e.getLocalizedMessage();
+			logger.error(msgError);
+			telegramService.sendBotMessage(msgError);
+		}
+		return MRs;
+	}
+	
+	/**
+	 * Pesquisa para saber se o MR já foi pedido
+	 * - se não, abre o MR
+	 * Com o MR, verifica se o MR possui algum pipeline
+	 * - se não, marca: mergeWhenPipelineSucceeds = false
+	 * - se sim, marca: mergeWhenPipelineSucceeds = true
+	 * Aceita o MR
+	 * 
+	 * @param projectId
+	 * @param branchReleaseName
+	 * @param commitMessage
+	 */
+	public void mergeBranchReleaseIntoMaster(String projectId, String branchReleaseName, String commitMessage) {
+		GitlabMRResponse mrOpened = null;
+		
+		Map<String, String> options = new HashMap<String, String>();
+		options.put("state", GitlabMergeRequestStateEnum.OPENED.toString());
+		options.put("source_branch", branchReleaseName);
+		options.put("target_branch", BRANCH_MASTER);
+		List<GitlabMRResponse> MRs = findMergeRequest(projectId, options);
+		if(MRs != null && !MRs.isEmpty()) {
+			mrOpened = MRs.get(0);
+		}else {
+			GitlabMRRequest mergeRequest = new GitlabMRRequest();
+			mergeRequest.setSourceBranch(branchReleaseName);
+			mergeRequest.targetBranch(BRANCH_MASTER);
+			mergeRequest.setLabels(LABEL_MR_LANCAMENTO_VERSAO);
+			mergeRequest.title(commitMessage);
+			mergeRequest.setSquash(false);
+			mergeRequest.setRemoveSourceBranch(true);
+			
+			mrOpened = openMergeRequest(projectId, mergeRequest);
+		}
+		if(mrOpened != null) {
+			Integer numChanges = null;
+			if(StringUtils.isNotBlank(mrOpened.getChangesCount())) {
+				numChanges = Integer.valueOf(mrOpened.getChangesCount());
+			}
+			if((numChanges != null && numChanges.equals(0)) || mrOpened.getHasConflicts()) {
+				logger.error("Não há alteracoes entre o branch: " + branchReleaseName + " e o branch: " + BRANCH_MASTER);
+			}else {
+				Boolean hasPipelines = projectHasPipelines(projectId, mrOpened.getIid());
+				
+				GitlabAcceptMRRequest acceptMerge = new GitlabAcceptMRRequest();
+				acceptMerge.setMergeRequestIid(mrOpened.getIid());
+				acceptMerge.setId(projectId);
+				acceptMerge.setShouldRemoveSourceBranch(true);
+				acceptMerge.setMergeWhenPipelineSucceeds(hasPipelines);
+				acceptMerge.setSquash(false);
+				acceptMerge.setMergeCommitMessage(commitMessage);
+				
+				GitlabMRResponse mrAccepted = acceptMergeRequest(projectId, mrOpened.getIid(), acceptMerge);
 			}
 		}
-		return isValid ? versionNumbers : null;
+	}
+	
+	public void changePJePOMVersion(String projectId, String branchName, String version) {
+		
+	}
+	
+	public boolean projectHasPipelines(String projectId, BigDecimal mergeRequestIId) {
+		List<GitlabPipeline> pipelines = null;
+		try {
+			pipelines = gitlabClient.listMRPipelines(projectId, mergeRequestIId);
+		} catch (Exception e) {
+			String errorMessage = "Falhou ao tentar buscar os pipelines do: "+ mergeRequestIId 
+				+ " - no projeto: " + projectId + " erro: " + e.getLocalizedMessage();
+			logger.error(errorMessage);
+			telegramService.sendBotMessage(errorMessage);
+		}
+		
+		return (pipelines != null && !pipelines.isEmpty());
+	}
+	
+	public GitlabMRResponse openMergeRequest(String projectId, GitlabMRRequest mergeRequest) {
+		GitlabMRResponse mergeResponse = null;
+		try{
+			mergeResponse = gitlabClient.createMergeRequest(projectId, mergeRequest);
+		}catch (Exception e) {
+			String errorMessage = "Falhou ao tentar abrir o MR do branch: "+ mergeRequest.getSourceBranch() 
+				+ " - no projeto: " + projectId + " erro: " + e.getLocalizedMessage();
+			logger.error(errorMessage);
+			telegramService.sendBotMessage(errorMessage);
+		}
+		
+		return mergeResponse;
+	}
+	
+	public GitlabMRResponse acceptMergeRequest(String projectId, BigDecimal mergeRequestIId, GitlabAcceptMRRequest acceptMerge) {
+		GitlabMRResponse mergeResponse = null;
+		try {
+			mergeResponse = gitlabClient.acceptMergeRequest(projectId, mergeRequestIId, acceptMerge);
+		}catch (Exception e) {
+			String errorMessage = "Falhou ao tentar aceitar o MR: !"+ mergeRequestIId 
+				+ " - no projeto: " + projectId + " erro: " + e.getLocalizedMessage();
+			logger.error(errorMessage);
+			telegramService.sendBotMessage(errorMessage);
+		}
+		return mergeResponse;
 	}
 }

@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import com.devplatform.model.gitlab.vo.GitlabScriptVersaoVO;
 
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.TelegramService;
+import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 
 @Component
 public class GitlabEventHandlerCommit {
@@ -41,6 +43,7 @@ public class GitlabEventHandlerCommit {
 				
 				String lastCommitId = gitlabEventPush.getCommits().get(0).getId();
 				String commitMessage = gitlabEventPush.getCommits().get(0).getMessage();
+				String issueKey = Utils.getIssueKeyFromCommitMessage(commitMessage);
 	
 				telegramService.sendBotMessage("[COMMIT][GITLAB] - project: " + projectName + " branch: " + branchName + " - " + commitMessage);
 				
@@ -88,7 +91,7 @@ public class GitlabEventHandlerCommit {
 					}
 					logger.info(scriptsToChange.toString());
 					this.changeScriptsPath(
-							gitlabEventPush.getProject(), branchName, lastCommitId,
+							gitlabEventPush.getProject(), branchName, issueKey, lastCommitId,
 							scriptsToChange, destinationPath, currentScriptList);
 				}
 			}
@@ -114,7 +117,7 @@ public class GitlabEventHandlerCommit {
 		return listScriptFiles;
 	}
 	
-	private void changeScriptsPath(GitlabProject project, String branchName, String lastCommitId,
+	private void changeScriptsPath(GitlabProject project, String branchName, String issueKey, String lastCommitId,
 			List<GitlabScriptVersaoVO> scriptsToChange, String destinationPath, List<GitlabRepositoryTree> currentScriptList) {
 		if(scriptsToChange != null && !scriptsToChange.isEmpty()) {
 			// identify target version
@@ -154,7 +157,8 @@ public class GitlabEventHandlerCommit {
 				scriptsToChange.set(i, element);
 			}
 			// encaminha para alteracao no gitlab
-			String commitMessage = "[RELEASE] Reordenando scripts do commit (" + lastCommitId + ")";
+			String identificadorCommit = StringUtils.isNotBlank(issueKey) ? issueKey : "RELEASE";
+			String commitMessage = "[" + identificadorCommit + "] Reordenando scripts do commit (" + lastCommitId + ")";
 			gitlabService.moveFiles(project, branchName, lastCommitId, scriptsToChange, commitMessage);
 		}
 	}

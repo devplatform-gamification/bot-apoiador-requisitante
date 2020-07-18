@@ -200,7 +200,6 @@ public class ReleaseNotesConverter {
 						icon = markdown.secondPlaceIco();
 						break;
 					case 3:
-					default:
 						icon = markdown.thirdPlaceIco();
 						break;
 					}
@@ -217,12 +216,12 @@ public class ReleaseNotesConverter {
 			// outras informações
 			markdownText
 				.append(markdown.head3("Outras informações"))
-				.append(markdown.listItem("Link desta versão no jira: Versão " + linkToVersion))
+				.append(markdown.listItem("Link desta versão no jira: " + linkToVersion))
 				.append(markdown.listItem("Veja outros release notes: " 
 						+ markdown.link(DOCSURL + "/projetos/pje-legacy/release-notes/index.html", "aqui")))
 				.append(markdown.listItem("Para mais informações, acesse a documentação do projeto em " 
 						+ markdown.link(DOCSURL)))
-				.append(markdown.highlight("Acompanhe as notícias do PJe em primeira-mão no canal (público) do telegram: " 
+				.append(markdown.highlight("TIP: Acompanhe as notícias do PJe em primeira-mão no canal (público) do telegram: " 
 						+ markdown.link(TELEGRAM_CHANNEL_URL, "@" + tELEGRAM_CHANNEL_NAME)));
 		}else {
 			markdownText.append(markdown.head1("Não foi possível gerar versão para o jira, não há informações obrigatórias como versão e tipo de versão."));
@@ -248,14 +247,14 @@ public class ReleaseNotesConverter {
 					e.printStackTrace();
 				}
 			}
+			sb.append("include::{docdir}/projetos/pje-legacy/_service-attributes.adoc[]")
+				.append(markdown.newLine())
+				.append("include::{docdir}/projetos/_general-attributes.adoc[]")
+				.append(markdown.newLine())
+				.append(markdown.newLine())
+				.append("[#{serviceTitle}-v" + releaseNotes.getVersion().replaceAll("\\.", "-") + "]")
+				.append(markdown.newLine());
 		}
-		sb.append("include::{docdir}/projetos/pje-legacy/_service-attributes.adoc[]")
-			.append(markdown.newLine())
-			.append("include::{docdir}/projetos/_general-attributes.adoc[]")
-			.append(markdown.newLine())
-			.append(markdown.newLine())
-			.append("[#{serviceTitle}-v" + releaseNotes.getVersion() + "]")
-			.append(markdown.newLine());
 		
 		return sb.toString();
 	}

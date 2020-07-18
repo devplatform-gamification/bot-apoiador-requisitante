@@ -36,11 +36,14 @@ spring:
           name: ${RABBIT_GITFLOW_QUEUE:gitflow-queue}
           auto-startup: ${RABBIT_GITFLOW_QUEUE_AUTOSTARTUP:false}
         release-notes-queue:
-          name: ${JIRA_RELEASE_NOTES_QUEUE:release-notes-queue}
-          auto-startup: ${JIRA_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
-        version-launch-queue: 
-          name: ${JIRA_VERSION_LAUNCH_QUEUE:version-launch-queue}
-          auto-startup: ${JIRA_VERSION_LAUNCH_QUEUE_AUTOSTARTUP:false}
+          name: ${RABBIT_RELEASE_NOTES_QUEUE:release-notes-queue}
+          auto-startup: ${RABBIT_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
+        version-launch-queue:
+          name: ${RABBIT_VERSION_LAUNCH_QUEUE:version-launch-queue}
+          auto-startup: ${RABBIT_VERSION_LAUNCH_QUEUE_AUTOSTARTUP:false}
+        publish-release-notes-queue:
+          name: ${RABBIT_PUBLISH_RELEASE_NOTES_QUEUE:publish-release-notes-queue}
+          auto-startup: ${RABBIT_PUBLISH_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
         jira:
           issue-created:
             routing-key: ${RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_CREATED.*}
@@ -49,6 +52,8 @@ spring:
         gitlab:
           push:
             routing-key: ${RABBIT_GITLAB_PUSH_ROUTINGKEY_PREFIX:dev-platform.gitlab.PUSH}
+          tag-push:
+            routing-key: ${RABBIT_GITLAB_TAGPUSH_ROUTINGKEY_PREFIX::dev-platform.gitlab.TAG_PUSH}
         
 springfox:
   documentation:

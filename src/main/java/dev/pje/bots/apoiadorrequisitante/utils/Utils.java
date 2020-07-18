@@ -94,6 +94,11 @@ public class Utils {
 		return version;
 	}
 	
+	public static String changePomXMLVersion(String actualVersion, String newVersion, String pomxml) {
+		String newContent = pomxml.replaceAll("(<version>)" + actualVersion + "(</version>)", "$1"+ newVersion +"$2");
+		return newContent;
+	}
+	
 	public static String getCharacterDataFromElement(Element e) {
 	    Node child = e.getFirstChild();
 	    if (child instanceof CharacterData) {
@@ -194,8 +199,73 @@ public class Utils {
 		}
 		return String.join("/", dirs);
 	}
+
+	public static String getFileNameFromFilePath(String filePath) {
+		String[] scriptPath = filePath.split("/");
+		String fileName = "";
+		if(scriptPath.length > 0) {
+			fileName = scriptPath[scriptPath.length - 1];
+		}
+		return fileName;
+	}
 	
 	public static String urlEncode(String text) throws UnsupportedEncodingException {
 		return URLEncoder.encode(text, StandardCharsets.UTF_8.toString());
 	}
+	
+	public static int compareVersionsDesc(List<Integer> versionNumbersA, List<Integer> versionNumbersB) {
+		int diff = 0;
+		if(versionNumbersA != null && versionNumbersB != null) {
+			for (int i=0; i < versionNumbersA.size(); i++) {
+				if(i < versionNumbersB.size()) {
+					diff = (versionNumbersA.get(i) - versionNumbersB.get(i));
+				}else {
+					diff = versionNumbersA.get(i) - 0; // versionB will be considered 0 in this case
+				}
+				if(diff != 0) {
+					break;
+				}
+			}
+		}
+		return (-1) * diff; // order DESC
+	}
+
+	public static List<Integer> getVersionFromString(String version){
+		return getVersionFromString(version, "\\.");
+	}
+	
+	public static List<Integer> getVersionFromString(String version, String delimiter){
+		List<Integer> versionNumbers = new ArrayList<>();
+		boolean isValid = false;
+		if(version != null && !version.isEmpty()) {
+			String[] versionParts = version.split(delimiter);
+			for(int i=0; i < versionParts.length; i++) {
+				if(!StringUtils.isNumericSpace(versionParts[i])) {
+					isValid = false;
+					break;
+				}
+				versionNumbers.add(Integer.valueOf(versionParts[i]));
+				isValid = true;
+			}
+		}
+		return isValid ? versionNumbers : null;
+	}
+	
+	public static String getIssueKeyFromCommitMessage(String commitMessage) {
+		String issueKey = null;
+		List<String> issueKeys = new ArrayList<>();
+        Pattern pattern = Pattern.compile("\\[([A-Za-z]+\\-[0-9]+)\\]");
+
+        Matcher matcher = pattern.matcher(commitMessage);
+        while(matcher.find()) {
+        	String k = matcher.group();
+        	issueKeys.add(k);
+        	if(StringUtils.isBlank(issueKey)) {
+        		issueKey = k;
+        	}
+        }
+        
+        return issueKey;
+	}
 }
+	

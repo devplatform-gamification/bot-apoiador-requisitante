@@ -4,10 +4,7 @@ import java.util.Map;
 
 public interface MarkdownInterface {
 
-	public String NAME = "MarkdownInterface";
-	public default String getName() {
-		return NAME;
-	}
+	public String getName();
 	
 	public String normal(String text);
 	
