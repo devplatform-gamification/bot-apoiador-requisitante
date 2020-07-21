@@ -21,6 +21,7 @@ import com.devplatform.model.gitlab.request.GitlabBranchRequest;
 import com.devplatform.model.gitlab.request.GitlabCherryPickRequest;
 import com.devplatform.model.gitlab.request.GitlabCommitRequest;
 import com.devplatform.model.gitlab.request.GitlabMRRequest;
+import com.devplatform.model.gitlab.request.GitlabRepositoryTagRequest;
 import com.devplatform.model.gitlab.response.GitlabBranchResponse;
 import com.devplatform.model.gitlab.response.GitlabCommitResponse;
 import com.devplatform.model.gitlab.response.GitlabMRResponse;
@@ -98,9 +99,21 @@ public interface GitlabClient {
 			@PathVariable("tagname") String tagName
 			);
 	
+	@PostMapping(value = "/api/v4/projects/{projectId}/repository/tags", consumes = "application/json")
+	public GitlabTag createRepositoryTag(
+			@PathVariable("projectId") String projectId,
+			@RequestBody GitlabRepositoryTagRequest tagRequest
+			);
+	
 	@GetMapping(value = "/api/v4/projects/{projectId}", consumes = "application/json")
 	public GitlabProjectExtended getSingleProject(
 			@PathVariable("projectId") String projectId
+			);
+	
+	@GetMapping(value = "/api/v4/projects/{projectId}/merge_requests/{mergeRequestIid}", consumes = "application/json")
+	public GitlabMRResponse getSingleMergeRequest(
+			@PathVariable("projectId") String projectId,
+			@PathVariable("mergeRequestIid") BigDecimal mergeRequestIId
 			);
 
 	@GetMapping(value = "/api/v4/projects/{projectId}/merge_requests?{options}", consumes = "application/json")

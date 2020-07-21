@@ -65,11 +65,11 @@ public class AsciiDocMarkdown implements MarkdownInterface{
 	@Override
 	public String code(String text, String language, String title) {
 		StringBuilder sb = new StringBuilder();
-		if(StringUtils.isNoneBlank(title)) {
+		if(StringUtils.isNotBlank(title)) {
 			sb.append("." + title)
 				.append(newLine());
 		}
-		if(StringUtils.isNoneBlank(language)) {
+		if(StringUtils.isNotBlank(language)) {
 			sb.append("[source, " + language + "]")
 				.append(newLine());
 		}

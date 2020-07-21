@@ -13,6 +13,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -95,7 +96,7 @@ public class Utils {
 	}
 	
 	public static String changePomXMLVersion(String actualVersion, String newVersion, String pomxml) {
-		String newContent = pomxml.replaceAll("(<version>)" + actualVersion + "(</version>)", "$1"+ newVersion +"$2");
+		String newContent = pomxml.replaceFirst("(<version>)" + actualVersion + "(</version>)", "$1"+ newVersion +"$2");
 		return newContent;
 	}
 	
@@ -213,6 +214,10 @@ public class Utils {
 		return URLEncoder.encode(text, StandardCharsets.UTF_8.toString());
 	}
 	
+	public static String escapeGitlabMarkup(String text) throws UnsupportedEncodingException {
+		return text.replaceAll(" ", urlEncode(" "));
+	}
+	
 	public static int compareVersionsDesc(List<Integer> versionNumbersA, List<Integer> versionNumbersB) {
 		int diff = 0;
 		if(versionNumbersA != null && versionNumbersB != null) {
@@ -266,6 +271,14 @@ public class Utils {
         }
         
         return issueKey;
+	}
+	
+	public static void waitSeconds(Integer numSeconds) {
+		try {
+			TimeUnit.SECONDS.sleep(numSeconds);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 }
 	

@@ -1,7 +1,5 @@
 package dev.pje.bots.apoiadorrequisitante.services;
 
-import java.util.concurrent.TimeUnit;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,10 +40,10 @@ public class TelegramService {
 		try {
 			while(!passou && tentativas < 3) {
 				int randomInt = (int)(Math.random()) + 1;
-				TimeUnit.SECONDS.sleep(randomInt);
+				Utils.waitSeconds(randomInt);
 				if(tentativas > 0) {
 					logger.info("waitting 40 seconds before next try....");
-					TimeUnit.SECONDS.sleep(40);
+					Utils.waitSeconds(40);
 				}
 				int numMessages = ++numMessagesSent;
 				try {

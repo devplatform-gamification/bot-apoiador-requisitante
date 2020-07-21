@@ -157,8 +157,8 @@ public class GitlabEventHandlerCommit {
 				scriptsToChange.set(i, element);
 			}
 			// encaminha para alteracao no gitlab
-			String identificadorCommit = StringUtils.isNotBlank(issueKey) ? issueKey : "RELEASE";
-			String commitMessage = "[" + identificadorCommit + "] Reordenando scripts do commit (" + lastCommitId + ")";
+			String identificadorCommit = StringUtils.isNotBlank(issueKey) ? issueKey : "[RELEASE]";
+			String commitMessage = identificadorCommit + " Reordenando scripts do commit (" + lastCommitId + ")";
 			gitlabService.moveFiles(project, branchName, lastCommitId, scriptsToChange, commitMessage);
 		}
 	}

@@ -2,13 +2,10 @@ package dev.pje.bots.apoiadorrequisitante.services;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -30,6 +27,7 @@ import com.devplatform.model.gitlab.request.GitlabCommitActionRequest;
 import com.devplatform.model.gitlab.request.GitlabCommitActionsEnum;
 import com.devplatform.model.gitlab.request.GitlabCommitRequest;
 import com.devplatform.model.gitlab.request.GitlabMRRequest;
+import com.devplatform.model.gitlab.request.GitlabRepositoryTagRequest;
 import com.devplatform.model.gitlab.response.GitlabBranchResponse;
 import com.devplatform.model.gitlab.response.GitlabCommitResponse;
 import com.devplatform.model.gitlab.response.GitlabMRResponse;
@@ -113,20 +111,18 @@ public class GitlabService {
 		
 		return listFiles;
 	}
-	
+
 	public void moveFiles(GitlabProject project, String branch, String lastCommitId,
+			List<GitlabScriptVersaoVO> scriptsToChange, String commitMessage) {
+		
+		moveFiles(project.getId().toString(), branch, lastCommitId, scriptsToChange, commitMessage);
+	}
+	
+	public void moveFiles(String projectId, String branch, String lastCommitId,
 			List<GitlabScriptVersaoVO> scriptsToChange, String commitMessage) {
 
 		if(scriptsToChange != null && !scriptsToChange.isEmpty()) {
-			String projectId = project.getId().toString();
 			GitlabCommitRequest commit = new GitlabCommitRequest();
-			String id = "";
-			try {
-				id = URLEncoder.encode(project.getPathWithNamespace(), StandardCharsets.UTF_8.toString());
-			} catch (UnsupportedEncodingException e) {
-				id = UUID.randomUUID().toString();
-			}
-			commit.setId(id);
 			commit.setBranch(branch);
 			commit.commitMessage(commitMessage);
 			commit.setAuthorName(AUTHOR_NAME);
@@ -161,6 +157,46 @@ public class GitlabService {
 			}
 		}
 	}
+	
+	public void renameDir(String projectId, String branch, String lastCommitId,
+			String previousPath, String newPath, String commitMessage) {
+		
+		if(StringUtils.isNotBlank(previousPath) && StringUtils.isNotBlank(newPath)) {
+			GitlabCommitRequest commit = new GitlabCommitRequest();
+			String id = "";
+			commit.setBranch(branch);
+			commit.commitMessage(commitMessage);
+			commit.setAuthorName(AUTHOR_NAME);
+			commit.setAuthorEmail(AUTHOR_EMAIL);
+			
+			List<GitlabCommitActionRequest> actions = new ArrayList<>();
+			GitlabCommitActionRequest action = new GitlabCommitActionRequest();
+			action.setAction(GitlabCommitActionsEnum.MOVE);
+			action.setPreviousPath(previousPath);
+			action.setFilePath(newPath);
+			action.setLastCommitId(lastCommitId);
+			
+			actions.add(action);
+			commit.setActions(actions);
+			
+			logger.info(commitMessage);
+			telegramService.sendBotMessage(commitMessage);
+
+			try {
+				GitlabCommitResponse response = gitlabClient.sendCommit(projectId, commit);
+				if(response != null && response.getId() != null) {
+					logger.info("ok");
+				}
+			}catch(Exception e) {
+				String errorMessage = "Não foi possível renomear o diretorio: " + previousPath + " para: " + newPath + " do commit: " + lastCommitId + "\n"
+						+e.getMessage();
+				logger.error(errorMessage);
+				slackService.sendBotMessage(errorMessage);
+				telegramService.sendBotMessage(errorMessage);
+			}
+		}
+	}
+	
 	public GitlabCommitResponse sendTextAsFileToBranch(String projectId, GitlabBranchResponse branch, String filePath, String content, String commitMessage) {
 		String branchName = branch.getBranchName();
 
@@ -175,14 +211,14 @@ public class GitlabService {
 			GitlabCommitRequest commit = new GitlabCommitRequest();
 			commit.setBranch(branchName);
 			StringBuilder sb = new StringBuilder();
-			sb
-				.append("[")
-				.append(branchName)
-				.append("] ");
 			if(commitMessage != null){
 				sb.append(commitMessage);
 			}else{
-				sb.append("Adicionando arquivos");
+				sb
+				.append("[")
+				.append(branchName)
+				.append("] ")
+				.append("Adicionando arquivos");
 			}
 			commit.setCommitMessage(sb.toString());
 			commit.setAuthorName(AUTHOR_NAME);
@@ -196,7 +232,7 @@ public class GitlabService {
 					
 					GitlabCommitActionRequest actionRequest = new GitlabCommitActionRequest();
 					GitlabCommitActionsEnum commitAction = GitlabCommitActionsEnum.CREATE;
-					// verifica se o arquivo já existe, se já existir substitui
+					// verifica se o arquivo já existe, se já existir o substitui
 					GitlabRepositoryFile releaseFile = getFile(projectId, filePath, branchName);
 					if(releaseFile != null){
 						commitAction = GitlabCommitActionsEnum.UPDATE;
@@ -287,6 +323,27 @@ public class GitlabService {
 		return tag;
 	}
 	
+	public GitlabTag createVersionTag(String projectId, String version, String branchName, String tagMessage, String releaseText) {
+		GitlabTag tag = null;
+		if(StringUtils.isNotBlank(version) && StringUtils.isNotBlank(projectId)) {
+			try {
+				if(StringUtils.isBlank(branchName)) {
+					branchName = BRANCH_MASTER;
+				}
+				GitlabRepositoryTagRequest tagRequest = new GitlabRepositoryTagRequest();
+				tagRequest.setTagName(version);
+				tagRequest.setRef(branchName);
+				tagRequest.setMessage(tagMessage);
+				tagRequest.setReleaseDescription(releaseText);
+				
+				tag = gitlabClient.createRepositoryTag(projectId, tagRequest);
+			}catch (Exception e) {
+				logger.error(e.getLocalizedMessage());
+			}
+		}
+		return tag;
+	}
+
 	public boolean isDevelopDefaultBranch(GitlabProject project) {
 		String projectId = project.getId().toString();
 		GitlabBranchResponse develop = gitlabClient.getSingleRepositoryBranch(projectId, BRANCH_DEVELOP);
@@ -356,7 +413,7 @@ public class GitlabService {
 						int diff = 0;
 				    	if(versionNumbers != null && lastVersionNumbers != null) {
 				    		if(versionNumbers.size() >= lastVersionNumbers.size()) {
-				    			diff = Utils.compareVersionsDesc(versionNumbers, lastVersionNumbers);
+				    			diff = Utils.compareVersionsDesc(lastVersionNumbers, versionNumbers);
 				    		}else {
 				    			diff = (-1) * Utils.compareVersionsDesc(lastVersionNumbers, versionNumbers);
 				    		}
@@ -395,7 +452,19 @@ public class GitlabService {
 		}
 		return MRs;
 	}
-	
+
+	public GitlabMRResponse getMergeRequest(String projectId, BigDecimal mergeRequestIId){
+		GitlabMRResponse MR = null;
+		try {
+			MR = gitlabClient.getSingleMergeRequest(projectId, mergeRequestIId);
+		}catch (Exception e) {
+			String msgError = "Erro ao buscar MR: " + mergeRequestIId.toString() + " do projeto: " + projectId + " - erro: " + e.getLocalizedMessage();
+			logger.error(msgError);
+			telegramService.sendBotMessage(msgError);
+		}
+		return MR;
+	}
+
 	/**
 	 * Pesquisa para saber se o MR já foi pedido
 	 * - se não, abre o MR
@@ -448,12 +517,25 @@ public class GitlabService {
 				acceptMerge.setMergeCommitMessage(commitMessage);
 				
 				GitlabMRResponse mrAccepted = acceptMergeRequest(projectId, mrOpened.getIid(), acceptMerge);
+				if(mrAccepted != null && !hasPipelines) {
+					// aguarda o MR ser finalizado, pois pode ser que tenha que passar por um pipeline ainda
+					Integer maxTries = 10;
+					Integer timeToWaitInSeconds = 20;
+					Integer numTries = 0;
+					while (mrAccepted != null && GitlabMergeRequestStateEnum.OPENED.equals(mrAccepted.getState()) && numTries < maxTries) {
+						logger.info("waitting "+timeToWaitInSeconds+" seconds before to check if merge was accepted....");
+						Utils.waitSeconds(timeToWaitInSeconds);
+						// check merge request again - findMergeRequest
+						options = new HashMap<String, String>();
+						options.put("source_branch", branchReleaseName);
+						options.put("target_branch", BRANCH_MASTER);
+						options.put("target_branch", BRANCH_MASTER);
+
+						mrAccepted = getMergeRequest(projectId, mrOpened.getIid());
+					}
+				}
 			}
 		}
-	}
-	
-	public void changePJePOMVersion(String projectId, String branchName, String version) {
-		
 	}
 	
 	public boolean projectHasPipelines(String projectId, BigDecimal mergeRequestIId) {

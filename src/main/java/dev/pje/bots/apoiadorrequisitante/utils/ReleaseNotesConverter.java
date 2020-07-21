@@ -19,6 +19,8 @@ import com.devplatform.model.jira.JiraVersionReleaseNoteIssues;
 import com.devplatform.model.jira.JiraVersionReleaseNotes;
 import com.devplatform.model.jira.JiraVersionReleaseNotesIssueTypeEnum;
 
+import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
+import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component
@@ -86,11 +88,11 @@ public class ReleaseNotesConverter {
 			if(StringUtils.isNotBlank(releaseNotes.getReleaseDate())) {
 				Date releaseDate;
 				try {
-					releaseDate = Utils.stringToDate(releaseNotes.getReleaseDate(), null);
+					releaseDate = getDateFromReleaseDate(releaseNotes.getReleaseDate());
 					markdownText
 						.append(" em ")
 						.append(Utils.dateToStringPattern(releaseDate, "dd/MM/yyyy"));
-				} catch (ParseException e) {
+				} catch (Exception e) {
 					e.printStackTrace();
 				}
 			}
@@ -228,6 +230,24 @@ public class ReleaseNotesConverter {
 		}
 		
 		return markdownText.toString();
+	}
+	
+	private Date getDateFromReleaseDate(String releaseDateStr) {
+		Date releaseDate = null;
+		try {
+			releaseDate = Utils.stringToDate(releaseDateStr, null);
+		}catch (Exception e) {
+			try {
+				releaseDate = Utils.stringToDate(releaseDateStr, JiraService.JIRA_DATETIME_PATTERN);
+			}catch (Exception e1) {
+				try {
+					releaseDate = Utils.stringToDate(releaseDateStr, GitlabService.GITLAB_DATETIME_PATTERN);
+				}catch (Exception e2) {
+					e2.getStackTrace();
+				}
+			}
+		}
+		return releaseDate;
 	}
 	
 	private String getSpecificMarkdownCode(JiraVersionReleaseNotes releaseNotes) {

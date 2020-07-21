@@ -1,6 +1,7 @@
 package dev.pje.bots.apoiadorrequisitante.amqp.handlers;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +21,9 @@ import com.devplatform.model.jira.event.JiraEventIssue;
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.services.TelegramService;
+import dev.pje.bots.apoiadorrequisitante.utils.ReleaseNotesConverter;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
+import dev.pje.bots.apoiadorrequisitante.utils.markdown.GitlabMarkdown;
 
 @Component
 public class JiraEventHandlerVersionTag {
@@ -35,7 +38,10 @@ public class JiraEventHandlerVersionTag {
 
 	@Autowired
 	private TelegramService telegramService;
-
+	
+	@Autowired
+	private ReleaseNotesConverter releaseNotesConverter;
+	
 	@Autowired
 	private GitlabEventHandlerPublishReleaseNotes gitlabEventHandlerPublishReleaseNotes;
 
@@ -68,7 +74,6 @@ public class JiraEventHandlerVersionTag {
 					// 4.- a pessoa que atuou na issue está dentro do grupo de pessoas que podem
 					// atuar?
 					if (jiraService.isLancadorVersao(jiraEventIssue.getUser())) {
-						// TODO
 						// 1. Recupera o anexo com o json do releaseNotes
 						String releaseNotesAttachment = jiraService.getAttachmentContent(issue,
 								JiraService.RELEASE_NOTES_JSON_FILENAME);
@@ -93,17 +98,10 @@ public class JiraEventHandlerVersionTag {
 												.isProjectImplementsGitflow(releaseNotes.getGitlabProjectId());
 									}
 									finalizaVersaoGitlab(implementsGitflow, releaseNotes);
-									// 2.0 se utilizar: (se não utilizar, ir para o passo: 2.3)
-									// 2.1 busca qual é o branch ativo da release candidate
-									// 2.2 merge do branch da release no branch master
-									// 2.3 altera a versao do pom, indicando a versão do arquivo de release criado
-									// na issue de lancamento de versao
-									// 2.4 fazer último commit da versao com o número da issue de lancamento de
-									// versao
-									// 2.5 criar tag relacionada à versao que está sendo lançada
 									// 2.6 lancar mensagem de log: comentário na issue + telegram, indicando que a
 									// tag foi lançada *não é a mensagem oficial de lancamento da versao
 
+									// >>> escultar o evento de tag lançada e:
 									// 3. Fazer preparativos para a próxima versão:
 									// 3.1 se utilizar gitflow:
 									// 3.2 atualizar versao do pom do branch develop (para o nome da próxima versao
@@ -157,25 +155,53 @@ public class JiraEventHandlerVersionTag {
 		}
 	}
 
+	/**
+	 * Finaliza a versao:
+	 * - se estiver usando o gitflow:
+	 * -- atualiza o POM do branch release para a nova versao
+	 * -- atualiza número da pasta de scripts/+scripts se for necessário ainda no branch release
+	 * -- faz o merge do branch release com o branch master
+	 * - se NAO estiver usando o gitflow:
+	 * -- atualiza o POM do branch master
+	 * -- atualiza número da pasta de scripts/+scripts se for necessario, no branch master
+	 * - gera a TAG da versao a partir do branch master
+	 * @param implementsGitflow
+	 * @param releaseNotes
+	 */
 	private void finalizaVersaoGitlab(Boolean implementsGitflow, JiraVersionReleaseNotes releaseNotes) {
 		String gitlabProjectId = releaseNotes.getGitlabProjectId();
 		List<String> pomsList = getListPathPoms(gitlabProjectId);
 		String commitMessage = "[" + releaseNotes.getIssueKey() + "] Finalizando a versão "
 				+ releaseNotes.getVersion();
+
 		if (implementsGitflow) {
 			String branchReleaseName = GitlabService.BRANCH_RELEASE_CANDIDATE_PREFIX + releaseNotes.getVersion();
-			// TODO - criar uma funcao na service para a qual se passe o branch alvo e o
-			GitlabCommitResponse response = atualizaVersaoPom(gitlabProjectId, branchReleaseName, pomsList, releaseNotes, commitMessage);
-			// número da versão pretendida e ele altera onde precisa no POM e nos arquivos
-			// de script da versao se for necessário
+			String actualVersion = getActualVersion(gitlabProjectId, branchReleaseName);
+			GitlabCommitResponse pomResponse = atualizaVersaoPom(gitlabProjectId, branchReleaseName, pomsList, releaseNotes, actualVersion, commitMessage);
+			if(pomResponse != null) {
+				atualizaNumeracaoPastaScriptsVersao(gitlabProjectId, branchReleaseName, pomResponse.getId(), releaseNotes, actualVersion);
+			}
 			realizaPassosGitflowFechamentoVersao(gitlabProjectId, branchReleaseName, releaseNotes);
 		} else {
-			// 2.3 altera a versao do pom, indicando a versão do arquivo de release criado
-			// na issue de lancamento de versao
 			String branchName = GitlabService.BRANCH_MASTER;
-			GitlabCommitResponse response = atualizaVersaoPom(gitlabProjectId, branchName, pomsList, releaseNotes, commitMessage);
+			String actualVersion = getActualVersion(gitlabProjectId, branchName);
+			GitlabCommitResponse pomResponse = atualizaVersaoPom(gitlabProjectId, branchName, pomsList, releaseNotes, actualVersion, commitMessage);
+			if(pomResponse != null) {
+				atualizaNumeracaoPastaScriptsVersao(gitlabProjectId, branchName, pomResponse.getId(), releaseNotes, actualVersion);
+			}
 		}
 		// 2.5 criar tag relacionada à versao que está sendo lançada
+		String tagMessage = "[" + releaseNotes.getIssueKey() + "] Lançamento da versão "
+				+ releaseNotes.getVersion();
+
+		GitlabMarkdown gitlabMarkdown = new GitlabMarkdown();
+		if(StringUtils.isBlank(releaseNotes.getReleaseDate())) {
+			String dateStr = Utils.dateToStringPattern(new Date(), JiraService.JIRA_DATETIME_PATTERN);
+			releaseNotes.setReleaseDate(dateStr);
+		}
+		String releaseText = releaseNotesConverter.convert(releaseNotes, gitlabMarkdown);
+		gitlabService.createVersionTag(gitlabProjectId, releaseNotes.getVersion(), GitlabService.BRANCH_MASTER,
+				tagMessage, releaseText);
 		// TODO - retirar no pipeline da versao atual o envio de mensagem no
 		// slack/telegram, isso será feito por um bot específico para termos mais
 		// controle da informacao
@@ -186,13 +212,12 @@ public class JiraEventHandlerVersionTag {
 	private void realizaPassosGitflowFechamentoVersao(String projectId, String branchName,
 			JiraVersionReleaseNotes releaseNotes) {
 		// 2.1 busca qual é o branch ativo da release candidate
-		String releaseBranch = gitlabService.getActualReleaseBranch(releaseNotes.getGitlabProjectId());
+		String gitProjectId = releaseNotes.getGitlabProjectId();
+		String releaseBranch = gitlabService.getActualReleaseBranch(gitProjectId);
 		if (StringUtils.isNotBlank(releaseBranch) && releaseBranch.equals(branchName)) {
 			// 2.2 merge do branch da release no branch master
 			String commitMessage = "[" + releaseNotes.getIssueKey() + "] Integrando o branch " + branchName;
 			gitlabService.mergeBranchReleaseIntoMaster(projectId, branchName, commitMessage);
-			// TODO - como o merge é assíncrono, tem que ver o que fazer neste ponto aqui
-			// para aguardar o processo ser finalizado
 		} else {
 			String errorMsg = MESSAGE_PREFIX + " - Erro! não conseguiu encontrar o release branch do projeto: "
 					+ releaseNotes.getProject();
@@ -200,40 +225,46 @@ public class JiraEventHandlerVersionTag {
 			telegramService.sendBotMessage(errorMsg);
 		}
 	}
+	
+	private String getActualVersion(String gitlabProjectId, String branchName) {
+		String defaultPomFile = "pom.xml";
+		String actualVersion = null;
+		String pomContent = gitlabService.getRawFile(gitlabProjectId, defaultPomFile, branchName);
+		if (StringUtils.isNotBlank(pomContent)) {
+			actualVersion = Utils.getVersionFromPomXML(pomContent);
+		}
+		
+		return actualVersion;
+	}
 
 	private GitlabCommitResponse atualizaVersaoPom(String gitlabProjectId, String branchName, List<String> pomsList, 
-			JiraVersionReleaseNotes releaseNotes, String commitMessage) {
+			JiraVersionReleaseNotes releaseNotes, String actualVersion, String commitMessage) {
 		GitlabCommitResponse response = null;
 		
-		// 2.3 alterar a versao do pom, indicando a versão do arquivo de release
-		// criado na issue de lancamento de versao
-		if (pomsList != null && !pomsList.isEmpty()) {
-			Map<String, String> poms = new HashMap<>();
-			String actualVersion = null;
-			String newVersion = releaseNotes.getVersion();
-			for (String pomFilePath : pomsList) {
-				String pomContent = gitlabService.getRawFile(gitlabProjectId, pomFilePath, branchName);
-				if (StringUtils.isNotBlank(pomContent)) {
-					if (StringUtils.isBlank(actualVersion)) {
-						actualVersion = Utils.getVersionFromPomXML(pomContent);
+		if(releaseNotes != null && StringUtils.isNotBlank(releaseNotes.getVersion()) && StringUtils.isNotBlank(actualVersion) && !actualVersion.equalsIgnoreCase(releaseNotes.getVersion())) {
+			if (pomsList != null && !pomsList.isEmpty()) {
+				Map<String, String> poms = new HashMap<>();
+				String newVersion = releaseNotes.getVersion();
+				for (String pomFilePath : pomsList) {
+					String pomContent = gitlabService.getRawFile(gitlabProjectId, pomFilePath, branchName);
+					if (StringUtils.isNotBlank(pomContent)) {
+						String pomContentChanged = Utils.changePomXMLVersion(actualVersion, newVersion, pomContent);
+						poms.put(pomFilePath, pomContentChanged);
+					} else {
+						String msgError = MESSAGE_PREFIX + " Error trying to get pom (" + pomFilePath + ") content.";
+						logger.error(msgError);
+						telegramService.sendBotMessage(msgError);
 					}
-					String pomContentChanged = Utils.changePomXMLVersion(actualVersion, newVersion, pomContent);
-					poms.put(pomFilePath, pomContentChanged);
-				} else {
-					String msgError = MESSAGE_PREFIX + " Error trying to get pom (" + pomFilePath + ") content.";
-					logger.error(msgError);
-					telegramService.sendBotMessage(msgError);
 				}
-			}
-			// TODO - antes de seguir, verificar se a pasta de scripts precisa ser renomeada
-			if (poms != null && poms.size() > 0 && poms.size() == pomsList.size()) {
-				response = gitlabService.sendTextAsFileToBranch(gitlabProjectId, branchName,
-						poms, commitMessage);
+				if (poms != null && poms.size() > 0 && poms.size() == pomsList.size()) {
+					response = gitlabService.sendTextAsFileToBranch(gitlabProjectId, branchName,
+							poms, commitMessage);
+				}
 			}
 		}
 		return response;
 	}
-
+	
 	private List<String> getListPathPoms(String projectId) {
 		List<String> listaPoms = new ArrayList<String>();
 		if ("7".equals(projectId)) { // TODO - colocar isso na parametrizacao do projeto no gitlab
@@ -244,6 +275,17 @@ public class JiraEventHandlerVersionTag {
 			listaPoms.add("pom.xml"); // FIXME - verificar para os outros projetos
 		}
 		return listaPoms;
+	}
+	
+	private void atualizaNumeracaoPastaScriptsVersao(String projectId, String branchName, String lastCommitId, JiraVersionReleaseNotes releaseNotes, String actualVersion) {
+		if(releaseNotes != null && StringUtils.isNotBlank(releaseNotes.getVersion()) && StringUtils.isNotBlank(actualVersion) && !actualVersion.equalsIgnoreCase(releaseNotes.getVersion())) {
+			actualVersion = actualVersion.replaceAll("\\-SNAPSHOT", "");
+			String previousPath = GitlabService.SCRIPS_MIGRATION_BASE_PATH + actualVersion;
+			String newPath = GitlabService.SCRIPS_MIGRATION_BASE_PATH + releaseNotes.getVersion();
+
+			String commitMessage = "[" + releaseNotes.getIssueKey() + "] Renomeando pasta de scripts";
+			gitlabService.renameDir(projectId, branchName, lastCommitId, previousPath, newPath, commitMessage);
+		}
 	}
 
 }
