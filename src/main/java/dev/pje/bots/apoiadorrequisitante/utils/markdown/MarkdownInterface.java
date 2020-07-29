@@ -2,6 +2,9 @@ package dev.pje.bots.apoiadorrequisitante.utils.markdown;
 
 import java.util.Map;
 
+import org.springframework.stereotype.Service;
+
+@Service
 public interface MarkdownInterface {
 
 	public String getName();
@@ -43,15 +46,21 @@ public interface MarkdownInterface {
 	public String block(String title, String text);
 	
 	public String color(String text, String color);
+	
+	public String error(String text);
+
+	public String info(String text);
+
+	public String warning(String text);
 
 	public String newLine();
+
+	public String newParagraph();
 
 	public String ruler();
 	
 	public String listItem(String text);
 	
-	public String paragraph(String text);
-
 	public String link(String url, String text);
 
 	public String link(String url);

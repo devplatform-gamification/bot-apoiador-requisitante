@@ -21,9 +21,9 @@ import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.services.TelegramService;
 
 @Component
-public class JiraEventHandler {
+public class JiraIssueCheckApoiadorRequisitanteEventHandler {
 	
-	private static final Logger logger = LoggerFactory.getLogger(JiraEventHandler.class);
+	private static final Logger logger = LoggerFactory.getLogger(JiraIssueCheckApoiadorRequisitanteEventHandler.class);
 
 	@Autowired
 	private JiraService jiraService;

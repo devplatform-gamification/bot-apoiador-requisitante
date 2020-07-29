@@ -28,11 +28,16 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
-import com.devplatform.model.jira.JiraVersionReleaseNotes;
+import com.devplatform.model.bot.VersionReleaseNotes;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
+import dev.pje.bots.apoiadorrequisitante.services.JiraService;
+
 public class Utils {
+	public static final String DATE_SIMPLE_PATTERN = "yyyy-MM-dd";
+	
 	public static boolean compareAsciiIgnoreCase(String valueA, String valueB) {
 	    String valueAprepared = StringUtils.stripAccents(valueA);
 	    String valueBprepared = StringUtils.stripAccents(valueB);
@@ -156,10 +161,10 @@ public class Utils {
         return jsonStr;
 	}
 	
-	public static JiraVersionReleaseNotes convertJsonToJiraReleaseNotes(String jsonString) {
-		JiraVersionReleaseNotes  obj = null;
+	public static VersionReleaseNotes convertJsonToJiraReleaseNotes(String jsonString) {
+		VersionReleaseNotes  obj = null;
 		try {
-			obj = new ObjectMapper().readValue(jsonString, JiraVersionReleaseNotes.class);
+			obj = new ObjectMapper().readValue(jsonString, VersionReleaseNotes.class);
 		} catch (JsonProcessingException e) {
 			e.printStackTrace();
 		}
@@ -184,6 +189,25 @@ public class Utils {
 		
 		return Date.from(zonedDateTime.toInstant());
 	}
+	
+	public static Date getDateFromString(String releaseDateStr) {
+		Date date = null;
+		try {
+			date = Utils.stringToDate(releaseDateStr, null);
+		}catch (Exception e) {
+			try {
+				date = Utils.stringToDate(releaseDateStr, JiraService.JIRA_DATETIME_PATTERN);
+			}catch (Exception e1) {
+				try {
+					date = Utils.stringToDate(releaseDateStr, GitlabService.GITLAB_DATETIME_PATTERN);
+				}catch (Exception e2) {
+					e2.getStackTrace();
+				}
+			}
+		}
+		return date;
+	}
+
 	
 	public static String dateToStringPattern(Date date, String pattern) {
 		DateFormat df = new SimpleDateFormat(pattern);

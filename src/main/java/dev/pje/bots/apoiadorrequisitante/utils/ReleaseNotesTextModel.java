@@ -14,17 +14,15 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.devplatform.model.bot.VersionReleaseNoteIssues;
+import com.devplatform.model.bot.VersionReleaseNotes;
+import com.devplatform.model.bot.VersionReleaseNotesIssueTypeEnum;
 import com.devplatform.model.jira.JiraUser;
-import com.devplatform.model.jira.JiraVersionReleaseNoteIssues;
-import com.devplatform.model.jira.JiraVersionReleaseNotes;
-import com.devplatform.model.jira.JiraVersionReleaseNotesIssueTypeEnum;
 
-import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
-import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component
-public class ReleaseNotesConverter {
+public class ReleaseNotesTextModel extends AbstractTextModel{
 	
 	@Value("${clients.jira.url}")
 	private String JIRAURL;
@@ -33,7 +31,7 @@ public class ReleaseNotesConverter {
 	@Value("${project.telegram.channel.url}")
 	private String TELEGRAM_CHANNEL_URL;
 	@Value("${project.telegram.channel.name}")
-	private String tELEGRAM_CHANNEL_NAME;
+	private String TELEGRAM_CHANNEL_NAME;
 
 	private static final String PATH_JQL = "/issues/?jql=";
 	private static final String PATH_ISSUE = "/browse/";
@@ -41,16 +39,8 @@ public class ReleaseNotesConverter {
 	
 	private static final String DESENVOLVEDOR_ANONIMO = "desenvolvedor.anonimo";
 	
-	private MarkdownInterface markdown;
-
-	public ReleaseNotesConverter() {
-		super();
-	}
-	
-	public ReleaseNotesConverter(MarkdownInterface markdown) {
-		super();
-		this.markdown = markdown;
-	}
+	private VersionReleaseNotes releaseNotes;
+	private MarkdownInterface markdown;	
 
 	private String getPathJql(String jql) {
 		return JIRAURL + PATH_JQL + jql;
@@ -64,7 +54,11 @@ public class ReleaseNotesConverter {
 		return JIRAURL + PATH_USERPROFILE + userKey;
 	}
 	
-	public String convert(JiraVersionReleaseNotes releaseNotes, MarkdownInterface markdown) {
+	public void setReleaseNotes(VersionReleaseNotes releaseNotes) {
+		this.releaseNotes = releaseNotes;
+	}
+	
+	public String convert(MarkdownInterface markdown) {
 		this.markdown = markdown;
 		StringBuilder markdownText = new StringBuilder();
 		if(releaseNotes != null && releaseNotes.getVersion() != null && releaseNotes.getVersionType() != null) {
@@ -107,28 +101,28 @@ public class ReleaseNotesConverter {
 			List<String> contadorTipoIssue = new ArrayList<>();
 			if(releaseNotes.getNewFeatures() != null && !releaseNotes.getNewFeatures().isEmpty()) {
 				StringBuilder tipo = new StringBuilder()
-					.append(JiraVersionReleaseNotesIssueTypeEnum.NEW_FEATURE.toString())
+					.append(VersionReleaseNotesIssueTypeEnum.NEW_FEATURE.toString())
 					.append(": ")
 					.append(releaseNotes.getNewFeatures().size());
 				contadorTipoIssue.add(tipo.toString());
 			}
 			if(releaseNotes.getImprovements() != null && !releaseNotes.getImprovements().isEmpty()) {
 				StringBuilder tipo = new StringBuilder()
-					.append(JiraVersionReleaseNotesIssueTypeEnum.IMPROVEMENT.toString())
+					.append(VersionReleaseNotesIssueTypeEnum.IMPROVEMENT.toString())
 					.append(": ")
 					.append(releaseNotes.getImprovements().size());
 				contadorTipoIssue.add(tipo.toString());
 			}
 			if(releaseNotes.getBugs() != null && !releaseNotes.getBugs().isEmpty()) {
 				StringBuilder tipo = new StringBuilder()
-					.append(JiraVersionReleaseNotesIssueTypeEnum.BUGFIX.toString())
+					.append(VersionReleaseNotesIssueTypeEnum.BUGFIX.toString())
 					.append(": ")
 					.append(releaseNotes.getBugs().size());
 				contadorTipoIssue.add(tipo.toString());
 			}
 			if(releaseNotes.getMinorChanges() != null && !releaseNotes.getMinorChanges().isEmpty()) {
 				StringBuilder tipo = new StringBuilder()
-					.append(JiraVersionReleaseNotesIssueTypeEnum.MINOR_CHANGES.toString())
+					.append(VersionReleaseNotesIssueTypeEnum.MINOR_CHANGES.toString())
 					.append(": ")
 					.append(releaseNotes.getMinorChanges().size());
 				contadorTipoIssue.add(tipo.toString());
@@ -158,25 +152,25 @@ public class ReleaseNotesConverter {
 			if(releaseNotes.getNewFeatures() != null && !releaseNotes.getNewFeatures().isEmpty()) {
 				markdownText
 					.append(getIssuesAsList(
-								JiraVersionReleaseNotesIssueTypeEnum.NEW_FEATURE.toString(), 
+								VersionReleaseNotesIssueTypeEnum.NEW_FEATURE.toString(), 
 								releaseNotes.getNewFeatures()));
 			}
 			if(releaseNotes.getImprovements() != null && !releaseNotes.getImprovements().isEmpty()) {
 				markdownText
 				.append(getIssuesAsList(
-							JiraVersionReleaseNotesIssueTypeEnum.IMPROVEMENT.toString(), 
+							VersionReleaseNotesIssueTypeEnum.IMPROVEMENT.toString(), 
 							releaseNotes.getImprovements()));
 			}
 			if(releaseNotes.getBugs() != null && !releaseNotes.getBugs().isEmpty()) {
 				markdownText
 				.append(getIssuesAsList(
-							JiraVersionReleaseNotesIssueTypeEnum.BUGFIX.toString(), 
+							VersionReleaseNotesIssueTypeEnum.BUGFIX.toString(), 
 							releaseNotes.getBugs()));
 			}
 			if(releaseNotes.getMinorChanges() != null && !releaseNotes.getMinorChanges().isEmpty()) {
 				markdownText
 				.append(getIssuesAsList(
-							JiraVersionReleaseNotesIssueTypeEnum.MINOR_CHANGES.toString(), 
+							VersionReleaseNotesIssueTypeEnum.MINOR_CHANGES.toString(), 
 							releaseNotes.getMinorChanges()));
 			}
 			
@@ -188,25 +182,28 @@ public class ReleaseNotesConverter {
 				for (IssueAuthorPointsVO desenv : desenvs) {
 					markdownText
 						.append("- ")
-						.append(markdown.link(getPathUserProfile(desenv.getAuthor().getName()), "@"+desenv.getAuthor().getName()))
-						.append(" +")
-						.append(desenv.getPoints())
-						.append(" ");
+						.append(markdown.link(getPathUserProfile(desenv.getAuthor().getName()), "@"+desenv.getAuthor().getName()));
 					
-					String icon = null;
-					switch (desenv.getClassification()) {
-					case 1:
-						icon = markdown.firstPlaceIco();
-						break;
-					case 2:
-						icon = markdown.secondPlaceIco();
-						break;
-					case 3:
-						icon = markdown.thirdPlaceIco();
-						break;
-					}
-					if(icon != null) {
-						markdownText.append(icon);
+					if(desenv.getPoints() > 1) {
+						markdownText.append(" x")
+							.append(desenv.getPoints())
+							.append(" ");
+						
+						String icon = null;
+						switch (desenv.getClassification()) {
+						case 1:
+							icon = markdown.firstPlaceIco();
+							break;
+						case 2:
+							icon = markdown.secondPlaceIco();
+							break;
+						case 3:
+							icon = markdown.thirdPlaceIco();
+							break;
+						}
+						if(icon != null) {
+							markdownText.append(icon);
+						}
 					}
 					if(desenv.isMvp()) {
 						markdownText.append(markdown.MVPIco());
@@ -224,7 +221,7 @@ public class ReleaseNotesConverter {
 				.append(markdown.listItem("Para mais informações, acesse a documentação do projeto em " 
 						+ markdown.link(DOCSURL)))
 				.append(markdown.highlight("TIP: Acompanhe as notícias do PJe em primeira-mão no canal (público) do telegram: " 
-						+ markdown.link(TELEGRAM_CHANNEL_URL, "@" + tELEGRAM_CHANNEL_NAME)));
+						+ markdown.link(TELEGRAM_CHANNEL_URL, "@" + TELEGRAM_CHANNEL_NAME)));
 		}else {
 			markdownText.append(markdown.head1("Não foi possível gerar versão para o jira, não há informações obrigatórias como versão e tipo de versão."));
 		}
@@ -233,24 +230,10 @@ public class ReleaseNotesConverter {
 	}
 	
 	private Date getDateFromReleaseDate(String releaseDateStr) {
-		Date releaseDate = null;
-		try {
-			releaseDate = Utils.stringToDate(releaseDateStr, null);
-		}catch (Exception e) {
-			try {
-				releaseDate = Utils.stringToDate(releaseDateStr, JiraService.JIRA_DATETIME_PATTERN);
-			}catch (Exception e1) {
-				try {
-					releaseDate = Utils.stringToDate(releaseDateStr, GitlabService.GITLAB_DATETIME_PATTERN);
-				}catch (Exception e2) {
-					e2.getStackTrace();
-				}
-			}
-		}
-		return releaseDate;
+		return Utils.getDateFromString(releaseDateStr);
 	}
 	
-	private String getSpecificMarkdownCode(JiraVersionReleaseNotes releaseNotes) {
+	private String getSpecificMarkdownCode(VersionReleaseNotes releaseNotes) {
 		StringBuilder sb = new StringBuilder();
 		if(markdown.getName().equals("AsciiDocMarkdown")) {
 			sb.append(":releaseVersion: ")
@@ -279,12 +262,12 @@ public class ReleaseNotesConverter {
 		return sb.toString();
 	}
 	
-	private String getIssuesAsList(String title, List<JiraVersionReleaseNoteIssues> issuesList) {
+	private String getIssuesAsList(String title, List<VersionReleaseNoteIssues> issuesList) {
 		StringBuilder issueList = new StringBuilder();
 		issueList
 			.append(markdown.head3(title));
 		// TODO - ordenar a lista de issues pela prioridade
-		for (JiraVersionReleaseNoteIssues issue : issuesList) {
+		for (VersionReleaseNoteIssues issue : issuesList) {
 			String authorName = DESENVOLVEDOR_ANONIMO;
 			if(issue.getAuthor() != null) {
 				authorName = issue.getAuthor().getName();
@@ -351,10 +334,10 @@ public class ReleaseNotesConverter {
 		}
 	}
 	
-	private List<IssueAuthorPointsVO> getIssueAuthors(JiraVersionReleaseNotes releaseNotes) {
-		List<IssueAuthorPointsVO> authorPointsList = new ArrayList<ReleaseNotesConverter.IssueAuthorPointsVO>();
+	private List<IssueAuthorPointsVO> getIssueAuthors(VersionReleaseNotes releaseNotes) {
+		List<IssueAuthorPointsVO> authorPointsList = new ArrayList<ReleaseNotesTextModel.IssueAuthorPointsVO>();
 		
-		List<JiraVersionReleaseNoteIssues> issueList = new ArrayList<>();
+		List<VersionReleaseNoteIssues> issueList = new ArrayList<>();
 		if(!releaseNotes.getNewFeatures().isEmpty()) {
 			issueList.addAll(releaseNotes.getNewFeatures());
 		}
@@ -371,7 +354,7 @@ public class ReleaseNotesConverter {
 		
 		if(issueList != null) {
 			Map<JiraUser, Integer> mapAuthors = new HashMap<>();
-			for (JiraVersionReleaseNoteIssues issue : issueList) {
+			for (VersionReleaseNoteIssues issue : issueList) {
 				if(issue.getAuthor() != null && !DESENVOLVEDOR_ANONIMO.equals(issue.getAuthor().getName())) {
 					Integer numMentions = mapAuthors.get(issue.getAuthor());
 					if(numMentions == null) {
@@ -387,7 +370,7 @@ public class ReleaseNotesConverter {
 	}
 	
 	private List<IssueAuthorPointsVO> convertToAuthorPointsList(Map<JiraUser, Integer> mapAuthors){
-		List<IssueAuthorPointsVO> authorPoints = new ArrayList<ReleaseNotesConverter.IssueAuthorPointsVO>();
+		List<IssueAuthorPointsVO> authorPoints = new ArrayList<ReleaseNotesTextModel.IssueAuthorPointsVO>();
 		for (JiraUser author : mapAuthors.keySet()) {
 			Integer points = mapAuthors.get(author);
 			authorPoints.add(new IssueAuthorPointsVO(author, points));

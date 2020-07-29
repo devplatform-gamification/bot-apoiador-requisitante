@@ -35,15 +35,26 @@ spring:
         gitflow-queue: 
           name: ${RABBIT_GITFLOW_QUEUE:gitflow-queue}
           auto-startup: ${RABBIT_GITFLOW_QUEUE_AUTOSTARTUP:false}
-        release-notes-queue:
-          name: ${RABBIT_RELEASE_NOTES_QUEUE:release-notes-queue}
-          auto-startup: ${RABBIT_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
-        version-launch-queue:
-          name: ${RABBIT_VERSION_LAUNCH_QUEUE:version-launch-queue}
-          auto-startup: ${RABBIT_VERSION_LAUNCH_QUEUE_AUTOSTARTUP:false}
-        publish-release-notes-queue:
-          name: ${RABBIT_PUBLISH_RELEASE_NOTES_QUEUE:publish-release-notes-queue}
-          auto-startup: ${RABBIT_PUBLISH_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
+          
+        lanver01-triage-queue:
+          name: ${RABBIT_LANVER01_TRIAGE_QUEUE:lanver01-triage-queue}
+          auto-startup: ${RABBIT_LANVER01_TRIAGE_QUEUE_AUTOSTARTUP:false}
+        lanver02-release-candidate-queue:
+          name: ${RABBIT_LANVER02_CREATE_RELEASE_CANDIDATE_QUEUE:lanver02-release-candidate-queue}
+          auto-startup: ${RABBIT_LANVER02_CREATE_RELEASE_CANDIDATE_QUEUE_AUTOSTARTUP:false}
+        lanver03-next-version-queue:
+          name: ${RABBIT_LANVER03_PREPARE_NEXT_VERSION_QUEUE:lanver03-prepare-next-version-queue}
+          auto-startup: ${RABBIT_LANVER03_PREPARE_NEXT_VERSION_QUEUE_AUTOSTARTUP:false}
+        lanver04-release-notes-queue:
+          name: ${RABBIT_LANVER04_CREATE_RELEASE_NOTES_QUEUE:lanver04-release-notes-queue}
+          auto-startup: ${RABBIT_LANVER04_CREATE_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
+        lanver05-version-launch-queue:
+          name: ${RABBIT_LANVER05_PROCESS_RELEASE_NOTES_QUEUE:lanver05-version-launch-queue}
+          auto-startup: ${RABBIT_LANVER05_PROCESS_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
+        lanver06-publish-release-notes-queue:
+          name: ${RABBIT_LANVER06_PUBLISH_RELEASE_NOTES_QUEUE:lanver06-publish-release-notes-queue}
+          auto-startup: ${RABBIT_LANVER06_PUBLISH_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
+          
         jira:
           issue-created:
             routing-key: ${RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_CREATED.*}

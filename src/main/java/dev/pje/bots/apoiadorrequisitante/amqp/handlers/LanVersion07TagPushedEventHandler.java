@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.devplatform.model.bot.VersionReleaseNotes;
+import com.devplatform.model.bot.VersionReleaseNotesIssueTypeEnum;
 import com.devplatform.model.gitlab.GitlabCommit;
 import com.devplatform.model.gitlab.event.GitlabEventPush;
 import com.devplatform.model.gitlab.response.GitlabBranchResponse;
@@ -23,40 +25,49 @@ import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraIssueTransition;
 import com.devplatform.model.jira.JiraIssuetype;
 import com.devplatform.model.jira.JiraProject;
-import com.devplatform.model.jira.JiraVersion;
-import com.devplatform.model.jira.JiraVersionReleaseNotes;
-import com.devplatform.model.jira.JiraVersionReleaseNotesIssueTypeEnum;
-import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
-import com.fasterxml.jackson.core.JsonProcessingException;
 
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
-import dev.pje.bots.apoiadorrequisitante.services.TelegramService;
-import dev.pje.bots.apoiadorrequisitante.utils.ReleaseNotesConverter;
+import dev.pje.bots.apoiadorrequisitante.utils.ReleaseNotesTextModel;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.AsciiDocMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
 
 @Component
-public class GitlabEventHandlerPublishReleaseNotes {
+public class LanVersion07TagPushedEventHandler extends Handler<GitlabEventPush>{
 
-	private static final Logger logger = LoggerFactory.getLogger(GitlabEventHandlerPublishReleaseNotes.class);
+	private static final Logger logger = LoggerFactory.getLogger(LanVersion07TagPushedEventHandler.class);
+
+	@Override
+	protected Logger getLogger() {
+		return logger;
+	}
+
+	@Override
+	public String getMessagePrefix() {
+		return "|VERSION-LAUNCH||06||PUBLISH-DOCS|";
+	}
+
+	@Override
+	public int getLogLevel() {
+		return MessagesLogger.LOGLEVEL_INFO;
+	}
 
 	@Autowired
-	private JiraService jiraService;
+	private ReleaseNotesTextModel releaseNotesModel;
 
-	@Autowired
-	private GitlabService gitlabService;
+	private static final String TRANSITION_ID_IMPEDIMENTO = "191"; // TODO buscar por propriedade da transicao
+	private static final String TRANSITION_ID_FINALIZAR_PROCESSAMENTO_PUBLICACAO_RELEASE_NOTES = "201"; // TODO buscar por propriedade da transicao
 
-	@Autowired
-	private TelegramService telegramService;
-
-	@Autowired
-	private ReleaseNotesConverter releaseNotesConverter;
-
-	public static final String MESSAGE_PREFIX = "[RELEASE-NOTES][GITLAB][DOCS]";
-
+	/**
+	 * :: TAG pushed ::
+	 *    Verifica se não há issue relacionada
+	 *    Se não houver, cria uma com a versão lançada, já iniciando o release notes
+	 *    Publica a criação da issue para o autor, via email e via rocketchat
+	 *    Publica também a criação da issue no grupo de XXXX do rocketchat
+	 */
 	public void handle(GitlabEventPush gitEventPushTag) throws Exception {
+		messages.clean();
 		JiraIssue issue = null;
 		boolean issueFounded = false;
 		GitlabCommit lastCommit = null;
@@ -65,31 +76,31 @@ public class GitlabEventHandlerPublishReleaseNotes {
 				lastCommit = gitEventPushTag.getCommits().get(0);
 			}
 			if (StringUtils.isNotBlank(lastCommit.getMessage())) {
-				String msg = MESSAGE_PREFIX + " - Identificando issue a partir da mensagem do último commit";
-				logger.info(msg);
+				messages.info("Identificando issue a partir da mensagem do último commit: " + lastCommit.getMessage());
 				String issueKey = Utils.getIssueKeyFromCommitMessage(lastCommit.getMessage());
 				if (StringUtils.isNotBlank(issueKey)) {
-					String msgKeyFounded = MESSAGE_PREFIX + " - Issue key identificada: " + issueKey;
-					logger.info(msgKeyFounded);
+
+					messages.setId(gitEventPushTag.getRef());
+					messages.debug(gitEventPushTag.getEventName().toString());
+
+					messages.info("Issue key identificada: " + issueKey);
 					issue = jiraService.recuperaIssueDetalhada(issueKey);
 					if (issue != null) {
 						issueFounded = true;
 					} else {
-						String msgIssueNotFounded = MESSAGE_PREFIX + " - Issue key não encontrada no jira: " + issueKey;
-						logger.error(msgIssueNotFounded);
+						messages.error("Issue key não encontrada no jira: " + issueKey);
 					}
 				} else {
-					String msgIssueKeyNotFounded = MESSAGE_PREFIX
-							+ " - ERRO - Não foi possível idetificar o número da issue.";
-					logger.error(msgIssueKeyNotFounded);
+					messages.error("Não foi possível idetificar o número da issue");
 				}
 			}
 		}
 		if (issueFounded) {
 			// 1. Recupera o anexo com o json do releaseNotes
-			String releaseNotesAttachment = jiraService.getAttachmentContent(issue, RELEASE_NOTES_JSON_FILENAME);
+			String releaseNotesAttachment = jiraService.getAttachmentContent(issue, JiraService.RELEASE_NOTES_JSON_FILENAME);
+			VersionReleaseNotes releaseNotes = null;
 			if (releaseNotesAttachment != null) {
-				JiraVersionReleaseNotes releaseNotes = Utils.convertJsonToJiraReleaseNotes(releaseNotesAttachment);
+				releaseNotes = Utils.convertJsonToJiraReleaseNotes(releaseNotesAttachment);
 
 				if (releaseNotes != null) {
 					// ajusta a data de geracao da versao e o autor dessa versao
@@ -115,10 +126,29 @@ public class GitlabEventHandlerPublishReleaseNotes {
 					handleReleaseNotesCreation(issue, releaseNotes);
 				}
 			}
+			if(releaseNotes == null) {
+				messages.error("Release notes não encontrado na issue de referência: " + issue.getKey());
+			}
+		}
+		
+		if(messages.hasSomeError()) {
+			// tramita para o impedmento, enviando as mensagens nos comentários
+			Map<String, Object> updateFields = new HashMap<>();
+			jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
+			enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_IMPEDIMENTO);
+		}else {
+			// tramita automaticamente, enviando as mensagens nos comentários
+			Map<String, Object> updateFields = new HashMap<>();
+			// atualiza a data de lancamento do release notes
+			String dataTagStr = Utils.dateToStringPattern(new Date(), JiraService.JIRA_DATETIME_PATTERN);
+			jiraService.atualizarDataReleaseNotes(issue, dataTagStr, updateFields);
+
+			jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
+			enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_FINALIZAR_PROCESSAMENTO_PUBLICACAO_RELEASE_NOTES);
 		}
 	}
 	
-	public void handleReleaseNotesCreation(JiraIssue issue, JiraVersionReleaseNotes releaseNotes) throws ParseException {
+	public void handleReleaseNotesCreation(JiraIssue issue, VersionReleaseNotes releaseNotes) throws ParseException {
 		// 2. Gerar documento asciidoc e incluir no docs.pje.jus.br
 		criarDocumentoReleaseNotesNoProjetoDocumentacao(issue, releaseNotes);
 //TODO
@@ -137,10 +167,11 @@ public class GitlabEventHandlerPublishReleaseNotes {
 	public static final String RELEASE_NOTES_RELEASE_COMPLETO = "/release-notes/release-notes-completo.adoc";
 	public static final String RELEASE_NOTES_RELEASE_LISTA = "/release-notes/index.adoc";
 
-	private void criarDocumentoReleaseNotesNoProjetoDocumentacao(JiraIssue issue, JiraVersionReleaseNotes releaseNotes)
+	private void criarDocumentoReleaseNotesNoProjetoDocumentacao(JiraIssue issue, VersionReleaseNotes releaseNotes)
 			throws ParseException {
-		AsciiDocMarkdown asciiDocMarkdown = new AsciiDocMarkdown();
-		String texto = releaseNotesConverter.convert(releaseNotes, asciiDocMarkdown);
+		releaseNotesModel.setReleaseNotes(releaseNotes);
+		String texto = releaseNotesModel.convert(new AsciiDocMarkdown());
+		
 		String filePath = getPathNameReleaseNotes(issue.getFields().getProject(), releaseNotes.getVersion());
 		GitlabBranchResponse branch = gitlabService.createBranchProjetoDocumentacao(GitlabService.PROJECT_DOCUMENTACO,
 				issue.getKey());
@@ -148,7 +179,7 @@ public class GitlabEventHandlerPublishReleaseNotes {
 		GitlabCommitResponse commitResponse = gitlabService.sendTextAsFileToBranch(GitlabService.PROJECT_DOCUMENTACO,
 				branch, filePath, texto, "Gerando release notes da versão " + releaseNotes.getVersion());
 
-		logger.info(commitResponse.toString());
+		messages.info(commitResponse.toString());
 
 		// criar include do documento gerado no arquivo: release-notes-completo.adoc
 		adicionaNovoArquivoReleaseNotesNoReleaseCompleto(issue.getFields().getProject(), branch, filePath);
@@ -183,9 +214,9 @@ public class GitlabEventHandlerPublishReleaseNotes {
 		if (StringUtils.isNotBlank(releaseNotesCompletoContent)) {
 			// 3. verificar se a versão já está lá
 			if (releaseNotesCompletoContent.contains(fileName)) {
-				logger.info("O include do release notes [" + fileName + "] já existe no arquivo de releases completas");
+				messages.info("O include do release notes [" + fileName + "] já existe no arquivo de releases completas");
 			} else {
-				logger.info("O include do release notes [" + fileName
+				messages.info("O include do release notes [" + fileName
 						+ "] AINDA NÃO existe no arquivo de releases completas");
 				// 5. adicionar o include do release
 				String linhaIncludeReleaseNotes = "include::{docdir}/{docsServicePATH}/release-notes/includes/"
@@ -199,13 +230,11 @@ public class GitlabEventHandlerPublishReleaseNotes {
 					GitlabService.PROJECT_DOCUMENTACO, branch, releaseNotesCompletoFileName,
 					releaseNotesCompletoContent,
 					"Incluindo novo release notes no arquivo de releases completas do projeto");
-			logger.info(commitResponse.toString());
+			messages.info(commitResponse.toString());
 		} else {
 			// ERRO no projeto de documentação - o arquivo não existe no destino
-			String errorMessage = MESSAGE_PREFIX + " Não foi possível encontrar o arquivo "
-					+ releaseNotesCompletoFileName + " no projeto de documentação";
-			logger.error(errorMessage);
-			telegramService.sendBotMessage(errorMessage);
+			messages.error(" Não foi possível encontrar o arquivo "
+					+ releaseNotesCompletoFileName + " no projeto de documentação");
 		}
 	}
 
@@ -239,11 +268,11 @@ public class GitlabEventHandlerPublishReleaseNotes {
 		if (StringUtils.isNotBlank(listaReleaseNotesContent)) {
 			// 3. verificar se a versão já está lá
 			if (listaReleaseNotesContent.contains(fileNameHTML)) {
-				logger.info(
-						"O include do release notes [" + fileNameHTML + "] já existe no arquivo de lista de releases");
+				messages.info("O include do release notes |" + fileNameHTML 
+						+ "| já existe no arquivo de lista de releases");
 			} else {
-				logger.info("O include do release notes [" + fileNameHTML
-						+ "] AINDA NÃO existe no arquivo de lista de releases");
+				messages.info("O include do release notes |" + fileNameHTML
+						+ "| AINDA NÃO existe no arquivo de lista de releases");
 				// 4. TODO - identificar a ordem de armazenamento desses includes
 				// 5. adicionar o include do release
 				String dataReleaseNotesStr = null;
@@ -255,9 +284,7 @@ public class GitlabEventHandlerPublishReleaseNotes {
 							+ dataReleaseNotesStr + "]";
 					listaReleaseNotesContent += "\n" + linhaIncludeReleaseNotes + "\n";
 				} else {
-					String errorMessage = MESSAGE_PREFIX + " - Não foi possível identificar a data da release";
-					logger.error(errorMessage);
-					telegramService.sendBotMessage(errorMessage);
+					messages.error("Não foi possível identificar a data da release");
 				}
 			}
 			listaReleaseNotesContent = reordenarListaIncludesReleaseNotesHtmls(listaReleaseNotesContent);
@@ -265,13 +292,11 @@ public class GitlabEventHandlerPublishReleaseNotes {
 			GitlabCommitResponse commitResponse = gitlabService.sendTextAsFileToBranch(
 					GitlabService.PROJECT_DOCUMENTACO, branch, listaReleaseNotesFileName, listaReleaseNotesContent,
 					"Incluindo novo release notes no arquivo de lista de releases do projeto");
-			logger.info(commitResponse.toString());
+			messages.info(commitResponse.toString());
 		} else {
 			// ERRO no projeto de documentação - o arquivo não existe no destino
-			String errorMessage = MESSAGE_PREFIX + " Não foi possível encontrar o arquivo " + listaReleaseNotesFileName
-					+ " no projeto de documentação";
-			logger.error(errorMessage);
-			telegramService.sendBotMessage(errorMessage);
+			messages.error(" Não foi possível encontrar o arquivo " + listaReleaseNotesFileName
+					+ " no projeto de documentação");
 		}
 	}
 
@@ -295,7 +320,7 @@ public class GitlabEventHandlerPublishReleaseNotes {
 				linhasArquivoAlterado.add(linha);
 			}
 		}
-		logger.info("Existem " + releaseNotesIncludes.size() + " releases.");
+		messages.info("Existem " + releaseNotesIncludes.size() + " releases.");
 		// 3. ordena os release notes pelo número da versão ASC
 		Collections.sort(releaseNotesIncludes, new SortReleaseNotesAdocByVersion());
 		// 4. remonta o arquivo:
@@ -337,7 +362,7 @@ public class GitlabEventHandlerPublishReleaseNotes {
 				linhasArquivoAlterado.add(linha);
 			}
 		}
-		logger.info("Existem " + releaseNotesIncludes.size() + " releases.");
+		messages.info("Existem " + releaseNotesIncludes.size() + " releases.");
 		// 3. ordena os release notes pelo número da versão ASC
 		Collections.sort(releaseNotesIncludes, new SortReleaseNotesHtmlByVersion());
 		// 4. remonta o arquivo:
@@ -390,85 +415,58 @@ public class GitlabEventHandlerPublishReleaseNotes {
 	public static final int ISSUE_TYPE_IMPROVEMENT = 4;
 	public static final int ISSUE_TYPE_MINOR_CHANGES = 5;
 
-	public JiraVersionReleaseNotesIssueTypeEnum getIssueTypeEnum(JiraIssuetype issueType) {
-		JiraVersionReleaseNotesIssueTypeEnum releaseNotesIssueType = null;
+	public VersionReleaseNotesIssueTypeEnum getIssueTypeEnum(JiraIssuetype issueType) {
+		VersionReleaseNotesIssueTypeEnum releaseNotesIssueType = null;
 		switch (issueType.getId().intValue()) {
 		case ISSUE_TYPE_HOTFIX:
 		case ISSUE_TYPE_BUGFIX:
 		case ISSUE_TYPE_BUG:
-			releaseNotesIssueType = JiraVersionReleaseNotesIssueTypeEnum.BUGFIX;
+			releaseNotesIssueType = VersionReleaseNotesIssueTypeEnum.BUGFIX;
 			break;
 		case ISSUE_TYPE_NEWFEATURE:
-			releaseNotesIssueType = JiraVersionReleaseNotesIssueTypeEnum.NEW_FEATURE;
+			releaseNotesIssueType = VersionReleaseNotesIssueTypeEnum.NEW_FEATURE;
 			break;
 		case ISSUE_TYPE_IMPROVEMENT:
-			releaseNotesIssueType = JiraVersionReleaseNotesIssueTypeEnum.IMPROVEMENT;
+			releaseNotesIssueType = VersionReleaseNotesIssueTypeEnum.IMPROVEMENT;
 			break;
 		default:
-			releaseNotesIssueType = JiraVersionReleaseNotesIssueTypeEnum.MINOR_CHANGES;
+			releaseNotesIssueType = VersionReleaseNotesIssueTypeEnum.MINOR_CHANGES;
 			break;
 		}
 
 		return releaseNotesIssueType;
 	}
 
-	private String getVersaoAfetada(List<JiraVersion> versions) {
-		String versaoAfetada = null;
-		if (versions != null && versions.size() == 1) {
-			JiraVersion version = versions.get(0);
-			if (!version.getArchived() && !version.getReleased()) {
-				versaoAfetada = version.getName();
-			}
-		}
-		return versaoAfetada;
-	}
-
 	private static final String TRANSICTION_REGENERATE_RELEASE_NOTES = "Regerar release notes"; // TODO buscar por
 																								// propriedade da
 																								// transicao
-	private static final String RELEASE_NOTES_JSON_FILENAME = "release-notes.json";
-
-	private void atualizarDescricao(JiraIssue issue, JiraVersionReleaseNotes releaseNotes) {
+	private void atualizarDescricao(JiraIssue issue, VersionReleaseNotes releaseNotes) {
 		Map<String, Object> updateFields = new HashMap<>();
 		try {
 			String releaseNotesJson = Utils.convertObjectToJson(releaseNotes);
 			// 1. envia o json do release-notes para a issue
-			jiraService.sendTextAsAttachment(issue, RELEASE_NOTES_JSON_FILENAME, releaseNotesJson);
+			jiraService.sendTextAsAttachment(issue, JiraService.RELEASE_NOTES_JSON_FILENAME, releaseNotesJson);
 
 			// 2. converte o release-notes em um markdown do próprio jira e preenche o campo
 			// descrição
 			JiraMarkdown jiraMarkdown = new JiraMarkdown();
-			String jiraMarkdownRelease = releaseNotesConverter.convert(releaseNotes, jiraMarkdown);
+			releaseNotesModel.setReleaseNotes(releaseNotes);
+			String jiraMarkdownRelease = releaseNotesModel.convert(jiraMarkdown);
 			// 3. gera comentário na issue, solicitando confirmação
 			jiraService.atualizarDescricao(issue, jiraMarkdownRelease, updateFields);
-			enviaAlteracao(issue, updateFields);
+			JiraIssueTransition generateReleaseNotes = jiraService.findTransitionByName(issue,
+					TRANSICTION_REGENERATE_RELEASE_NOTES);
+			enviarAlteracaoJira(issue, updateFields, generateReleaseNotes.getId());
 		} catch (Exception e) {
 			e.printStackTrace();
 			try {
+				String errorMessage = "Erro ao tentar atualizar o campo de descrição: " + e.getLocalizedMessage();
 				jiraService.atualizarDescricao(issue,
-						"Erro ao tentar atualizar o campo de descrição: " + e.getLocalizedMessage(), updateFields);
-				enviaAlteracao(issue, updateFields);
+						errorMessage, updateFields);
+//				TODO
+//				enviaAlteracao(issue, updateFields);
 			} catch (Exception e1) {
 				e1.printStackTrace();
-			}
-		}
-	}
-
-	private void enviaAlteracao(JiraIssue issue, Map<String, Object> updateFields) throws JsonProcessingException {
-		if (!updateFields.isEmpty()) {
-			JiraIssueTransition generateReleaseNotes = jiraService.findTransitionByName(issue,
-					TRANSICTION_REGENERATE_RELEASE_NOTES);
-			if (generateReleaseNotes != null) {
-				JiraIssueTransitionUpdate issueTransitionUpdate = new JiraIssueTransitionUpdate(generateReleaseNotes,
-						updateFields);
-				logger.info("update string: " + Utils.convertObjectToJson(issueTransitionUpdate));
-				jiraService.updateIssue(issue, issueTransitionUpdate);
-				telegramService.sendBotMessage(MESSAGE_PREFIX + "[" + issue.getKey() + "] Issue atualizada");
-				logger.info("Issue atualizada");
-			} else {
-				telegramService.sendBotMessage("*" + MESSAGE_PREFIX + "[" + issue.getKey()
-						+ "] Erro!!* \n Não há transição para realizar esta alteração");
-				logger.error("Não há transição para realizar esta alteração");
 			}
 		}
 	}

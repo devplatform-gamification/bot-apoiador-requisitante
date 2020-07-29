@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import com.devplatform.model.gitlab.GitlabPipeline;
 import com.devplatform.model.gitlab.GitlabProjectExtended;
 import com.devplatform.model.gitlab.GitlabTag;
+import com.devplatform.model.gitlab.GitlabTagRelease;
 import com.devplatform.model.gitlab.GitlabUser;
 import com.devplatform.model.gitlab.request.GitlabAcceptMRRequest;
 import com.devplatform.model.gitlab.request.GitlabBranchRequest;
@@ -22,9 +23,11 @@ import com.devplatform.model.gitlab.request.GitlabCherryPickRequest;
 import com.devplatform.model.gitlab.request.GitlabCommitRequest;
 import com.devplatform.model.gitlab.request.GitlabMRRequest;
 import com.devplatform.model.gitlab.request.GitlabRepositoryTagRequest;
+import com.devplatform.model.gitlab.request.GitlabTagReleaseRequest;
 import com.devplatform.model.gitlab.response.GitlabBranchResponse;
 import com.devplatform.model.gitlab.response.GitlabCommitResponse;
 import com.devplatform.model.gitlab.response.GitlabMRResponse;
+import com.devplatform.model.gitlab.response.GitlabRefCompareResponse;
 import com.devplatform.model.gitlab.response.GitlabRepositoryFile;
 import com.devplatform.model.gitlab.response.GitlabRepositoryTree;
 
@@ -104,7 +107,14 @@ public interface GitlabClient {
 			@PathVariable("projectId") String projectId,
 			@RequestBody GitlabRepositoryTagRequest tagRequest
 			);
-	
+
+	@PostMapping(value = "/api/v4/projects/{projectId}/repository/tags/{tagName}/release", consumes = "application/json")
+	public GitlabTagRelease createSimpleTagRelease(
+			@PathVariable("projectId") String projectId,
+			@PathVariable("tagName") String tagName,
+			@RequestBody GitlabTagReleaseRequest tagReleaseRequest
+			);
+
 	@GetMapping(value = "/api/v4/projects/{projectId}", consumes = "application/json")
 	public GitlabProjectExtended getSingleProject(
 			@PathVariable("projectId") String projectId
@@ -140,4 +150,12 @@ public interface GitlabClient {
 			@PathVariable("projectId") String projectId,
 			@PathVariable("mergeRequestIid") BigDecimal mergeRequestIId
 			);
+
+	@GetMapping(value = "/api/v4/projects/{projectId}/repository/compare/?from={fromBranch}&to= {toBranch}", consumes = "application/json")
+	public GitlabRefCompareResponse compareBranches(
+			@PathVariable("projectId") String projectId,
+			@PathVariable("fromBranch") String fromBranch,
+			@PathVariable("toBranch") String toBranch
+			);
+
 }

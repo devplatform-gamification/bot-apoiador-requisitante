@@ -1,16 +1,12 @@
 package dev.pje.bots.apoiadorrequisitante.utils.markdown;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 
-
-public class JiraMarkdown implements MarkdownInterface{
+public class TelegramMarkdownHtml implements MarkdownInterface{
 	
-	public static final String NAME = "JiraMarkdown";
+	public static final String NAME = "TelegramHtml";
 
 	@Override
 	public String getName() {
@@ -24,62 +20,62 @@ public class JiraMarkdown implements MarkdownInterface{
 
 	@Override
 	public String head1(String text) {
-		return newLine() + "h1. " + text + newLine();
+		return newLine() + bold(text) + newLine();
 	}
 
 	@Override
 	public String head2(String text) {
-		return newLine() + "h2. " + text + newLine();
+		return head1(text);
 	}
 
 	@Override
 	public String head3(String text) {
-		return newLine() + "h3. " + text + newLine();
+		return head2(text);
 	}
 
 	@Override
 	public String head4(String text) {
-		return newLine() + "h4. " + text + newLine();
+		return head3(text);
 	}
 
 	@Override
 	public String bold(String text) {
-		return "*" + text + "*";
+		return "<b>" + text + "</b>";
 	}
 
 	@Override
 	public String italic(String text) {
-		return "_" + text + "_";
+		return "<i>" + text + "</i>";
 	}
 
 	@Override
 	public String code(String text) {
-		return "{code}" + text + "{code}" + newLine();
+		return "<code>" + text + "</code>" + newLine();
 	}
 
 	@Override
 	public String code(String text, String language) {
-		return "{code:language=" + language +"}" + text + "{code}" + newLine();
+		return code(text);
 	}
 
 	@Override
 	public String code(String text, String language, String title) {
-		return "{code:language=" + language +"|title=" + title + "}" + text + "{code}" + newLine();
+		return newLine() + bold(title) + code(text);
 	}
 	
 	@Override
 	public String underline(String text) {
-		return "+" + text + "+";
+		return "<u>" + text + "</u>";
 	}
 
 	@Override
 	public String strike(String text) {
-		return "-" + text + "-";
+		return "<s>" + text + "</s>";
 	}
 	
 	@Override
 	public String citation(String text) {
-		return "??" + text + "??";
+		return newLine() + "---" + italic(text);
 	}
 
 	@Override
@@ -89,7 +85,7 @@ public class JiraMarkdown implements MarkdownInterface{
 
 	@Override
 	public String quote(String text) {
-		return "{quote}" + text + "{quote}" + newLine();
+		return newLine() + "---" + italic(text) + newLine() + "---" + newLine();
 	}
 
 	@Override
@@ -99,32 +95,32 @@ public class JiraMarkdown implements MarkdownInterface{
 
 	@Override
 	public String block(String text) {
-		return "{panel}" + text + "{panel}" + newLine();
+		return italic(text) + newLine();
 	}
 
 	@Override
 	public String block(String title, String text) {
-		return "{panel:title=" + title + "}" + text + "{panel}" + newLine();
+		return newLine() + "---" + bold(title) + newLine() + italic(text) + "---" + newLine();
 	}
 	
 	@Override
 	public String color(String text, String color) {
-		return "{color:" + color + "}" + text + "{color}";
+		return normal(text);
 	}
 
 	@Override
 	public String newLine() {
 		return "\n";
 	}
-
+	
 	@Override
 	public String newParagraph() {
 		return newLine() + newLine();
 	}
-
+	
 	@Override
 	public String ruler() {
-		return "----";
+		return newLine() + "----" + newLine();
 	}
 	
 	@Override
@@ -137,7 +133,7 @@ public class JiraMarkdown implements MarkdownInterface{
 		if(StringUtils.isBlank(text)) {
 			text = url;
 		}
-		return "[" + text + "|" + url + "]";
+		return "<a href=\"" + url + "\">" + text + "</a>";
 	}
 	
 	@Override
@@ -147,29 +143,16 @@ public class JiraMarkdown implements MarkdownInterface{
 
 	@Override
 	public String image(String path, String alternativeText, String height, String width, String title) {
-		Map<String, String> options = new HashMap<>();
-		options.put("height", height);
-		options.put("width", width);
-		options.put("title", title);
-		
-		return image(path, options);
+		return normal(alternativeText);
 	}
 
 	@Override
 	public String image(String path, Map<String, String> options) {
-		List<String> imageOptionsList = new ArrayList<>();
-		for (String key : options.keySet()) {
-			String option = key;
-			if(!key.equalsIgnoreCase("thumbnail")) {
-				option += "=" + options.get(key);
-			}
-			imageOptionsList.add(option);
+		String name = "image";
+		if(options != null && options.get("alt") != null) {
+			name = options.get("alt");
 		}
-		String imageOptions = String.join("|", imageOptionsList);
-		if(StringUtils.isNotBlank(imageOptions)) {
-			imageOptions = "|" + imageOptions;
-		}
-		return "!" + path + imageOptions + "!";
+		return link(path, name);
 	}
 
 	@Override
@@ -179,27 +162,27 @@ public class JiraMarkdown implements MarkdownInterface{
 
 	@Override
 	public String firstPlaceIco() {
-		return "(*y)";
+		return "[1]";
 	}
 
 	@Override
 	public String secondPlaceIco() {
-		return "(*b)";
+		return "[2]";
 	}
 
 	@Override
 	public String thirdPlaceIco() {
-		return "(*g)";
+		return "[3]";
 	}
 
 	@Override
 	public String MVPIco() {
-		return " (y)";
+		return " [T]";
 	}
 
 	@Override
 	public String error(String text) {
-		return color(text, "red");
+		return normal("ERROR " + text);
 	}
 
 	@Override
@@ -209,6 +192,6 @@ public class JiraMarkdown implements MarkdownInterface{
 
 	@Override
 	public String warning(String text) {
-		return color(text, "yellow");
+		return normal("WARN " + text);
 	}
 }

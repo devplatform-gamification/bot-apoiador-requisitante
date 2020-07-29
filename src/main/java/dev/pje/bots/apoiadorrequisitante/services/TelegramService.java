@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.devplatform.model.telegram.TelegramMessage;
+import com.devplatform.model.telegram.TelegramMessageParseModeEnum;
 import com.devplatform.model.telegram.TelegramUser;
 import com.devplatform.model.telegram.request.TelegramSendMessage;
 import com.devplatform.model.telegram.response.TelegramResponse;
@@ -29,11 +30,17 @@ public class TelegramService {
 	}
 	
 	// TODO - transformar isso em um buffer de mensagens quando forem para o mesmo canal.... ter um schedule que limpa esse buffer de 1 em 1 m
-	public void sendSimpleMessage(String channel, String text, Boolean silent) {
+	public void sendSimpleMessage(String channel, String text, Boolean silent, TelegramMessageParseModeEnum parseMode) {
 		if(silent == null) {
 			silent = false;
 		}
-		TelegramSendMessage message = new TelegramSendMessage(channel, Utils.escapeTelegramMarkup(text));
+		if(parseMode == null) {
+			parseMode = TelegramMessageParseModeEnum.MARKDOWN;
+		}
+		if(parseMode.equals(TelegramMessageParseModeEnum.MARKDOWN_V2)) {
+			text = Utils.escapeTelegramMarkup(text);
+		}
+		TelegramSendMessage message = new TelegramSendMessage(channel, text, parseMode.toString());
 		message.setDisable_notification(silent);
 		boolean passou = false;
 		int tentativas = 0;
@@ -47,6 +54,7 @@ public class TelegramService {
 				}
 				int numMessages = ++numMessagesSent;
 				try {
+					logger.info("update string: " + Utils.convertObjectToJson(message));
 					TelegramResponse<TelegramMessage> response = telegramClient.sendMessage(message);
 					logger.debug("Message response: "+ response.toString());
 					passou = true;
@@ -65,6 +73,10 @@ public class TelegramService {
 	}
 	
 	public void sendBotMessage(String text) {
-		sendSimpleMessage(NOME_GRUPO_BOT_TRIAGEM, text, true);
+		sendSimpleMessage(NOME_GRUPO_BOT_TRIAGEM, text, true, TelegramMessageParseModeEnum.MARKDOWN_V2);
 	}
+	
+	public void sendBotMessageHtml(String text) {
+		sendSimpleMessage(NOME_GRUPO_BOT_TRIAGEM, text, true, TelegramMessageParseModeEnum.HTML);
+	}	
 }

@@ -111,12 +111,17 @@ public class GitlabMarkdown implements MarkdownInterface{
 	
 	@Override
 	public String color(String text, String color) {
-		return "`" + color + "`";
+		return color + " " + text + " " + color;
 	}
 
 	@Override
 	public String newLine() {
 		return "\n";
+	}
+	
+	@Override
+	public String newParagraph() {
+		return newLine() + newLine();
 	}
 
 	@Override
@@ -129,11 +134,6 @@ public class GitlabMarkdown implements MarkdownInterface{
 		return newLine() + "- " + text;
 	}
 	
-	@Override
-	public String paragraph(String text) {
-		return newLine() + text;
-	}
-
 	@Override
 	public String link(String url, String text) {
 		if(StringUtils.isBlank(text)) {
@@ -214,4 +214,20 @@ public class GitlabMarkdown implements MarkdownInterface{
 	public String MVPIco() {
 		return " :trophy:";
 	}
+	
+	@Override
+	public String error(String text) {
+		return color(text, "&#x274E;");
+	}
+
+	@Override
+	public String info(String text) {
+		return normal(text);
+	}
+
+	@Override
+	public String warning(String text) {
+		return color(text, "&#x2757;");
+	}
+
 }

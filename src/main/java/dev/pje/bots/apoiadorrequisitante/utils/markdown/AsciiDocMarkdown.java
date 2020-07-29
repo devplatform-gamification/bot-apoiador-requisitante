@@ -170,6 +170,11 @@ public class AsciiDocMarkdown implements MarkdownInterface{
 	public String newLine() {
 		return "\n";
 	}
+	
+	@Override
+	public String newParagraph() {
+		return newLine() + newLine();
+	}
 
 	@Override
 	public String ruler() {
@@ -181,11 +186,6 @@ public class AsciiDocMarkdown implements MarkdownInterface{
 		return newLine() + "* " + text;
 	}
 	
-	@Override
-	public String paragraph(String text) {
-		return newLine() + newLine() + normal(text) + newLine();
-	}
-
 	@Override
 	public String link(String url, String text) {
 		if(text == null || text.equals(url)) {
@@ -299,4 +299,18 @@ public class AsciiDocMarkdown implements MarkdownInterface{
 		return substitution("versionMVP");
 	}
 
+	@Override
+	public String error(String text) {
+		return color(text, "red");
+	}
+
+	@Override
+	public String info(String text) {
+		return normal(text);
+	}
+
+	@Override
+	public String warning(String text) {
+		return color(text, "yellow");
+	}
 }

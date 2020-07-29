@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.devplatform.model.gitlab.GitlabCommit;
@@ -20,6 +21,7 @@ import com.devplatform.model.gitlab.GitlabPipeline;
 import com.devplatform.model.gitlab.GitlabProject;
 import com.devplatform.model.gitlab.GitlabProjectExtended;
 import com.devplatform.model.gitlab.GitlabTag;
+import com.devplatform.model.gitlab.GitlabTagRelease;
 import com.devplatform.model.gitlab.request.GitlabAcceptMRRequest;
 import com.devplatform.model.gitlab.request.GitlabBranchRequest;
 import com.devplatform.model.gitlab.request.GitlabCherryPickRequest;
@@ -28,9 +30,11 @@ import com.devplatform.model.gitlab.request.GitlabCommitActionsEnum;
 import com.devplatform.model.gitlab.request.GitlabCommitRequest;
 import com.devplatform.model.gitlab.request.GitlabMRRequest;
 import com.devplatform.model.gitlab.request.GitlabRepositoryTagRequest;
+import com.devplatform.model.gitlab.request.GitlabTagReleaseRequest;
 import com.devplatform.model.gitlab.response.GitlabBranchResponse;
 import com.devplatform.model.gitlab.response.GitlabCommitResponse;
 import com.devplatform.model.gitlab.response.GitlabMRResponse;
+import com.devplatform.model.gitlab.response.GitlabRefCompareResponse;
 import com.devplatform.model.gitlab.response.GitlabRepositoryFile;
 import com.devplatform.model.gitlab.response.GitlabRepositoryTree;
 import com.devplatform.model.gitlab.vo.GitlabScriptVersaoVO;
@@ -58,11 +62,14 @@ public class GitlabService {
 	public static final String BRANCH_DEVELOP = "develop";
 	public static final String BRANCH_MASTER = "master";
 	public static final String BRANCH_RELEASE_CANDIDATE_PREFIX = "release-";
+	public static final String TAG_RELEASE_CANDIDATE_SUFFIX = "-RC";
 	
 	public static final String PROJECT_DOCUMENTACO = "276";
 	
 	public static final String SCRIPS_MIGRATION_BASE_PATH = "pje-comum/src/main/resources/migrations/";
 	public static final String SCRIPT_EXTENSION = ".sql";
+	public static final String FIRST_SCRIPT_PREFIX = "PJE_";
+	public static final String FIRST_SCRIPT_SUFFIX = "_001__VERSAO_INICIAL.sql";
 	public static final String POMXML = "pom.xml";
 	public static final String AUTHOR_NAME = "Bot Revisor do PJe";
 	public static final String AUTHOR_EMAIL = "bot.revisor.pje@cnj.jus.br";
@@ -72,14 +79,8 @@ public class GitlabService {
 	public static final String GITLAB_DATETIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSS";
 	
 	public String getBranchVersion(GitlabProject project, String branch) {
-		String ref;
-		if(BRANCH_MASTER.equals(branch)) {
-			ref = branch;
-		}else {
-			ref = BRANCH_DEVELOP;
-		}
 		String projectId = project.getId().toString();
-		String pomxml = gitlabClient.getRawFile(projectId, POMXML, ref);
+		String pomxml = gitlabClient.getRawFile(projectId, POMXML, branch);
 		String fullVersion = Utils.getVersionFromPomXML(pomxml);
 		
 		String version = "";
@@ -94,33 +95,31 @@ public class GitlabService {
 		return getFilesFromPath(projectId, branch, path);
 	}
 	public List<GitlabRepositoryTree> getFilesFromPath(String projectId, String branch, String path) {
-		String ref;
-		if(BRANCH_MASTER.equals(branch)) {
-			ref = branch;
-		}else {
-			ref = BRANCH_DEVELOP;
-		}
-		List<GitlabRepositoryTree> listElements = gitlabClient.getRepositoryTree(projectId, path, ref);
-		
 		List<GitlabRepositoryTree> listFiles = new ArrayList<>();
-		for (GitlabRepositoryTree element : listElements) {
-			if(!element.getType().equals("tree")) {
-				listFiles.add(element);
+		try {
+			List<GitlabRepositoryTree> listElements = gitlabClient.getRepositoryTree(projectId, path, branch);
+			for (GitlabRepositoryTree element : listElements) {
+				if(!element.getType().equals("tree")) {
+					listFiles.add(element);
+				}
 			}
+		}catch (Exception e) {
+			logger.error(e.getLocalizedMessage());
 		}
 		
 		return listFiles;
 	}
 
-	public void moveFiles(GitlabProject project, String branch, String lastCommitId,
+	public GitlabCommitResponse moveFiles(GitlabProject project, String branch, String lastCommitId,
 			List<GitlabScriptVersaoVO> scriptsToChange, String commitMessage) {
 		
-		moveFiles(project.getId().toString(), branch, lastCommitId, scriptsToChange, commitMessage);
+		return moveFiles(project.getId().toString(), branch, lastCommitId, scriptsToChange, commitMessage);
 	}
 	
-	public void moveFiles(String projectId, String branch, String lastCommitId,
+	public GitlabCommitResponse moveFiles(String projectId, String branch, String lastCommitId,
 			List<GitlabScriptVersaoVO> scriptsToChange, String commitMessage) {
 
+		GitlabCommitResponse response = null;
 		if(scriptsToChange != null && !scriptsToChange.isEmpty()) {
 			GitlabCommitRequest commit = new GitlabCommitRequest();
 			commit.setBranch(branch);
@@ -144,7 +143,7 @@ public class GitlabService {
 			telegramService.sendBotMessage(commitMessage);
 
 			try {
-				GitlabCommitResponse response = gitlabClient.sendCommit(projectId, commit);
+				response = gitlabClient.sendCommit(projectId, commit);
 				if(response != null && response.getId() != null) {
 					logger.info("ok");
 				}
@@ -156,45 +155,112 @@ public class GitlabService {
 				telegramService.sendBotMessage(errorMessage);
 			}
 		}
+		return response;
 	}
 	
-	public void renameDir(String projectId, String branch, String lastCommitId,
-			String previousPath, String newPath, String commitMessage) {
-		
-		if(StringUtils.isNotBlank(previousPath) && StringUtils.isNotBlank(newPath)) {
+	public GitlabCommitResponse createScriptsDir(String projectId, String branchName, String lastCommitId, String version, String commitMessage) {
+		GitlabCommitResponse response = null;
+		// monta o path dos scripts
+		String destinationPath = GitlabService.SCRIPS_MIGRATION_BASE_PATH + version;
+		List<GitlabRepositoryTree> currentScriptList = getFilesFromPath(projectId, branchName, destinationPath);
+		// verifica se a pasta ainda não existe
+		if(currentScriptList == null || currentScriptList.isEmpty()) {
+			// cria a pasta com o novo arquivo
 			GitlabCommitRequest commit = new GitlabCommitRequest();
-			String id = "";
-			commit.setBranch(branch);
+			commit.setBranch(branchName);
 			commit.commitMessage(commitMessage);
 			commit.setAuthorName(AUTHOR_NAME);
 			commit.setAuthorEmail(AUTHOR_EMAIL);
 			
 			List<GitlabCommitActionRequest> actions = new ArrayList<>();
-			GitlabCommitActionRequest action = new GitlabCommitActionRequest();
-			action.setAction(GitlabCommitActionsEnum.MOVE);
-			action.setPreviousPath(previousPath);
-			action.setFilePath(newPath);
-			action.setLastCommitId(lastCommitId);
 			
+			String firstScriptPath = destinationPath + "/" + FIRST_SCRIPT_PREFIX + version + FIRST_SCRIPT_SUFFIX;
+
+			GitlabCommitActionRequest action = new GitlabCommitActionRequest();
+			action.setAction(GitlabCommitActionsEnum.CREATE);
+			action.setFilePath(firstScriptPath);
+			action.setContent("-- Arquivo inicial dos scripts da versao " + version);
+			action.setLastCommitId(lastCommitId);
 			actions.add(action);
+
 			commit.setActions(actions);
 			
 			logger.info(commitMessage);
 			telegramService.sendBotMessage(commitMessage);
 
 			try {
-				GitlabCommitResponse response = gitlabClient.sendCommit(projectId, commit);
+				response = gitlabClient.sendCommit(projectId, commit);
 				if(response != null && response.getId() != null) {
 					logger.info("ok");
 				}
 			}catch(Exception e) {
-				String errorMessage = "Não foi possível renomear o diretorio: " + previousPath + " para: " + newPath + " do commit: " + lastCommitId + "\n"
+				String errorMessage = "Não foi possível mover os arquivos do commit: " + lastCommitId + "\n"
 						+e.getMessage();
 				logger.error(errorMessage);
 				slackService.sendBotMessage(errorMessage);
 				telegramService.sendBotMessage(errorMessage);
 			}
+		}else {
+			String message = "Já existe a pasta de scripts da versão: " + version + "";
+			logger.info(message);
+			slackService.sendBotMessage(message);
+			telegramService.sendBotMessage(message);
+			
 		}
+		return response;
+	}
+	
+	public GitlabCommitResponse renameDir(String projectId, String branchName, String lastCommitId,
+			String previousPath, String newPath, String commitMessage) {
+		
+		GitlabCommitResponse response = null;
+		if(StringUtils.isNotBlank(previousPath) && StringUtils.isNotBlank(newPath) && !previousPath.equals(newPath)) {
+			// busca todos os arquivos de uma determinada pasta previouspath
+			List<GitlabRepositoryTree> currentScriptList = getFilesFromPath(projectId, branchName, previousPath);
+			// move esses arquivos para a pasta destino newpath
+
+			GitlabCommitRequest commit = new GitlabCommitRequest();
+			commit.setBranch(branchName);
+			commit.commitMessage(commitMessage);
+			commit.setAuthorName(AUTHOR_NAME);
+			commit.setAuthorEmail(AUTHOR_EMAIL);
+			
+			List<GitlabCommitActionRequest> actions = new ArrayList<>();
+
+			if(currentScriptList != null && !currentScriptList.isEmpty()) {
+				for (GitlabRepositoryTree currentScript : currentScriptList) {
+					String currentFilePath = currentScript.getPath();
+					String newFilePath = newPath + "/" + currentScript.getName();
+					
+					GitlabCommitActionRequest action = new GitlabCommitActionRequest();
+					action.setAction(GitlabCommitActionsEnum.MOVE);
+					action.setPreviousPath(currentFilePath);
+					action.setFilePath(newFilePath);
+//					action.setLastCommitId(lastCommitId);
+					
+					actions.add(action);
+				}
+				// the folder will be automatically deleted once it is an empty folder
+				commit.setActions(actions);
+				
+				
+				try {
+					logger.info(commitMessage);
+					telegramService.sendBotMessage(commitMessage);
+					response = gitlabClient.sendCommit(projectId, commit);
+					if(response != null && response.getId() != null) {
+						logger.info("ok");
+					}
+				}catch(Exception e) {
+					String errorMessage = "Não foi possível renomear o diretorio: " + previousPath + " para: " + newPath + " do commit: " + lastCommitId + "\n"
+							+e.getMessage();
+					logger.error(errorMessage);
+					slackService.sendBotMessage(errorMessage);
+					telegramService.sendBotMessage(errorMessage);
+				}
+			}
+		}
+		return response;
 	}
 	
 	public GitlabCommitResponse sendTextAsFileToBranch(String projectId, GitlabBranchResponse branch, String filePath, String content, String commitMessage) {
@@ -286,6 +352,8 @@ public class GitlabService {
 			for (GitlabCommit commit : commits) {
 				String commitSHA = commit.getId();
 				
+				// TODO - verifica se o commit já existe no target branch
+				
 				GitlabCherryPickRequest cherryPick = new GitlabCherryPickRequest();
 				cherryPick.setId(projectId);
 				cherryPick.setBranch(branchName);
@@ -311,6 +379,7 @@ public class GitlabService {
 		}
 	}
 	
+	@Cacheable(cacheNames = "project-tag")
 	public GitlabTag getVersionTag(String projectId, String version) {
 		GitlabTag tag = null;
 		if(StringUtils.isNotBlank(version) && StringUtils.isNotBlank(projectId)) {
@@ -343,17 +412,31 @@ public class GitlabService {
 		}
 		return tag;
 	}
+	
+	public GitlabTagRelease createTagRelease(String projectId, String tagName, String releaseText) {
+		GitlabTagRelease tagRelease = null;
+		if(StringUtils.isNotBlank(tagName) && StringUtils.isNotBlank(projectId)) {
+			try {
+				GitlabTagReleaseRequest tagReleaseRequest = new GitlabTagReleaseRequest(releaseText);
+				tagRelease = gitlabClient.createSimpleTagRelease(projectId, tagName, tagReleaseRequest);
+			}catch (Exception e) {
+				logger.error(e.getLocalizedMessage());
+			}
+		}
+		return tagRelease;
+		
+	}
 
 	public boolean isDevelopDefaultBranch(GitlabProject project) {
 		String projectId = project.getId().toString();
-		GitlabBranchResponse develop = gitlabClient.getSingleRepositoryBranch(projectId, BRANCH_DEVELOP);
+		GitlabBranchResponse develop = getSingleRepositoryBranch(projectId, BRANCH_DEVELOP);
 		return develop.getBranchDefault();
 	}
 	
 	public boolean isMonitoredBranch(GitlabProject project, String branchName) {
 		return BRANCH_DEVELOP.equals(branchName) 
-				|| branchName.toLowerCase().startsWith(BRANCH_RELEASE_CANDIDATE_PREFIX)
-				|| BRANCH_MASTER.equals(branchName);
+				|| isBranchRelease(project, branchName)
+				|| isBranchMaster(project, branchName);
 	}
 	
 	public boolean isBranchMaster(GitlabProject project, String branchName) {
@@ -441,6 +524,21 @@ public class GitlabService {
 		return doesGitflow;
 	}
 	
+	public boolean isBranchMergedIntoTarget(String projectId, String branchSource, String branchTarget) {
+		boolean branchMerged = false;
+		try {
+			GitlabRefCompareResponse compareResponse = gitlabClient.compareBranches(projectId, branchTarget, branchSource);
+			if(compareResponse != null && compareResponse.getDiffs() != null && compareResponse.getDiffs().isEmpty()) {
+				branchMerged = true;
+			}
+		}catch (Exception e) {
+			String msgError = "Erro ao comparar branches do projeto: " + projectId + " - erro: " + e.getLocalizedMessage();
+			logger.error(msgError);
+			telegramService.sendBotMessage(msgError);
+		}
+		return branchMerged;
+	}
+	
 	public List<GitlabMRResponse> findMergeRequest(String projectId, Map<String, String> options){
 		List<GitlabMRResponse> MRs = null;
 		try {
@@ -476,66 +574,86 @@ public class GitlabService {
 	 * @param projectId
 	 * @param branchReleaseName
 	 * @param commitMessage
+	 * @throws Exception 
 	 */
-	public void mergeBranchReleaseIntoMaster(String projectId, String branchReleaseName, String commitMessage) {
+	public GitlabMRResponse mergeBranchReleaseIntoMaster(String projectId, String sourceBranch, String commitMessage) throws Exception {
 		GitlabMRResponse mrOpened = null;
+		GitlabMRResponse mrAccepted = null;
+		String targetBranch = BRANCH_MASTER;
 		
-		Map<String, String> options = new HashMap<String, String>();
-		options.put("state", GitlabMergeRequestStateEnum.OPENED.toString());
-		options.put("source_branch", branchReleaseName);
-		options.put("target_branch", BRANCH_MASTER);
-		List<GitlabMRResponse> MRs = findMergeRequest(projectId, options);
-		if(MRs != null && !MRs.isEmpty()) {
-			mrOpened = MRs.get(0);
-		}else {
-			GitlabMRRequest mergeRequest = new GitlabMRRequest();
-			mergeRequest.setSourceBranch(branchReleaseName);
-			mergeRequest.targetBranch(BRANCH_MASTER);
-			mergeRequest.setLabels(LABEL_MR_LANCAMENTO_VERSAO);
-			mergeRequest.title(commitMessage);
-			mergeRequest.setSquash(false);
-			mergeRequest.setRemoveSourceBranch(true);
-			
-			mrOpened = openMergeRequest(projectId, mergeRequest);
-		}
-		if(mrOpened != null) {
-			Integer numChanges = null;
-			if(StringUtils.isNotBlank(mrOpened.getChangesCount())) {
-				numChanges = Integer.valueOf(mrOpened.getChangesCount());
-			}
-			if((numChanges != null && numChanges.equals(0)) || mrOpened.getHasConflicts()) {
-				logger.error("Não há alteracoes entre o branch: " + branchReleaseName + " e o branch: " + BRANCH_MASTER);
+		// verifica se o banch da release já foi mergeado no branch master
+		boolean releaseBranchMerged = isBranchMergedIntoTarget(projectId, sourceBranch, targetBranch);
+		if(!releaseBranchMerged) {
+			Map<String, String> options = new HashMap<String, String>();
+			options.put("state", GitlabMergeRequestStateEnum.OPENED.toString());
+			options.put("source_branch", sourceBranch);
+			options.put("target_branch", targetBranch);
+			List<GitlabMRResponse> MRs = findMergeRequest(projectId, options);
+			if(MRs != null && !MRs.isEmpty()) {
+				mrOpened = MRs.get(0);
 			}else {
-				Boolean hasPipelines = projectHasPipelines(projectId, mrOpened.getIid());
+				GitlabMRRequest mergeRequest = new GitlabMRRequest();
+				mergeRequest.setSourceBranch(sourceBranch);
+				mergeRequest.targetBranch(targetBranch);
+				mergeRequest.setLabels(LABEL_MR_LANCAMENTO_VERSAO);
+				mergeRequest.title(commitMessage);
+				mergeRequest.setSquash(false);
+				mergeRequest.setRemoveSourceBranch(true);
 				
-				GitlabAcceptMRRequest acceptMerge = new GitlabAcceptMRRequest();
-				acceptMerge.setMergeRequestIid(mrOpened.getIid());
-				acceptMerge.setId(projectId);
-				acceptMerge.setShouldRemoveSourceBranch(true);
-				acceptMerge.setMergeWhenPipelineSucceeds(hasPipelines);
-				acceptMerge.setSquash(false);
-				acceptMerge.setMergeCommitMessage(commitMessage);
-				
-				GitlabMRResponse mrAccepted = acceptMergeRequest(projectId, mrOpened.getIid(), acceptMerge);
-				if(mrAccepted != null && !hasPipelines) {
-					// aguarda o MR ser finalizado, pois pode ser que tenha que passar por um pipeline ainda
-					Integer maxTries = 10;
-					Integer timeToWaitInSeconds = 20;
-					Integer numTries = 0;
-					while (mrAccepted != null && GitlabMergeRequestStateEnum.OPENED.equals(mrAccepted.getState()) && numTries < maxTries) {
-						logger.info("waitting "+timeToWaitInSeconds+" seconds before to check if merge was accepted....");
-						Utils.waitSeconds(timeToWaitInSeconds);
-						// check merge request again - findMergeRequest
-						options = new HashMap<String, String>();
-						options.put("source_branch", branchReleaseName);
-						options.put("target_branch", BRANCH_MASTER);
-						options.put("target_branch", BRANCH_MASTER);
-
-						mrAccepted = getMergeRequest(projectId, mrOpened.getIid());
+				mrOpened = openMergeRequest(projectId, mergeRequest);
+			}
+			if(mrOpened != null) {
+				Integer numChanges = null;
+				if(StringUtils.isNotBlank(mrOpened.getChangesCount())) {
+					numChanges = Integer.valueOf(mrOpened.getChangesCount());
+				}
+				if((numChanges != null && numChanges.equals(0))) {
+					logger.error("Não há alteracoes entre o branch: " + sourceBranch + " e o branch: " + targetBranch);
+				}else {
+					if(mrOpened.getHasConflicts()) {
+						String msgError = "No projeto: " + projectId + " há um conflito no MR: " + mrOpened.getIid().toString() + "";
+						logger.error(msgError);
+						telegramService.sendBotMessage(msgError);
+						throw new Exception(msgError);
+					}else {
+						Boolean hasPipelines = projectHasPipelines(projectId, mrOpened.getIid());
+						
+						GitlabAcceptMRRequest acceptMerge = new GitlabAcceptMRRequest();
+						acceptMerge.setMergeRequestIid(mrOpened.getIid());
+						acceptMerge.setId(projectId);
+						acceptMerge.setShouldRemoveSourceBranch(true);
+						acceptMerge.setMergeWhenPipelineSucceeds(hasPipelines);
+						acceptMerge.setSquash(false);
+						acceptMerge.setMergeCommitMessage(commitMessage);
+						
+						try {
+							mrAccepted = acceptMergeRequest(projectId, mrOpened.getIid(), acceptMerge);
+							if(mrAccepted != null && !hasPipelines) {
+								// aguarda o MR ser finalizado, pois pode ser que tenha que passar por um pipeline ainda
+								Integer maxTries = 10;
+								Integer timeToWaitInSeconds = 20;
+								Integer numTries = 0;
+								while (mrAccepted != null && GitlabMergeRequestStateEnum.OPENED.equals(mrAccepted.getState()) && numTries < maxTries) {
+									logger.info("waitting "+timeToWaitInSeconds+" seconds before to check if merge was accepted....");
+									Utils.waitSeconds(timeToWaitInSeconds);
+									// check merge request again - findMergeRequest
+									options = new HashMap<String, String>();
+									options.put("source_branch", sourceBranch);
+									options.put("target_branch", targetBranch);
+									
+									mrAccepted = getMergeRequest(projectId, mrOpened.getIid());
+								}
+							}
+						}catch (Exception e) {
+							throw new Exception(e.getLocalizedMessage());
+						}
 					}
 				}
 			}
+		}else {
+			logger.info("No projeto: " + projectId + " - o branch "+ sourceBranch + " - já foi integrado ao branch: " + targetBranch);
 		}
+		return mrAccepted;
 	}
 	
 	public boolean projectHasPipelines(String projectId, BigDecimal mergeRequestIId) {
@@ -566,7 +684,7 @@ public class GitlabService {
 		return mergeResponse;
 	}
 	
-	public GitlabMRResponse acceptMergeRequest(String projectId, BigDecimal mergeRequestIId, GitlabAcceptMRRequest acceptMerge) {
+	public GitlabMRResponse acceptMergeRequest(String projectId, BigDecimal mergeRequestIId, GitlabAcceptMRRequest acceptMerge) throws Exception {
 		GitlabMRResponse mergeResponse = null;
 		try {
 			mergeResponse = gitlabClient.acceptMergeRequest(projectId, mergeRequestIId, acceptMerge);
@@ -575,7 +693,74 @@ public class GitlabService {
 				+ " - no projeto: " + projectId + " erro: " + e.getLocalizedMessage();
 			logger.error(errorMessage);
 			telegramService.sendBotMessage(errorMessage);
+			
+			throw new Exception(errorMessage);
 		}
 		return mergeResponse;
 	}
+	
+	public GitlabCommitResponse atualizaVersaoPom(String gitlabProjectId, String branchName, List<String> pomsList, 
+			String newVersion, String actualVersion, String commitMessage) {
+		GitlabCommitResponse response = null;
+		
+		if(StringUtils.isNotBlank(newVersion) && StringUtils.isNotBlank(actualVersion) && !actualVersion.equalsIgnoreCase(newVersion)) {
+			if (pomsList != null && !pomsList.isEmpty()) {
+				Map<String, String> poms = new HashMap<>();
+				for (String pomFilePath : pomsList) {
+					String pomContent = getRawFile(gitlabProjectId, pomFilePath, branchName);
+					if (StringUtils.isNotBlank(pomContent)) {
+						String pomContentChanged = Utils.changePomXMLVersion(actualVersion, newVersion, pomContent);
+						poms.put(pomFilePath, pomContentChanged);
+					} else {
+						String msgError = " Error trying to get pom (" + pomFilePath + ") content.";
+						logger.error(msgError);
+						telegramService.sendBotMessage(msgError);
+					}
+				}
+				if (poms != null && poms.size() > 0 && poms.size() == pomsList.size()) {
+					response = sendTextAsFileToBranch(gitlabProjectId, branchName,
+							poms, commitMessage);
+				}
+			}
+		}
+		return response;
+	}
+	
+	public List<String> getListPathPoms(String projectId) {
+		List<String> listaPoms = new ArrayList<String>();
+		if ("7".equals(projectId)) { // TODO - colocar isso na parametrizacao do projeto no gitlab
+			listaPoms.add("pom.xml");
+			listaPoms.add("pje-comum/pom.xml");
+			listaPoms.add("pje-web/pom.xml");
+		} else {
+			listaPoms.add("pom.xml"); // FIXME - verificar para os outros projetos
+		}
+		return listaPoms;
+	}
+	
+	public String getActualVersion(String gitlabProjectId, String branchName) {
+		String defaultPomFile = "pom.xml"; // FIXME
+		String actualVersion = null;
+		String pomContent = getRawFile(gitlabProjectId, defaultPomFile, branchName);
+		if (StringUtils.isNotBlank(pomContent)) {
+			actualVersion = Utils.getVersionFromPomXML(pomContent);
+		}
+		
+		return actualVersion;
+	}
+	
+	public void atualizaNumeracaoPastaScriptsVersao(String projectId, String branchName, String lastCommitId, String newVersion, String actualVersion, String commitMessage) {
+		if(StringUtils.isNotBlank(newVersion) && StringUtils.isNotBlank(actualVersion)) {
+			actualVersion = actualVersion.replaceAll("\\-SNAPSHOT", "");
+			if(!actualVersion.equalsIgnoreCase(newVersion)) {
+				String previousPath = GitlabService.SCRIPS_MIGRATION_BASE_PATH + actualVersion;
+				String newPath = GitlabService.SCRIPS_MIGRATION_BASE_PATH + newVersion;
+				
+				renameDir(projectId, branchName, lastCommitId, previousPath, newPath, commitMessage);
+			}
+		}
+	}
+
+
+
 }
