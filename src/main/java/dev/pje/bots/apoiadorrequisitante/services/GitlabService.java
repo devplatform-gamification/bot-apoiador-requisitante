@@ -430,7 +430,11 @@ public class GitlabService {
 	public boolean isDevelopDefaultBranch(GitlabProject project) {
 		String projectId = project.getId().toString();
 		GitlabBranchResponse develop = getSingleRepositoryBranch(projectId, BRANCH_DEVELOP);
-		return develop.getBranchDefault();
+		boolean isDevelopDefaultBranch = false;
+		if(develop != null) {
+			isDevelopDefaultBranch = develop.getBranchDefault();
+		}
+		return isDevelopDefaultBranch;
 	}
 	
 	public boolean isMonitoredBranch(GitlabProject project, String branchName) {
