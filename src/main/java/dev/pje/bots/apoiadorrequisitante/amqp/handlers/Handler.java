@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraIssueTransition;
-import com.devplatform.model.jira.request.JiraIssueFields;
+import com.devplatform.model.jira.request.JiraIssueFieldsRequest;
 import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
@@ -70,7 +70,7 @@ abstract class Handler<E> {
 	protected void enviarCriacaoJiraIssue(Map<String, Object> issueFields) throws JsonProcessingException{
 		JiraIssue issue = null;
 		if(issueFields != null && !issueFields.isEmpty()) {
-			JiraIssueFields createIssueDefaultFields = new JiraIssueFields(issueFields);
+			JiraIssueFieldsRequest createIssueDefaultFields = new JiraIssueFieldsRequest(issueFields);
 			messages.debug("update string: " + Utils.convertObjectToJson(createIssueDefaultFields));
 			issue = jiraService.createIssue(createIssueDefaultFields);
 		}

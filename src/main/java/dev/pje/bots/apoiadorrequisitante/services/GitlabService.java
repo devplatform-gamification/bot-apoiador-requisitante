@@ -265,7 +265,10 @@ public class GitlabService {
 	
 	public GitlabCommitResponse sendTextAsFileToBranch(String projectId, GitlabBranchResponse branch, String filePath, String content, String commitMessage) {
 		String branchName = branch.getBranchName();
-
+		return sendTextAsFileToBranch(projectId, branchName, filePath, content, commitMessage);
+	}
+	
+	public GitlabCommitResponse sendTextAsFileToBranch(String projectId, String branchName, String filePath, String content, String commitMessage) {
 		Map<String, String> files = new HashMap<>();
 		files.put(filePath, content);
 		return sendTextAsFileToBranch(projectId, branchName, files, commitMessage);
@@ -470,13 +473,18 @@ public class GitlabService {
 		return branch;
 	}
 	
-	public GitlabBranchResponse createBranchProjetoDocumentacao(String projectId, String branchName) {
+	public GitlabBranchResponse createFeatureBranch(String projectId, String branchName) {
 		// verifica se já existe o branch, se já existir
-		GitlabBranchResponse branch = getSingleRepositoryBranch(projectId, branchName);
-		if(branch == null) {
-			branch = createBranch(projectId, branchName, BRANCH_MASTER);
+		GitlabBranchResponse featureBranch = getSingleRepositoryBranch(projectId, branchName);
+		if(featureBranch == null) {
+			// verifica se o projeto implementa gitflow, em caso positivo - cria novo branch baseado na develop, caso contrário baseado na master
+			if(isProjectImplementsGitflow(projectId)) {
+				featureBranch = createBranch(projectId, branchName, BRANCH_DEVELOP);
+			}else {
+				featureBranch = createBranch(projectId, branchName, BRANCH_MASTER);
+			}
 		}
-		return branch;
+		return featureBranch;
 	}
 	
 	public String getActualReleaseBranch(GitlabProject project) {
@@ -568,6 +576,33 @@ public class GitlabService {
 	}
 
 	/**
+	 * 
+	 * @param projectId
+	 * @param branchReleaseName
+	 * @param commitMessage
+	 * @throws Exception 
+	 */
+	public GitlabMRResponse mergeBranchReleaseIntoMaster(String projectId, String sourceBranch, String mergeMessage) throws Exception {
+		Boolean squashCommits = false;
+		Boolean removeSourceBranch = true;
+		
+		return mergeSourceBranchIntoBranchTarget(projectId, sourceBranch, BRANCH_MASTER, mergeMessage, 
+				LABEL_MR_LANCAMENTO_VERSAO, squashCommits, removeSourceBranch);
+	}
+
+	public GitlabMRResponse mergeFeatureBranchIntoBranchDefault(String projectId, String featureBranch, String mergeMessage) throws Exception {
+
+		String targetBranch = BRANCH_MASTER;
+		if(isProjectImplementsGitflow(projectId)) {
+			targetBranch = BRANCH_DEVELOP;
+		}
+		Boolean squashCommits = true;
+		Boolean removeSourceBranch = true;
+
+		return mergeSourceBranchIntoBranchTarget(projectId, featureBranch, targetBranch, mergeMessage, null, squashCommits, removeSourceBranch);
+	}
+
+	/**
 	 * Pesquisa para saber se o MR já foi pedido
 	 * - se não, abre o MR
 	 * Com o MR, verifica se o MR possui algum pipeline
@@ -576,15 +611,26 @@ public class GitlabService {
 	 * Aceita o MR
 	 * 
 	 * @param projectId
-	 * @param branchReleaseName
+	 * @param sourceBranch
+	 * @param targetBranch
 	 * @param commitMessage
-	 * @throws Exception 
+	 * @param labels
+	 * @param squashCommits
+	 * @param removeSourceBranch
+	 * @return
+	 * @throws Exception
 	 */
-	public GitlabMRResponse mergeBranchReleaseIntoMaster(String projectId, String sourceBranch, String commitMessage) throws Exception {
+	public GitlabMRResponse mergeSourceBranchIntoBranchTarget(String projectId, String sourceBranch, String targetBranch, 
+			String mergeMessage, String labels, Boolean squashCommits, Boolean removeSourceBranch) throws Exception {
 		GitlabMRResponse mrOpened = null;
 		GitlabMRResponse mrAccepted = null;
-		String targetBranch = BRANCH_MASTER;
 		
+		if(squashCommits == null) {
+			squashCommits = true;
+		}
+		if(removeSourceBranch == null) {
+			removeSourceBranch = true;
+		}
 		// verifica se o banch da release já foi mergeado no branch master
 		boolean releaseBranchMerged = isBranchMergedIntoTarget(projectId, sourceBranch, targetBranch);
 		if(!releaseBranchMerged) {
@@ -599,10 +645,10 @@ public class GitlabService {
 				GitlabMRRequest mergeRequest = new GitlabMRRequest();
 				mergeRequest.setSourceBranch(sourceBranch);
 				mergeRequest.targetBranch(targetBranch);
-				mergeRequest.setLabels(LABEL_MR_LANCAMENTO_VERSAO);
-				mergeRequest.title(commitMessage);
-				mergeRequest.setSquash(false);
-				mergeRequest.setRemoveSourceBranch(true);
+				mergeRequest.setLabels(labels);
+				mergeRequest.title(mergeMessage);
+				mergeRequest.setSquash(squashCommits);
+				mergeRequest.setRemoveSourceBranch(removeSourceBranch);
 				
 				mrOpened = openMergeRequest(projectId, mergeRequest);
 			}
@@ -625,10 +671,10 @@ public class GitlabService {
 						GitlabAcceptMRRequest acceptMerge = new GitlabAcceptMRRequest();
 						acceptMerge.setMergeRequestIid(mrOpened.getIid());
 						acceptMerge.setId(projectId);
-						acceptMerge.setShouldRemoveSourceBranch(true);
 						acceptMerge.setMergeWhenPipelineSucceeds(hasPipelines);
-						acceptMerge.setSquash(false);
-						acceptMerge.setMergeCommitMessage(commitMessage);
+						acceptMerge.setSquash(squashCommits);
+						acceptMerge.setShouldRemoveSourceBranch(removeSourceBranch);
+						acceptMerge.setMergeCommitMessage(mergeMessage);
 						
 						try {
 							mrAccepted = acceptMergeRequest(projectId, mrOpened.getIid(), acceptMerge);

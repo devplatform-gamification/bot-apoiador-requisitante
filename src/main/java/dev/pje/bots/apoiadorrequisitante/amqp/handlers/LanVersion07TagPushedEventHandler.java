@@ -173,7 +173,7 @@ public class LanVersion07TagPushedEventHandler extends Handler<GitlabEventPush>{
 		String texto = releaseNotesModel.convert(new AsciiDocMarkdown());
 		
 		String filePath = getPathNameReleaseNotes(issue.getFields().getProject(), releaseNotes.getVersion());
-		GitlabBranchResponse branch = gitlabService.createBranchProjetoDocumentacao(GitlabService.PROJECT_DOCUMENTACO,
+		GitlabBranchResponse branch = gitlabService.createFeatureBranch(GitlabService.PROJECT_DOCUMENTACO,
 				issue.getKey());
 		// criar um arquivo no projeto docs.pje.jus.br com o conteúdo deste arquivo
 		GitlabCommitResponse commitResponse = gitlabService.sendTextAsFileToBranch(GitlabService.PROJECT_DOCUMENTACO,

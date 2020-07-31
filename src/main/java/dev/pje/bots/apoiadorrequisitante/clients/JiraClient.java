@@ -23,7 +23,7 @@ import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.jira.JiraVersion;
 import com.devplatform.model.jira.custom.JiraCustomField;
 import com.devplatform.model.jira.request.JiraCustomFieldOptionsRequest;
-import com.devplatform.model.jira.request.JiraIssueFields;
+import com.devplatform.model.jira.request.JiraIssueFieldsRequest;
 import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
 import com.devplatform.model.jira.request.fields.JiraComment;
 import com.devplatform.model.jira.response.JiraJQLSearchResponse;
@@ -44,7 +44,7 @@ public interface JiraClient {
 
 	@PostMapping(value = "/rest/api/2/issue", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraIssue createIssue(
-			@RequestBody JiraIssueFields novaIssue);
+			@RequestBody JiraIssueFieldsRequest novaIssue);
 
 	@GetMapping(value = "/rest/api/latest/issue/{issueKey}?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraIssue getIssueDetails(
@@ -91,6 +91,13 @@ public interface JiraClient {
 	public JiraPropertyResponse getProjectProperty(
 			@PathVariable("projectKey") String projectKey,
 			@PathVariable("propertyKey") String propertyKey);
+
+	@PostMapping(value = "/rest/api/2/project/{projectKey}/properties/{propertyKey}", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public void changeProjectProperty(
+			@PathVariable("projectKey") String projectKey,
+			@PathVariable("propertyKey") String propertyKey, 
+			@RequestBody String value);
+
 
 	@GetMapping(value = "/rest/api/2/user?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraUser getUser(

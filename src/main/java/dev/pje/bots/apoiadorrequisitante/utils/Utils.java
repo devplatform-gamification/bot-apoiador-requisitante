@@ -162,15 +162,18 @@ public class Utils {
 	}
 	
 	public static VersionReleaseNotes convertJsonToJiraReleaseNotes(String jsonString) {
-		VersionReleaseNotes  obj = null;
+		return convertJsonToObject(jsonString, VersionReleaseNotes.class);
+	}
+
+	public static <T> T convertJsonToObject(String jsonString, Class<T> valueType) {
 		try {
-			obj = new ObjectMapper().readValue(jsonString, VersionReleaseNotes.class);
+			return (T) new ObjectMapper().readValue(jsonString, valueType);
 		} catch (JsonProcessingException e) {
 			e.printStackTrace();
 		}
-		return obj;
+		return null;
 	}
-	
+
 	public static String cleanSummary(String summary) {
 		String summaryCleaned = summary.replaceAll("\\[.*\\]", "").replaceAll("^[ ]*\\-", "").trim();
 		if(StringUtils.isNotBlank(summaryCleaned)) {
@@ -201,7 +204,11 @@ public class Utils {
 				try {
 					date = Utils.stringToDate(releaseDateStr, GitlabService.GITLAB_DATETIME_PATTERN);
 				}catch (Exception e2) {
-					e2.getStackTrace();
+					try {
+						date = Utils.stringToDate(releaseDateStr, DATE_SIMPLE_PATTERN);						
+					}catch (Exception e3) {
+						e3.getStackTrace();
+					}
 				}
 			}
 		}
@@ -224,7 +231,7 @@ public class Utils {
 		}
 		return String.join("/", dirs);
 	}
-
+	
 	public static String getFileNameFromFilePath(String filePath) {
 		String[] scriptPath = filePath.split("/");
 		String fileName = "";
@@ -234,6 +241,20 @@ public class Utils {
 		return fileName;
 	}
 	
+	public static String normalizePaths(String filePath) {
+		String normalizedPath = null;
+		
+		if(StringUtils.isNotBlank(filePath)) {
+			String changedPath = filePath;
+			while(!changedPath.equals(normalizedPath)) {
+				normalizedPath = changedPath;
+				changedPath = changedPath.replaceAll("//", "/");
+			}
+		}
+		
+		return normalizedPath;
+	}
+
 	public static String urlEncode(String text) throws UnsupportedEncodingException {
 		return URLEncoder.encode(text, StandardCharsets.UTF_8.toString());
 	}
@@ -303,6 +324,18 @@ public class Utils {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public static boolean isNumeric(String strNum) {
+	    if (StringUtils.isBlank(strNum)) {
+	        return false;
+	    }
+	    try {
+	        Integer.valueOf(strNum);
+	    } catch (NumberFormatException nfe) {
+	        return false;
+	    }
+	    return true;
 	}
 }
 	
