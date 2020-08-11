@@ -216,7 +216,7 @@ public class ReleaseNotesTextModel extends AbstractTextModel{
 				.append(markdown.head3("Outras informações"))
 				.append(markdown.listItem("Link desta versão no jira: " + linkToVersion))
 				.append(markdown.listItem("Veja outros release notes: " 
-						+ markdown.link(DOCSURL + "/projetos/pje-legacy/release-notes/index.html", "aqui")))
+						+ markdown.link(DOCSURL + "/servicos-negociais/pje-legacy/release-notes/index.html", "aqui")))
 				.append(markdown.listItem("Para mais informações, acesse a documentação do projeto em " 
 						+ markdown.link(DOCSURL)))
 				.append(markdown.highlight("TIP: Acompanhe as notícias do PJe em primeira-mão no canal (público) do telegram: " 
@@ -245,9 +245,9 @@ public class ReleaseNotesTextModel extends AbstractTextModel{
 				.append(Utils.dateToStringPattern(releaseDate, "dd/MM/yyyy"))
 				.append(markdown.newLine());
 			}
-			sb.append("include::{docdir}/projetos/pje-legacy/_service-attributes.adoc[]")
+			sb.append("include::{docdir}/servicos-negociais/pje-legacy/_service-attributes.adoc[]")
 				.append(markdown.newLine())
-				.append("include::{docdir}/projetos/_general-attributes.adoc[]")
+				.append("include::{docdir}/servicos-negociais/_general-attributes.adoc[]")
 				.append(markdown.newLine())
 				.append(markdown.newLine())
 				.append("[#{serviceTitle}-v" + releaseNotes.getVersion().replaceAll("\\.", "-") + "]")

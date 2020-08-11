@@ -71,6 +71,10 @@ spring:
           name: ${RABBIT_DOCUMENTATION02_CREATE_SOLUTION_QUEUE:documentation02-create-solution-queue}
           auto-startup: ${RABBIT_DOCUMENTATION02_CREATE_SOLUTION_AUTOSTARTUP:false}
           routing-key-updated: ${RABBIT_DOCUMENTATION02_CREATE_SOLUTION_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.*.10674.PJEDOC.#}
+        documentation03-check-automatic-merge:
+          name: ${RABBIT_DOCUMENTATION03_CHECK_AUTOMATIC_MERGE_QUEUE:documentation03-check-automatic-merge-queue}
+          auto-startup: ${RABBIT_DOCUMENTATION03_CHECK_AUTOMATIC_MERGE_AUTOSTARTUP:false}
+          routing-key-updated: ${RABBIT_DOCUMENTATION03_CHECK_AUTOMATIC_MERGE_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.*.10480.PJEDOC.#}
           
           
         jira:

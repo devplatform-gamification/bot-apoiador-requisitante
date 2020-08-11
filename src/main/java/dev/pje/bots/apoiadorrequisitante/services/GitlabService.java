@@ -84,7 +84,7 @@ public class GitlabService {
 	
 	public static final String PROJECT_PROPERTY_POM_VERSION_TAGNAME = "POM_TAGNAME_PROJECT_VERSION";
 	
-	public static final String POM_TAGNAME_PROJECT_VERSION_DEFAULT = "project:version";
+	public static final String POM_TAGNAME_PROJECT_VERSION_DEFAULT = "release";
 	
 	public List<GitlabRepositoryTree> getFilesFromPath(GitlabProject project, String branch, String path) {
 		String projectId = project.getId().toString();
@@ -336,8 +336,23 @@ public class GitlabService {
 			}
 			commit.setActions(actionRequestList);
 			logger.info("commit string: " + Utils.convertObjectToJson(commit));
-			response = gitlabClient.sendCommit(projectId, commit);
+			response = sendCommit(projectId, commit);
 		}
+		return response;
+	}
+	
+	public GitlabCommitResponse sendCommit(String projectId, GitlabCommitRequest commit) {
+		GitlabCommitResponse response = null;
+		try {
+			response = gitlabClient.sendCommit(projectId, commit);	
+		}catch (Exception e) {
+			String errorMessage = "[GITLAB] - Project: " + projectId + " - error trying to send commit [" + commit.getCommitMessage() + "]: \n"
+					+e.getMessage();
+			logger.error(errorMessage);
+			slackService.sendBotMessage(errorMessage);
+			telegramService.sendBotMessage(errorMessage);
+		}
+		
 		return response;
 	}
 	
@@ -745,7 +760,6 @@ public class GitlabService {
 	}
 	
 	public GitlabMRResponse acceptMergeRequest(String projectId, BigDecimal mrIID, String mergeMessage, Boolean squashCommits, Boolean removeSourceBranch) throws Exception {
-		// projectId, MRIID, squashCommits, removeSourceBranch, mergeMessage
 		GitlabMRResponse mrAccepted = null;
 		GitlabMRResponse mrOpened = getMergeRequest(projectId, mrIID);
 		if(mrOpened != null && mrOpened.getHasConflicts()) {
@@ -753,7 +767,12 @@ public class GitlabService {
 			logger.error(msgError);
 			telegramService.sendBotMessage(msgError);
 			throw new Exception(msgError);
-		}else {
+		}else if(!mrOpened.getState().equals(GitlabMergeRequestStateEnum.OPENED)){
+			String msgError = "No projeto: " + projectId + " o MR: " + mrOpened.getIid().toString() + " não está aberto, está com o status: " + mrOpened.getState().toString();
+			logger.error(msgError);
+			telegramService.sendBotMessage(msgError);
+			throw new Exception(msgError);			
+		}else{
 			Boolean hasPipelines = projectHasPipelines(projectId, mrOpened.getIid());
 			
 			GitlabAcceptMRRequest acceptMerge = new GitlabAcceptMRRequest();

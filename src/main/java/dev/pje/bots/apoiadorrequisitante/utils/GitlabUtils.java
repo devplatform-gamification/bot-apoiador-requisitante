@@ -110,4 +110,31 @@ public class GitlabUtils {
 		}
 		return subPath;
 	}
+	
+	public static List<String> getMergeIIdListFromString(String merges){
+		List<String> mergeIIds = new ArrayList<>();
+		if(StringUtils.isNotBlank(merges)) {
+			String[] weburls = merges.split(",");
+			for (String weburl: weburls) {
+				if(StringUtils.isNotBlank(weburl)) {
+					String mergeIId = getMergeIIdFromWebUrl(weburl.trim());
+					if(!mergeIIds.contains(mergeIId)) {
+						mergeIIds.add(mergeIId);
+					}
+				}
+			}
+		}
+		return mergeIIds;
+	}
+	
+	public static String getMergeIIdFromWebUrl(String weburl) {
+		String mergeIId = null;
+		if(StringUtils.isNotBlank(weburl)) {
+			String[] path = weburl.split("/");
+			if(path != null && path.length > 0) {
+				mergeIId = path[path.length - 1];
+			}
+		}
+		return mergeIId;
+	}
 }

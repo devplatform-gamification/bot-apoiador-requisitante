@@ -86,6 +86,7 @@ public class JiraService {
 	public static final String STATUS_RELEASE_NOTES_FINISHPROCESSING_ID = "10673";
 	
 	public static final String STATUS_DOCUMENTATION_PROCESSING_ID = "10674";
+	public static final String STATUS_DOCUMENTATION_HOMOLOGATION_ID = "10480";
 	
 	public static final Integer ISSUELINKTYPE_DOCUMENTATION_ID = 10410;
 	public static final String ISSUELINKTYPE_DOCUMENTATION_INWARDNAME = "documents";

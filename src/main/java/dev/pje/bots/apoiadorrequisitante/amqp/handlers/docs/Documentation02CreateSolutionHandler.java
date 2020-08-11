@@ -64,7 +64,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 	 * ok 7.1 adiciona o release na lista de releases concatenadas
 	 * ok 7.2 adiciona o release na lista de releases com links separados
 	 * TODO - ADICIONA NO SISTE DA ELISA AQUI
-	 * 8. cria um path do link de documentacao (apenas sem o host:porta)
+	 * ok 8. cria um path do link de documentacao (apenas sem o host:porta)
 	 * 10. Proxima atividade
 	 *  
 	 * @param issue

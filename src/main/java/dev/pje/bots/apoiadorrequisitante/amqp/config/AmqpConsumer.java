@@ -21,6 +21,7 @@ import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraEventHandlerClassific
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraIssueCheckApoiadorRequisitanteEventHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation01TriageHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation02CreateSolutionHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation03CheckAutomaticMergeHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion01TriageHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion02GenerateReleaseCandidateHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion03PrepareNextVersionHandler;
@@ -48,6 +49,7 @@ public class AmqpConsumer {
 	@Autowired
 	private GitlabEventHandlerGitflow gitlabEventHandlerGitflow;
 	
+	/**************/
 	@Autowired
 	private LanVersion01TriageHandler lanversion01;
 	
@@ -72,7 +74,11 @@ public class AmqpConsumer {
 
 	@Autowired
 	private Documentation02CreateSolutionHandler documentation02;
+
+	@Autowired
+	private Documentation03CheckAutomaticMergeHandler documentation03;
 	
+
 	@RabbitListener(
 			bindings = @QueueBinding(
 				value = @Queue(value = "${spring.rabbitmq.template.default-receive-queue}", durable = "true", autoDelete = "false", exclusive = "false"), 
@@ -289,4 +295,22 @@ public class AmqpConsumer {
 			documentation02.handle(jiraEventIssue);
 		}
 	}
+
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.documentation03-check-automatic-merge.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.documentation03-check-automatic-merge.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.documentation03-check-automatic-merge.routing-key-updated}"})
+		)
+	public void documentation03CheckAutomaticMerge(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
+			String issueKey = jiraEventIssue.getIssue().getKey();
+			logger.info(documentation03.getMessagePrefix() + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+			documentation03.handle(jiraEventIssue);
+		}
+	}
+
 }

@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.web.util.UriUtils;
 
 import com.devplatform.model.bot.VersionReleaseNotes;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -212,7 +213,20 @@ public class Utils {
 	}
 
 	public static String urlEncode(String text) throws UnsupportedEncodingException {
-		return URLEncoder.encode(text, StandardCharsets.UTF_8.toString());
+		String urlEncoded = null;
+		if(StringUtils.isNotBlank(text)) {
+			String[] paths = text.split("/");
+			List<String> pathsList = new ArrayList<>();
+			if(paths != null && paths.length > 0) {
+				for (String path : paths) {
+					String pathEncoded = UriUtils.encodePath(path, StandardCharsets.UTF_8.toString());
+					pathsList.add(pathEncoded);
+				}
+			}
+			String separator = URLEncoder.encode("/", StandardCharsets.UTF_8.toString());
+			urlEncoded = String.join(separator, pathsList);
+		}
+		return urlEncoded;
 	}
 	
 	public static String escapeGitlabMarkup(String text) throws UnsupportedEncodingException {
