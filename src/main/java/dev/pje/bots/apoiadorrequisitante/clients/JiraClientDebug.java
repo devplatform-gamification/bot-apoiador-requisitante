@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraIssueTransitions;
 import com.devplatform.model.jira.JiraUser;
-import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
+import com.devplatform.model.jira.request.JiraIssueCreateAndUpdate;
 
 @FeignClient(name = "jiraDebug", url = "https://webhook.site/0602e93d-4659-40eb-86ba-3ed09dab942f", configuration = JiraClientConfiguration.class)
 public interface JiraClientDebug {
@@ -33,6 +33,6 @@ public interface JiraClientDebug {
 
 	@PostMapping(value = "/rest/api/latest/issue/{issueKey}/transitions", consumes = "application/json")
 	public void changeIssueWithTransition(
-			@PathVariable("issueKey") String issueKey, @RequestBody JiraIssueTransitionUpdate issueUpdate);
+			@PathVariable("issueKey") String issueKey, @RequestBody JiraIssueCreateAndUpdate issueUpdate);
 
 }

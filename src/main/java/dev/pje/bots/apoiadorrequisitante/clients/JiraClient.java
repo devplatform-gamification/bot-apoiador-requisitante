@@ -23,8 +23,7 @@ import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.jira.JiraVersion;
 import com.devplatform.model.jira.custom.JiraCustomField;
 import com.devplatform.model.jira.request.JiraCustomFieldOptionsRequest;
-import com.devplatform.model.jira.request.JiraIssueFieldsRequest;
-import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
+import com.devplatform.model.jira.request.JiraIssueCreateAndUpdate;
 import com.devplatform.model.jira.request.fields.JiraComment;
 import com.devplatform.model.jira.response.JiraJQLSearchResponse;
 import com.devplatform.model.jira.response.JiraPropertyResponse;
@@ -44,7 +43,7 @@ public interface JiraClient {
 
 	@PostMapping(value = "/rest/api/2/issue", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraIssue createIssue(
-			@RequestBody JiraIssueFieldsRequest novaIssue);
+			@RequestBody JiraIssueCreateAndUpdate novaIssue);
 
 	@GetMapping(value = "/rest/api/latest/issue/{issueKey}?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraIssue getIssueDetails(
@@ -56,7 +55,12 @@ public interface JiraClient {
 
 	@PostMapping(value = "/rest/api/latest/issue/{issueKey}/transitions", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public void changeIssueWithTransition(
-			@PathVariable("issueKey") String issueKey, @RequestBody JiraIssueTransitionUpdate issueUpdate);
+			@PathVariable("issueKey") String issueKey, @RequestBody JiraIssueCreateAndUpdate issueUpdate);
+
+	@PutMapping(value = "/rest/api/latest/issue/{issueKey}", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public void updateIssue(
+			@PathVariable("issueKey") String issueKey, @RequestBody JiraIssueCreateAndUpdate issueUpdate);
+
 
 	@GetMapping(value = "/rest/scriptrunner/latest/custom/customFields/{customFieldId}/option?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraCustomField getCustomFieldOptions(
@@ -82,11 +86,17 @@ public interface JiraClient {
 			@PathVariable("attachmentId") String attachmentId);
 	
 	@GetMapping(value = "/secure/attachment/{attachmentId}/{attachmentFileName}", consumes = MediaType.APPLICATION_JSON_VALUE)
-	public String getAttachmentContent(
+	public byte[] getAttachmentContent(
 			@PathVariable("attachmentId") String attachmentId,
 			@PathVariable("attachmentFileName") String attachmentFileName
 			);
-	
+
+	@GetMapping(value = "/secure/attachment/{attachmentId}/{attachmentFileName}", consumes = {MediaType.APPLICATION_OCTET_STREAM_VALUE, MediaType.IMAGE_JPEG_VALUE, MediaType.IMAGE_PNG_VALUE})
+	public byte[] getAttachmentContentBinary(
+			@PathVariable("attachmentId") String attachmentId,
+			@PathVariable("attachmentFileName") String attachmentFileName
+			);	
+
 	@GetMapping(value = "/rest/api/2/project/{projectKey}/properties/{propertyKey}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraPropertyResponse getProjectProperty(
 			@PathVariable("projectKey") String projectKey,

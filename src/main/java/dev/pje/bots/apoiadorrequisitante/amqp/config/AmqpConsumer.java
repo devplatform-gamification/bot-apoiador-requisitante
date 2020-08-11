@@ -19,12 +19,14 @@ import dev.pje.bots.apoiadorrequisitante.amqp.handlers.CheckingNewScriptMigratio
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.GitlabEventHandlerGitflow;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraEventHandlerClassification;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraIssueCheckApoiadorRequisitanteEventHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.LanVersion01TriageHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.LanVersion02GenerateReleaseCandidateHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.LanVersion03PrepareNextVersionHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.LanVersion04GenerateReleaseNotesHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.LanVersion05ProcessReleaseNotesHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.LanVersion06FinishReleaseNotesProcessingHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation01TriageHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation02CreateSolutionHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion01TriageHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion02GenerateReleaseCandidateHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion03PrepareNextVersionHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion04GenerateReleaseNotesHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion05ProcessReleaseNotesHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion06FinishReleaseNotesProcessingHandler;
 
 @Component
 public class AmqpConsumer {
@@ -64,7 +66,13 @@ public class AmqpConsumer {
 	@Autowired
 	private LanVersion06FinishReleaseNotesProcessingHandler lanversion06;
 	
+	/**************/
+	@Autowired
+	private Documentation01TriageHandler documentation01;
 
+	@Autowired
+	private Documentation02CreateSolutionHandler documentation02;
+	
 	@RabbitListener(
 			bindings = @QueueBinding(
 				value = @Queue(value = "${spring.rabbitmq.template.default-receive-queue}", durable = "true", autoDelete = "false", exclusive = "false"), 
@@ -76,8 +84,12 @@ public class AmqpConsumer {
 			String body = new String(msg.getBody());
 			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
 			String issueKey = jiraEventIssue.getIssue().getKey();
-			logger.info("[REQUISITANTE][JIRA] - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
-			jiraIssueCheckApoiadorRequisitanteEventHandler.handle(jiraEventIssue);
+			if(jiraEventIssue.getIssueEventTypeName() == null) {
+				logger.error("[REQUISITANTE][JIRA] - " + issueKey + "Falha na identificação do tipo de evento");
+			}else {
+				logger.info("[REQUISITANTE][JIRA] - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+				jiraIssueCheckApoiadorRequisitanteEventHandler.handle(jiraEventIssue);
+			}
 		}
 	}	
 
@@ -93,8 +105,12 @@ public class AmqpConsumer {
 			String body = new String(msg.getBody());
 			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
 			String issueKey = jiraEventIssue.getIssue().getKey();
-			logger.info("[CLASSIFICACAO][JIRA] - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
-			jiraEventHandlerClassification.handle(jiraEventIssue);
+			if(jiraEventIssue.getIssueEventTypeName() == null) {
+				logger.error("[CLASSIFICACAO][JIRA] - " + issueKey + "Falha na identificação do tipo de evento");
+			}else {
+				logger.info("[CLASSIFICACAO][JIRA] - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+				jiraEventHandlerClassification.handle(jiraEventIssue);
+			}
 		}
 	}	
 
@@ -139,7 +155,7 @@ public class AmqpConsumer {
 			bindings = @QueueBinding(
 				value = @Queue(value = "${spring.rabbitmq.template.custom.lanver01-triage-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
-				key = {"${spring.rabbitmq.template.custom.jira.issue-created.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
+				key = {"${spring.rabbitmq.template.custom.lanver01-triage-queue.routing-key-created}", "${spring.rabbitmq.template.custom.lanver01-triage-queue.routing-key-updated}"})
 		)
 	public void lanVer01Triage(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
@@ -156,7 +172,7 @@ public class AmqpConsumer {
 			bindings = @QueueBinding(
 				value = @Queue(value = "${spring.rabbitmq.template.custom.lanver02-release-candidate-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
-				key = {"${spring.rabbitmq.template.custom.jira.issue-created.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
+				key = {"${spring.rabbitmq.template.custom.lanver02-release-candidate-queue.routing-key-updated}"})
 		)
 	public void lanVer02GenerateReleaseCandidate(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
@@ -173,7 +189,7 @@ public class AmqpConsumer {
 			bindings = @QueueBinding(
 				value = @Queue(value = "${spring.rabbitmq.template.custom.lanver03-next-version-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
-				key = {"${spring.rabbitmq.template.custom.jira.issue-created.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
+				key = {"${spring.rabbitmq.template.custom.lanver03-next-version-queue.routing-key-updated}"})
 		)
 	public void lanVer03PrepareNextVersion(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
@@ -190,7 +206,7 @@ public class AmqpConsumer {
 			bindings = @QueueBinding(
 				value = @Queue(value = "${spring.rabbitmq.template.custom.lanver04-release-notes-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
-				key = {"${spring.rabbitmq.template.custom.jira.issue-created.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
+				key = {"${spring.rabbitmq.template.custom.lanver04-release-notes-queue.routing-key-updated}"})
 		)
 	public void lanVer04GenerateReleaseNotes(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
@@ -207,7 +223,7 @@ public class AmqpConsumer {
 			bindings = @QueueBinding(
 				value = @Queue(value = "${spring.rabbitmq.template.custom.lanver05-version-launch-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
-				key = {"${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
+				key = {"${spring.rabbitmq.template.custom.lanver05-version-launch-queue.routing-key-updated}"})
 		)
 	public void lanVer05ProcessReleaseNotes(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
@@ -224,8 +240,7 @@ public class AmqpConsumer {
 			bindings = @QueueBinding(
 				value = @Queue(value = "${spring.rabbitmq.template.custom.lanver06-publish-release-notes-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
-				key = {"${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
-//				key = {"${spring.rabbitmq.template.custom.gitlab.tag-push.routing-key}"})
+				key = {"${spring.rabbitmq.template.custom.lanver06-publish-release-notes-queue.routing-key-updated}"})
 		)
 	public void lanVer06FinishReleaseNotesProcessing(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
@@ -237,4 +252,41 @@ public class AmqpConsumer {
 		}
 	}
 
+	/************************/
+	// Consumers de documentacao
+	/************************/
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.documentation01-triage-queue.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.documentation01-triage-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.documentation01-triage-queue.routing-key-created}",
+						"${spring.rabbitmq.template.custom.documentation01-triage-queue.routing-key-updated}"})
+		)
+	public void documentation01TriageProcessing(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
+			String issueKey = jiraEventIssue.getIssue().getKey();
+			logger.info(documentation01.getMessagePrefix() + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+			documentation01.handle(jiraEventIssue);
+		}
+	}
+
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.documentation02-create-solution-queue.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.documentation02-create-solution-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.documentation02-create-solution-queue.routing-key-updated}"})
+		)
+	public void documentation02CreateSolution(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
+			String issueKey = jiraEventIssue.getIssue().getKey();
+			logger.info(documentation02.getMessagePrefix() + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+			documentation02.handle(jiraEventIssue);
+		}
+	}
 }

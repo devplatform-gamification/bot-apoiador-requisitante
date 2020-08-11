@@ -1,7 +1,7 @@
 package dev.pje.bots.apoiadorrequisitante.utils;
 
+import java.io.File;
 import java.io.IOException;
-import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -11,22 +11,15 @@ import java.text.SimpleDateFormat;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.w3c.dom.CharacterData;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
 
 import com.devplatform.model.bot.VersionReleaseNotes;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -44,7 +37,7 @@ public class Utils {
 	    
 	    return valueAprepared.equalsIgnoreCase(valueBprepared);
 	}
-
+	
 	public static boolean compareListValues(List<String> listA, List<String> listB) {
 		if(listA != null && listB != null) {
 			return listA.containsAll(listB) && listA.size() == listB.size();
@@ -71,47 +64,6 @@ public class Utils {
 		    output.append(original, lastIndex, original.length());
 		}
 		return output.toString();
-	}
-
-	public static String getVersionFromPomXML(String pomxml) {
-		String version = "";
-		try {
-	        DocumentBuilderFactory dbf =
-	            DocumentBuilderFactory.newInstance();
-	        DocumentBuilder db = dbf.newDocumentBuilder();
-	        InputSource is = new InputSource();
-	        is.setCharacterStream(new StringReader(pomxml));
-	
-	        Document doc = db.parse(is);
-	        NodeList project = doc.getElementsByTagName("project");
-	        
-	        if(project.getLength() > 0) {
-	        	Element element = (Element) project.item(0);
-	        	NodeList versionNode = element.getElementsByTagName("version");
-	        	if(versionNode.getLength() > 0) {
-		        	Element line = (Element) versionNode.item(0);
-		        	version = getCharacterDataFromElement(line);
-	        	}
-	        }
-	    }
-	    catch (Exception e) {
-	        e.printStackTrace();
-	    }
-		return version;
-	}
-	
-	public static String changePomXMLVersion(String actualVersion, String newVersion, String pomxml) {
-		String newContent = pomxml.replaceFirst("(<version>)" + actualVersion + "(</version>)", "$1"+ newVersion +"$2");
-		return newContent;
-	}
-	
-	public static String getCharacterDataFromElement(Element e) {
-	    Node child = e.getFirstChild();
-	    if (child instanceof CharacterData) {
-	       CharacterData cd = (CharacterData) child;
-	       return cd.getData();
-	    }
-	    return "?";
 	}
 
 	public static String calculateNextOrdinaryVersion(String currentVersion, int changeIndex) {
@@ -150,6 +102,10 @@ public class Utils {
 		return nextVersion;
 	}
 	
+	public static String clearVersionNumber(String version) {
+		return version.replaceAll("\\-SNAPSHOT", "");
+	}
+	
 	public static String convertObjectToJson(Object obj) {
 		ObjectMapper mapper = new ObjectMapper(); 
 		String jsonStr = null;
@@ -174,7 +130,7 @@ public class Utils {
 		return null;
 	}
 
-	public static String cleanSummary(String summary) {
+	public static String clearSummary(String summary) {
 		String summaryCleaned = summary.replaceAll("\\[.*\\]", "").replaceAll("^[ ]*\\-", "").trim();
 		if(StringUtils.isNotBlank(summaryCleaned)) {
 			summaryCleaned = summaryCleaned.substring(0, 1).toUpperCase() + summaryCleaned.substring(1);
@@ -310,12 +266,22 @@ public class Utils {
         while(matcher.find()) {
         	String k = matcher.group();
         	issueKeys.add(k);
-        	if(StringUtils.isBlank(issueKey)) {
+        	if(StringUtils.isBlank(issueKey)) {// está recuperando a primeira issue encontrada em caso de haver mais de uma
         		issueKey = k;
+        		break;
         	}
         }
         
         return issueKey;
+	}
+	
+	public static String getPathFromAsciidocLink(String adocLink) {
+		String path = null;
+		
+        Pattern pattern = Pattern.compile("link:([\\w\\-_\\s/\\d]+.html)\\[.*\\]");
+        path = pattern.matcher(adocLink).replaceAll("$1");
+        
+        return path;
 	}
 	
 	public static void waitSeconds(Integer numSeconds) {
@@ -336,6 +302,55 @@ public class Utils {
 	        return false;
 	    }
 	    return true;
+	}
+	
+	public static String addOption(String actualContent, String newOption) {
+		List<String> newContentOptions = new ArrayList<>();
+		boolean isDuplicate = false;
+		if(StringUtils.isNotBlank(actualContent)) {
+			String[] actualOptions = actualContent.split(",");
+			for (String option: actualOptions) {
+				if(StringUtils.isNotBlank(option) && !newContentOptions.contains(option)) {
+					newContentOptions.add(option.trim());
+					if(!isDuplicate && StringUtils.isNotBlank(newOption) && Utils.compareAsciiIgnoreCase(option, newOption)) {
+						isDuplicate = true;
+					}
+				}
+			}
+		}
+		if(!isDuplicate && StringUtils.isNotBlank(newOption)) {
+			newContentOptions.add(newOption.trim());
+		}
+		return String.join(", ", newContentOptions);
+	}
+	
+	public static String textToBase64(String text) {
+		String textEncoded = byteArrToBase64(text.getBytes());
+		return textEncoded;
+	}
+	
+	public static String byteArrToBase64(byte[] data) {
+		String textEncoded = Base64.getEncoder().encodeToString(data);
+		return textEncoded;
+	}
+
+	public static String decodeFromBase64(String textEndoded) {
+		byte[] decodedBytes = Base64
+				.getDecoder()
+				.decode(textEndoded);
+		return new String(decodedBytes);
+	}
+	
+	public static void writeByteArrayIntoFile(byte[] data) {
+		String outputFilePath = "/tmp/saida.png";
+		File outputFile = new File(outputFilePath);
+
+		try {
+			FileUtils.writeByteArrayToFile(outputFile, data);
+			System.out.println("Criou o arquivo: "+ outputFilePath);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }
 	

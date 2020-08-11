@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers;
+package dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,7 +11,10 @@ import org.springframework.stereotype.Component;
 import com.devplatform.model.gitlab.GitlabTag;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.event.JiraEventIssue;
+import com.devplatform.model.jira.event.JiraEventIssue.IssueEventTypeNameEnum;
 
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 
@@ -58,7 +61,8 @@ public class LanVersion01TriageHandler extends Handler<JiraEventIssue>{
 			// 1. verifica se é do tipo "geracao de nova versao"
 			if(JiraUtils.isIssueFromType(issue, JiraService.ISSUE_TYPE_NEW_VERSION) &&
 					JiraUtils.isIssueInStatus(issue, JiraService.STATUS_OPEN_ID) &&
-					JiraUtils.isIssueChangingToStatus(jiraEventIssue, JiraService.STATUS_OPEN_ID)) {
+					(JiraUtils.isIssueChangingToStatus(jiraEventIssue, JiraService.STATUS_OPEN_ID) 
+						|| jiraEventIssue.getIssueEventTypeName().equals(IssueEventTypeNameEnum.ISSUE_CREATED))) {
 
 				messages.setId(issue.getKey());
 				messages.debug(jiraEventIssue.getIssueEventTypeName().name());

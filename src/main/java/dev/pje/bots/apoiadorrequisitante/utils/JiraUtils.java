@@ -1,9 +1,6 @@
 package dev.pje.bots.apoiadorrequisitante.utils;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -16,29 +13,29 @@ import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 
 public class JiraUtils {
 
-	public static boolean isIssueFromType(JiraIssue issue, Integer issueTypeId) {
+	public static boolean isIssueFromType(JiraIssue issue, String issueTypeId) {
 		return (issue != null && issue.getFields() != null && issue.getFields().getIssuetype() != null
-				&& issue.getFields().getIssuetype().getId() != null && issueTypeId.toString()
+				&& issue.getFields().getIssuetype().getId() != null && issueTypeId
 						.equals(issue.getFields().getIssuetype().getId().toString()));
 	}
 	
-	public static boolean isIssueInStatus(JiraIssue issue, Integer statusId) {
+	public static boolean isIssueInStatus(JiraIssue issue, String statusId) {
 		boolean issueInStatus = false;
-		if(issue != null && statusId != null 
+		if(issue != null && StringUtils.isNotBlank(statusId) 
 				&& issue.getFields() != null && issue.getFields().getStatus() != null
-				&& issue.getFields().getStatus().getId().toString().equals(statusId.toString())) {
+				&& issue.getFields().getStatus().getId().toString().equals(statusId)) {
 			issueInStatus = true;
 		}
 		return issueInStatus;
 	}
 
-	public static boolean isIssueChangingToStatus(JiraEventIssue eventIssue, Integer statusId) {
+	public static boolean isIssueChangingToStatus(JiraEventIssue eventIssue, String statusId) {
 		boolean issueChangedToStatus = false;
-		if(eventIssue.getChangelog() != null) {
+		if(eventIssue.getChangelog() != null && StringUtils.isNotBlank(statusId)) {
 			List<JiraEventChangelogItems> changeItems = eventIssue.getChangelog().getItems();
 			for (JiraEventChangelogItems changedItem : changeItems) {
 				if(changedItem != null && JiraService.FIELD_STATUS.equals(changedItem.getField())) {
-					if(statusId.toString().equals(changedItem.getTo())) {
+					if(statusId.equals(changedItem.getTo())) {
 						issueChangedToStatus = true;
 						break;
 					}
@@ -61,19 +58,21 @@ public class JiraUtils {
 	}
 	
 	public static String getProjectKeyFromIssueKey(String issueKey) {
-		String projectKey = null;
-		List<String> issueKeys = new ArrayList<>();
-        Pattern pattern = Pattern.compile("\\[([A-Za-z]+)\\-[0-9]+\\]");
+		String projectKey = issueKey.replaceAll("([A-Za-z]+)\\-[0-9]+", "$1");
 
-        Matcher matcher = pattern.matcher(issueKey);
-        while(matcher.find()) {
-        	String k = matcher.group();
-        	issueKeys.add(k);
-        	if(StringUtils.isBlank(issueKey)) {
-        		projectKey = k;
-        	}
-        }
-        
         return projectKey;
+	}
+	
+	public static String getFieldNameToJQL(String fieldname) {
+		String fieldNameToJQL = null;
+		String fieldnamePrefix = "customfield_";
+		String fieldId = fieldname.replace(fieldnamePrefix, "");
+		
+		if(StringUtils.isNotBlank(fieldId)) {
+			fieldNameToJQL = "cf[" + fieldId + "]";
+		}else {
+			fieldNameToJQL = fieldname;
+		}
+		return fieldNameToJQL;
 	}
 }

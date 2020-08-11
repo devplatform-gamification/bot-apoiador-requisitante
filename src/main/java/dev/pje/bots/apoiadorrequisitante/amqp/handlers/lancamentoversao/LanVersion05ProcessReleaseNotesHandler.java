@@ -1,8 +1,7 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers;
+package dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao;
 
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
@@ -13,11 +12,14 @@ import org.springframework.stereotype.Component;
 
 import com.devplatform.model.bot.VersionReleaseNotes;
 import com.devplatform.model.gitlab.GitlabTag;
+import com.devplatform.model.gitlab.response.GitlabBranchResponse;
 import com.devplatform.model.gitlab.response.GitlabCommitResponse;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.jira.event.JiraEventIssue;
 
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
@@ -78,8 +80,9 @@ public class LanVersion05ProcessReleaseNotesHandler extends Handler<JiraEventIss
 				VersionReleaseNotes releaseNotes = null;
 				if (jiraService.isLancadorVersao(jiraEventIssue.getUser())) {
 					// recupera o anexo cocm o json do release notes
-					String releaseNotesAttachment = jiraService.getAttachmentContent(issue,
+					byte[] file = jiraService.getAttachmentContent(issue,
 							JiraService.RELEASE_NOTES_JSON_FILENAME);
+					String releaseNotesAttachment = new String(file);
 					boolean releaseNotesEncontrado = false;
 					if (releaseNotesAttachment != null) {
 						releaseNotes = Utils.convertJsonToJiraReleaseNotes(releaseNotesAttachment);
@@ -88,8 +91,6 @@ public class LanVersion05ProcessReleaseNotesHandler extends Handler<JiraEventIss
 						}
 					}
 					if (releaseNotesEncontrado) {
-						releaseNotes.setGitlabProjectId("572"); // FIXME - retirar isso daqui, é só para testes
-						releaseNotes.setReleaseDate(null); // FIXME - retirar isso daqui, é só para testes
 						if (StringUtils.isBlank(releaseNotes.getReleaseDate())) {
 							// 1. identifica se o projeto utiliza ou não o gitflow - branch principal do
 							// projeto
@@ -184,57 +185,61 @@ public class LanVersion05ProcessReleaseNotesHandler extends Handler<JiraEventIss
 		String branchName = GitlabService.BRANCH_MASTER;
 		if (implementsGitflow) {
 			branchName = GitlabService.BRANCH_RELEASE_CANDIDATE_PREFIX + releaseNotes.getAffectedVersion();
-			messages.info("Projeto do gitlab utiliza gitflow");
+			messages.info("Projeto " + gitlabProjectId + " do gitlab utiliza gitflow");
 		}
-		messages.info("Fazendo as alterações no branch: "+ branchName);
-		String actualVersion = gitlabService.getActualVersion(gitlabProjectId, branchName);
-		String newVersion = releaseNotes.getVersion();
-
-		String lastCommitId = null;
-		// verifica se é necessário alterar o POM
-		if(StringUtils.isNotBlank(actualVersion) && StringUtils.isNotBlank(newVersion)) {
-			if(!actualVersion.equalsIgnoreCase(newVersion)) {
-				List<String> pomList = gitlabService.getListPathPoms(gitlabProjectId);
-				String commitMessage = "[" + releaseNotes.getIssueKey() + "] Atualiza numero da versao no POM.XML "
-						+ releaseNotes.getVersion();
-				GitlabCommitResponse pomResponse = gitlabService.atualizaVersaoPom(gitlabProjectId, branchName, pomList, newVersion, actualVersion, commitMessage);
-				if(pomResponse != null) {
-					messages.info("Atualizada a versão do POM.XML de: " + actualVersion + " - para: " + newVersion);
-					lastCommitId = pomResponse.getId();
+		// verificar se o branch existe
+		GitlabBranchResponse repositoryBranch = gitlabService.getSingleRepositoryBranch(gitlabProjectId, branchName);
+		if(repositoryBranch != null) {
+			messages.info("Fazendo as alterações no branch: "+ branchName + " do projeto: " + gitlabProjectId);
+			String actualVersion = gitlabService.getActualVersion(gitlabProjectId, branchName, false);
+			String newVersion = releaseNotes.getVersion();
+			
+			String lastCommitId = null;
+			// verifica se é necessário alterar o POM
+			if(StringUtils.isNotBlank(actualVersion) && StringUtils.isNotBlank(newVersion)) {
+				if(!actualVersion.equalsIgnoreCase(newVersion)) {
+					String commitMessage = "[" + releaseNotes.getIssueKey() + "] Atualiza numero da versao no POM.XML "
+							+ releaseNotes.getVersion();
+					GitlabCommitResponse pomResponse = gitlabService.atualizaVersaoPom(gitlabProjectId, branchName, 
+							newVersion, actualVersion, commitMessage);
+					if(pomResponse != null) {
+						messages.info("Atualizada a versão do POM.XML de: " + actualVersion + " - para: " + newVersion);
+						lastCommitId = pomResponse.getId();
+					}else {
+						messages.error("Falhou ao tentar atualizar o POM.XML de: " + actualVersion + " - para: " + newVersion);
+					}
 				}else {
-					messages.error("Falhou ao tentar atualizar o POM.XML de: " + actualVersion + " - para: " + newVersion);
+					messages.info("O POM.XML já está atualizado");
 				}
 			}else {
-				messages.info("O POM.XML já está atualizado");
+				messages.error("Não foi possível identificar a versão anterior (" + actualVersion + ") ou a versão que será lançada: (" + newVersion + ")");
+			}
+			if(!messages.hasSomeError()) {
+				String commitMessage = "[" + releaseNotes.getIssueKey() + "] Renomeando pasta de scripts";
+				gitlabService.atualizaNumeracaoPastaScriptsVersao(gitlabProjectId, branchName, lastCommitId, newVersion, actualVersion, commitMessage);
+				if(implementsGitflow) {
+					integrarReleaseBranchNoBranchMaster(gitlabProjectId, branchName, releaseNotes);
+				}
+			}
+			if(!messages.hasSomeError()) {
+				// 2.5 criar tag relacionada à versao que está sendo lançada
+				String tagMessage = "[" + releaseNotes.getIssueKey() + "] Lançamento da versão "
+						+ releaseNotes.getVersion();
+				
+				if(StringUtils.isBlank(releaseNotes.getReleaseDate())) {
+					String dateStr = Utils.dateToStringPattern(new Date(), JiraService.JIRA_DATETIME_PATTERN);
+					releaseNotes.setReleaseDate(dateStr);
+				}
+				GitlabMarkdown gitlabMarkdown = new GitlabMarkdown();
+				releaseNotesModel.setReleaseNotes(releaseNotes);
+				String releaseText = releaseNotesModel.convert(gitlabMarkdown);
+				messages.info("Lançando a tag: " + newVersion);
+				gitlabService.createVersionTag(gitlabProjectId, newVersion, GitlabService.BRANCH_MASTER,
+						tagMessage, releaseText);
+				messages.info("Tag " + newVersion + " lançada");
 			}
 		}else {
-			messages.error("Não foi possível identificar a versão anterior (" + actualVersion + ") ou a versão que será lançada: (" + newVersion + ")");
-		}
-
-		if(!messages.hasSomeError()) {
-			String commitMessage = "[" + releaseNotes.getIssueKey() + "] Renomeando pasta de scripts";
-			gitlabService.atualizaNumeracaoPastaScriptsVersao(gitlabProjectId, branchName, lastCommitId, newVersion, actualVersion, commitMessage);
-			if(implementsGitflow) {
-				integrarReleaseBranchNoBranchMaster(gitlabProjectId, branchName, releaseNotes);
-			}
-		}
-
-		if(!messages.hasSomeError()) {
-			// 2.5 criar tag relacionada à versao que está sendo lançada
-			String tagMessage = "[" + releaseNotes.getIssueKey() + "] Lançamento da versão "
-					+ releaseNotes.getVersion();
-	
-			if(StringUtils.isBlank(releaseNotes.getReleaseDate())) {
-				String dateStr = Utils.dateToStringPattern(new Date(), JiraService.JIRA_DATETIME_PATTERN);
-				releaseNotes.setReleaseDate(dateStr);
-			}
-			GitlabMarkdown gitlabMarkdown = new GitlabMarkdown();
-			releaseNotesModel.setReleaseNotes(releaseNotes);
-			String releaseText = releaseNotesModel.convert(gitlabMarkdown);
-			messages.info("Lançando a tag: " + newVersion);
-			gitlabService.createVersionTag(gitlabProjectId, newVersion, GitlabService.BRANCH_MASTER,
-					tagMessage, releaseText);
-			messages.info("Tag " + newVersion + " lançada");
+			messages.error("Não encontrado o branch: "+ branchName + " do projeto: " + gitlabProjectId);
 		}
 	}
 	

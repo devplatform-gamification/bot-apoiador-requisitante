@@ -51,7 +51,7 @@ public class CheckingNewScriptMigrationsInCommitHandler {
 				ArrayList<GitlabScriptVersaoVO> scriptsToChange = new ArrayList<>();
 				if(addedScripts != null && !addedScripts.isEmpty()) {
 					// identificar qual é o número da versão atual
-					String currentVersion = gitlabService.getBranchVersion(gitlabEventPush.getProject(), branchName);
+					String currentVersion = gitlabService.getActualVersion(gitlabEventPush.getProject(), branchName, true);
 					// verificar se todos os arquivos adicionados estão no caminho correto
 					String destinationPath = GitlabService.SCRIPS_MIGRATION_BASE_PATH + currentVersion;
 					// buscar todos os scripts que estao na basta de migrations

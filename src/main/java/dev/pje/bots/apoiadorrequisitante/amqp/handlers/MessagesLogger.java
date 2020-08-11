@@ -15,7 +15,7 @@ import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.TelegramMarkdownHtml;
 
 @Component
-class MessagesLogger {
+public class MessagesLogger {
 
 	private Logger logger;
 	public String id;

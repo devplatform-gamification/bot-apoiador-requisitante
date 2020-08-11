@@ -15,7 +15,7 @@ import com.devplatform.model.jira.JiraIssueTransition;
 import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.jira.event.JiraEventIssue;
 import com.devplatform.model.jira.event.JiraWebhookEventEnum;
-import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
+import com.devplatform.model.jira.request.JiraIssueCreateAndUpdate;
 
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.services.TelegramService;
@@ -70,8 +70,11 @@ public class JiraIssueCheckApoiadorRequisitanteEventHandler {
 					jiraService.adicionarComentario(issue,textoInclusao, updateFields);
 					JiraIssueTransition edicaoAvancada = jiraService.findTransitionByName(issue, JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA);
 					if(edicaoAvancada != null) {
-						JiraIssueTransitionUpdate issueTransitionUpdate = new JiraIssueTransitionUpdate(edicaoAvancada, updateFields);
-						jiraService.updateIssue(issue, issueTransitionUpdate);
+						JiraIssueCreateAndUpdate jiraIssueCreateAndUpdate = new JiraIssueCreateAndUpdate();
+						jiraIssueCreateAndUpdate.setTransition(edicaoAvancada);
+						jiraIssueCreateAndUpdate.setUpdate(updateFields);
+
+						jiraService.updateIssue(issue, jiraIssueCreateAndUpdate);
 						telegramService.sendBotMessage("[REQUISITANTE][" + issue.getKey() + "] Issue atualizada");
 						logger.info("Issue atualizada");
 					}else {

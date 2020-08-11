@@ -1,7 +1,6 @@
 package dev.pje.bots.apoiadorrequisitante.utils;
 
 
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -241,14 +240,10 @@ public class ReleaseNotesTextModel extends AbstractTextModel{
 				.append(markdown.newLine());
 			if(StringUtils.isNotBlank(releaseNotes.getReleaseDate())) {
 				Date releaseDate;
-				try {
-					releaseDate = Utils.stringToDate(releaseNotes.getReleaseDate(), null);
-					sb.append(":releaseDate: ")
-					.append(Utils.dateToStringPattern(releaseDate, "dd/MM/yyyy"))
-					.append(markdown.newLine());
-				} catch (ParseException e) {
-					e.printStackTrace();
-				}
+				releaseDate = Utils.getDateFromString(releaseNotes.getReleaseDate());
+				sb.append(":releaseDate: ")
+				.append(Utils.dateToStringPattern(releaseDate, "dd/MM/yyyy"))
+				.append(markdown.newLine());
 			}
 			sb.append("include::{docdir}/projetos/pje-legacy/_service-attributes.adoc[]")
 				.append(markdown.newLine())

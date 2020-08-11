@@ -75,7 +75,7 @@ public class TelegramMarkdownHtml implements MarkdownInterface{
 	
 	@Override
 	public String citation(String text) {
-		return newLine() + "---" + italic(text);
+		return newLine() + "---" + newLine() + italic(text);
 	}
 
 	@Override
@@ -85,7 +85,7 @@ public class TelegramMarkdownHtml implements MarkdownInterface{
 
 	@Override
 	public String quote(String text) {
-		return newLine() + "---" + italic(text) + newLine() + "---" + newLine();
+		return newLine() + "---" + newLine() + italic(text) + newLine() + "---" + newLine();
 	}
 
 	@Override

@@ -1,5 +1,7 @@
 package dev.pje.bots.apoiadorrequisitante.services;
 
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -32,8 +34,9 @@ import com.devplatform.model.jira.JiraVersion;
 import com.devplatform.model.jira.custom.JiraCustomField;
 import com.devplatform.model.jira.custom.JiraCustomFieldOption;
 import com.devplatform.model.jira.request.JiraCustomFieldOptionsRequest;
-import com.devplatform.model.jira.request.JiraIssueFieldsRequest;
-import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
+import com.devplatform.model.jira.request.JiraIssueCreateAndUpdate;
+import com.devplatform.model.jira.request.JiraIssueLinkRequest;
+import com.devplatform.model.jira.request.JiraIssueLinkTypeRequest;
 import com.devplatform.model.jira.request.fields.JiraComment;
 import com.devplatform.model.jira.request.fields.JiraComments;
 import com.devplatform.model.jira.request.fields.JiraDateTime;
@@ -45,6 +48,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 
 import dev.pje.bots.apoiadorrequisitante.clients.JiraClient;
 import dev.pje.bots.apoiadorrequisitante.clients.JiraClientDebug;
+import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 
 @Service
@@ -67,29 +71,51 @@ public class JiraService {
 	@Value("${clients.jira.url}") 
 	private String jiraUrl;
 	
-	public static final Integer ISSUE_TYPE_NEW_VERSION = 10200;
-	public static final Integer ISSUE_TYPE_RELEASE_NOTES = 10302;
+	public static final String ISSUE_TYPE_NEW_VERSION = "10200";
+	public static final String ISSUE_TYPE_DOCUMENTATION = "10301";
+	public static final String ISSUE_TYPE_RELEASE_NOTES = "10302";
 	
 	public static final String PROJECTKEY_PJEDOC = "PJEDOC";
 	
-	public static final Integer STATUS_OPEN_ID = 1;
-	public static final Integer STATUS_GERAR_RELEASE_CANDIDATE_ID = 10671;
-	public static final Integer STATUS_PREPARAR_PROXIMA_VERSAO_ID = 10672;
-	public static final Integer STATUS_GERAR_RELEASE_NOTES_ID = 8;
-	public static final Integer STATUS_RELEASE_NOTES_ID = 10670;
-	public static final Integer STATUS_RELEASE_NOTES_CONFIRMED_ID = 10572;
+	public static final String STATUS_OPEN_ID = "1";
+	public static final String STATUS_GERAR_RELEASE_CANDIDATE_ID = "10671";
+	public static final String STATUS_PREPARAR_PROXIMA_VERSAO_ID = "10672";
+	public static final String STATUS_GERAR_RELEASE_NOTES_ID = "8";
+	public static final String STATUS_RELEASE_NOTES_ID = "10670";
+	public static final String STATUS_RELEASE_NOTES_CONFIRMED_ID = "10572";
+	public static final String STATUS_RELEASE_NOTES_FINISHPROCESSING_ID = "10673";
+	
+	public static final String STATUS_DOCUMENTATION_PROCESSING_ID = "10674";
+	
+	public static final Integer ISSUELINKTYPE_DOCUMENTATION_ID = 10410;
+	public static final String ISSUELINKTYPE_DOCUMENTATION_INWARDNAME = "documents";
+	public static final String ISSUELINKTYPE_DOCUMENTATION_OUTWARDNAME = "is documented by";
+
+	public static final Integer ISSUELINKTYPE_RELATES_ID = 10003;
+	public static final String ISSUELINKTYPE_RELATES_INWARDNAME = "relates to";
+	public static final String ISSUELINKTYPE_RELATES_OUTWARDNAME = "relates to";
+
+	public static final Integer ISSUELINKTYPE_DUPLICATES_ID = 10002;
+	public static final String ISSUELINKTYPE_DUPLICATES_INWARDNAME = "duplicates";
+	public static final String ISSUELINKTYPE_DUPLICATES_OUTWARDNAME = "is duplicated by";
 
 	public static final String GRUPO_LANCADORES_VERSAO = "PJE_LancadoresDeVersao";
 	public static final String PREFIXO_GRUPO_TRIBUNAL = "PJE_TRIBUNAL_";
 	public static final String TRANSICTION_DEFAULT_EDICAO_AVANCADA = "Edição avançada";
 
 	public static final String RELEASE_NOTES_JSON_FILENAME = "release-notes.json";
+	public static final String RELEASE_NOTES_FILENAME_PREFIX = "release-notes_";
+	public static final String FILENAME_SUFFIX_ADOC = ".adoc";
+	public static final String FILENAME_SUFFIX_HTML = ".html";
+	public static final String DOCUMENTATION_ASSETS_DIR = "assets";
 
 	public static final String FIELD_PROJECT = "project";
 	public static final String FIELD_SUMMARY = "summary";
 	public static final String FIELD_ISSUETYPE = "issuetype";
 	public static final String FIELD_STATUS = "status";
 	public static final String FIELD_DESCRIPTION = "description";
+	public static final String FIELD_ISSUELINKS = "issuelinks";
+
 	public static final String FIELD_AFFECTED_VERSION = "versions";
 	public static final String FIELD_AFFECTED_VERSION_TO_JQL = "affectedVersion";
 	public static final String FIELD_COMMENT = "comment";
@@ -107,6 +133,10 @@ public class JiraService {
 	public static final String FIELD_PUBLICAR_DOCUMENTACAO_AUTOMATICAMENTE = "customfield_14009";
 	public static final String FIELD_VERSION_TYPE = "customfield_13906";
 	public static final String FIELD_ESTRUTURA_DOCUMENTACAO = "customfield_14004";
+	
+	public static final String FIELD_BRANCHS_RELACIONADOS = "customfield_13005";
+	public static final String FIELD_MRS_ABERTOS = "customfield_12509";
+	public static final String FIELD_MRS_ACEITOS = "customfield_12505";
 
 	public static final Integer TEXT_FIELD_CHARACTER_LIMIT = 327670;
 	
@@ -205,11 +235,12 @@ public class JiraService {
 		return jqlsb.toString();
 	}
 
-	public String getJqlIssuesDocumentacaoReleaseNotes(String version) {
+	public String getJqlIssuesDocumentacaoReleaseNotes(String version, String opcaoEstruturaDocumentacaoId) {
 		StringBuilder jqlsb = new StringBuilder("");
 		jqlsb.append(" status not in (Fechado, Resolvido) ")
 			.append(" AND issueType IN (").append(ISSUE_TYPE_RELEASE_NOTES).append(") ")
-			.append(" AND ").append(FIELD_VERSAO_SER_LANCADA).append(" IN (").append(version).append(") ")
+			.append(" AND ").append(JiraUtils.getFieldNameToJQL(FIELD_VERSAO_SER_LANCADA)).append(" ~ ").append(version).append(" ")
+			.append(" AND ").append(JiraUtils.getFieldNameToJQL(FIELD_ESTRUTURA_DOCUMENTACAO)).append(" = ").append(opcaoEstruturaDocumentacaoId).append(" ")
 			.append(" AND project in (").append(PROJECTKEY_PJEDOC).append(") ");
 		
 		return jqlsb.toString();
@@ -327,7 +358,7 @@ public class JiraService {
 		}
 	}
 
-	public void atualizarURLReleaseNotes(JiraIssue issue,  String urlReleaseNotes, Map<String, Object> updateFields) throws Exception {
+	public void atualizarURLPublicacao(JiraIssue issue,  String urlReleaseNotes, Map<String, Object> updateFields) throws Exception {
 		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
 		
 		boolean houveAlteracao = false;
@@ -339,6 +370,57 @@ public class JiraService {
 			Map<String, Object> updateField = createUpdateObject(FIELD_URL_RELEASE_NOTES, urlReleaseNotes, "UPDATE");
 			if(updateField != null && updateField.get(FIELD_URL_RELEASE_NOTES) != null) {
 				updateFields.put(FIELD_URL_RELEASE_NOTES, updateField.get(FIELD_URL_RELEASE_NOTES));
+			}
+		}
+	}
+
+	public void atualizarBranchRelacionado(JiraIssue issue,  String branchName, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+		
+		boolean houveAlteracao = false;
+		if(StringUtils.isBlank(issueDetalhada.getFields().getBranchsRelacionados()) || !issueDetalhada.getFields().getBranchsRelacionados().contains(branchName)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			String branchsRelacionados = Utils.addOption(issueDetalhada.getFields().getBranchsRelacionados(), branchName);
+			Map<String, Object> updateField = createUpdateObject(FIELD_BRANCHS_RELACIONADOS, branchsRelacionados, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_BRANCHS_RELACIONADOS) != null) {
+				updateFields.put(FIELD_BRANCHS_RELACIONADOS, updateField.get(FIELD_BRANCHS_RELACIONADOS));
+			}
+		}
+	}
+
+	public void atualizarMRsAbertos(JiraIssue issue,  String mrAberto, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+		
+		boolean houveAlteracao = false;
+		if(StringUtils.isBlank(issueDetalhada.getFields().getMrAbertos()) || !issueDetalhada.getFields().getMrAbertos().contains(mrAberto)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			String mrsAbertos = Utils.addOption(issueDetalhada.getFields().getMrAbertos(), mrAberto);
+			Map<String, Object> updateField = createUpdateObject(FIELD_MRS_ABERTOS, mrsAbertos, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_MRS_ABERTOS) != null) {
+				updateFields.put(FIELD_MRS_ABERTOS, updateField.get(FIELD_MRS_ABERTOS));
+			}
+		}
+	}
+	
+	public void atualizarMRsAceitos(JiraIssue issue,  String mrAceito, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+		
+		boolean houveAlteracao = false;
+		if(StringUtils.isBlank(issueDetalhada.getFields().getMrAceitos()) || !issueDetalhada.getFields().getMrAceitos().contains(mrAceito)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			String mrsAceitos = Utils.addOption(issueDetalhada.getFields().getMrAceitos(), mrAceito);
+			Map<String, Object> updateField = createUpdateObject(FIELD_MRS_ABERTOS, mrsAceitos, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_MRS_ABERTOS) != null) {
+				updateFields.put(FIELD_MRS_ABERTOS, updateField.get(FIELD_MRS_ABERTOS));
 			}
 		}
 	}
@@ -376,6 +458,13 @@ public class JiraService {
 			}
 		}		
 	}
+	
+	public void removerPublicarDocumentacaoAutomaticamente(JiraIssue issue,  Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+		if(issueDetalhada.getFields().getPublicarDocumentacaoAutomaticamente() != null && !issueDetalhada.getFields().getPublicarDocumentacaoAutomaticamente().isEmpty()) {
+			updateFields.put(FIELD_PUBLICAR_DOCUMENTACAO_AUTOMATICAMENTE, new ArrayList<>());
+		}
+	}
 
 	public void atualizarDescricao(JiraIssue issue,  String texto, Map<String, Object> updateFields) throws Exception {
 		if (StringUtils.isNotBlank(texto)) {
@@ -390,6 +479,57 @@ public class JiraService {
 				Map<String, Object> updateField = createUpdateObject(FIELD_DESCRIPTION, texto, "UPDATE");
 				if(updateField != null && updateField.get(FIELD_DESCRIPTION) != null) {
 					updateFields.put(FIELD_DESCRIPTION, updateField.get(FIELD_DESCRIPTION));
+				}
+			}
+		}		
+	}
+
+	public void criarNovoLink(JiraIssue issue, String destinationIssueKey, 
+				String issuelinkTypeId, String issueLinkName, boolean isOutward, Map<String, Object> updateFields) throws Exception {
+		if (StringUtils.isNotBlank(destinationIssueKey) && StringUtils.isNotBlank(issuelinkTypeId)) {
+			JiraIssue issueDetalhada = null;
+			if(issue != null) {
+				issueDetalhada = recuperaIssueDetalhada(issue);
+			}
+			JiraIssue issueDestino = recuperaIssueDetalhada(destinationIssueKey);
+			
+			if(issueDestino != null && issueDetalhada != null) {
+				boolean houveAlteracao = true;
+				if(issueDetalhada.getFields() != null && issueDetalhada.getFields().getIssuelinks() != null) {
+					for (JiraIssueLinkRequest issueLink : issueDetalhada.getFields().getIssuelinks()) {
+						if(issueLink.getIssueLinkType() != null && issueLink.getIssueLinkType().getId() != null 
+								&& !issueLink.getIssueLinkType().getId().toString().equals(issuelinkTypeId)) {
+							if(issueLink.getOutwardIssue() != null && issueLink.getOutwardIssue().getId().equals(issueDestino.getId())) {
+								houveAlteracao = false;
+							}else if(issueLink.getInwardIssue() != null && issueLink.getInwardIssue().getId().equals(issueDestino.getId())) {
+								houveAlteracao = false;
+							}
+						}
+					}
+				}
+				
+				if(houveAlteracao || issue == null) {
+					JiraIssueLinkTypeRequest issueLinkType = new JiraIssueLinkTypeRequest();
+					if(isOutward) {
+						issueLinkType.setOutwardName(issueLinkName);
+					}else {
+						issueLinkType.setInwardName(issueLinkName);
+					}
+					issueLinkType.setId(issuelinkTypeId);
+					
+					JiraIssueLinkRequest issueLink = new JiraIssueLinkRequest();
+					JiraIssue relatedIssue = new JiraIssue();
+					relatedIssue.setKey(issueDestino.getKey());
+					if(isOutward) {
+						issueLink.setOutwardIssue(relatedIssue);
+					}else {
+						issueLink.setInwardIssue(relatedIssue);
+					}
+					issueLink.setIssueLinkType(issueLinkType);
+					Map<String, Object> updateField = createUpdateObject(FIELD_ISSUELINKS, issueLink, "ADD");
+					if(updateField != null && updateField.get(FIELD_ISSUELINKS) != null) {
+						updateFields.put(FIELD_ISSUELINKS, updateField.get(FIELD_ISSUELINKS));
+					}
 				}
 			}
 		}		
@@ -515,8 +655,29 @@ public class JiraService {
 		}
 	}
 
-	public void novaIssueCriarEstruturaDocumentacao(JiraCustomFieldOption customFieldOption, Map<String, Object> issueFields) throws Exception {
-		if (customFieldOption != null) {
+	public void novaIssueCriarEstruturaDocumentacao(String identificacaoEstruturaDocumentacao, Map<String, Object> issueFields) throws Exception {
+		if (StringUtils.isNotBlank(identificacaoEstruturaDocumentacao)) {
+			String[] options = identificacaoEstruturaDocumentacao.split(":");
+			
+			String parentOptionId = null;
+			String cascadeOptionId = null;
+			if(options != null && options.length > 0) {
+				parentOptionId = options[0];
+				if(options.length > 1) {
+					cascadeOptionId = options[1];
+				}
+			}
+			JiraCustomFieldOption customFieldOption = new JiraCustomFieldOption();
+			customFieldOption.setId(new BigDecimal(parentOptionId));
+			if(StringUtils.isNotBlank(cascadeOptionId)) {
+				JiraCustomFieldOption childFieldOption = new JiraCustomFieldOption();
+				childFieldOption.setId(new BigDecimal(cascadeOptionId));
+
+				List<JiraCustomFieldOption> cascadingOption = new ArrayList<>();
+				cascadingOption.add(childFieldOption);
+				
+				customFieldOption.setCascadingOptions(cascadingOption);
+			}
 			
 			Map<String, Object> issueField = new HashMap<>();
 			issueField.put(FIELD_ESTRUTURA_DOCUMENTACAO, customFieldOption);
@@ -548,6 +709,10 @@ public class JiraService {
 					FIELD_VERSAO_SER_LANCADA.equals(fieldName) ||
 					FIELD_PROXIMA_VERSAO.equals(fieldName) ||
 					FIELD_URL_RELEASE_NOTES.equals(fieldName) ||
+					FIELD_MRS_ACEITOS.equals(fieldName) ||
+					FIELD_MRS_ABERTOS.equals(fieldName) ||
+					FIELD_BRANCHS_RELACIONADOS.equals(fieldName) ||
+					
 					FIELD_DESCRIPTION.equals(fieldName)
 					)) {
 			String text = (String)valueToUpdate;
@@ -571,7 +736,7 @@ public class JiraService {
 				dateTimeStr = (String) valueToUpdate;
 				if(valueToUpdate instanceof String) {
 					try {
-						Utils.stringToDate(dateTimeStr, JIRA_DATETIME_PATTERN);
+						Utils.getDateFromString(dateTimeStr);
 						identificouCampo = true;
 					}catch (Exception e) {
 						logger.error("A string indicada: "+ dateTimeStr + " está fora do padrão de datetime do jira.");
@@ -623,6 +788,20 @@ public class JiraService {
 			}
 			if(!identificouCampo) {
 				throw new Exception("Valor para update fora do padrão - deveria ser String, recebeu: " +  valueToUpdate.getClass().getTypeName());
+			}
+		}else if(FIELD_ISSUELINKS.equals(fieldName) && valueToUpdate != null) {
+			boolean identificouCampo = false;
+			if(valueToUpdate instanceof JiraIssueLinkRequest) {
+				JiraIssueLinkRequest isuseLink = (JiraIssueLinkRequest)valueToUpdate;
+				Map<String, Object> newIssueLink = new HashMap<>();
+				newIssueLink.put("add", isuseLink);
+				List<Map<String, Object>> issueLinkArray = new ArrayList<>();
+				issueLinkArray.add(newIssueLink);
+				objectToUpdate.put(fieldName, issueLinkArray);
+				identificouCampo = true;
+			}
+			if(!identificouCampo) {
+				throw new Exception("Valor para update fora do padrão - deveria ser JiraIssueLinkRequest, recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
 		}
 		
@@ -721,7 +900,7 @@ public class JiraService {
 		return jql;
 	}
 	
-	public JiraIssue createIssue(JiraIssueFieldsRequest newIssue) {
+	public JiraIssue createIssue(JiraIssueCreateAndUpdate newIssue) throws Exception {
 		JiraIssue novaIssue = null;
 		try {
 			novaIssue = jiraClient.createIssue(newIssue);
@@ -731,24 +910,34 @@ public class JiraService {
 			logger.error(errorMesasge);
 			slackService.sendBotMessage(errorMesasge);
 			telegramService.sendBotMessage(errorMesasge);
+			
+			throw new Exception(errorMesasge);
 		}
 		return novaIssue;
 	}
 
-	public void updateIssue(JiraIssue issue, JiraIssueTransitionUpdate issueUpdate) throws JsonProcessingException {
+	public void updateIssue(JiraIssue issue, JiraIssueCreateAndUpdate issueUpdate) throws Exception {
 		String issueKey = issue.getKey();
 		try {
-			jiraClient.changeIssueWithTransition(issueKey, issueUpdate);
+			if(issueUpdate != null) {
+				if(issueUpdate.getTransition() !=null && !issueUpdate.getTransition().isEmpty()) {
+					jiraClient.changeIssueWithTransition(issueKey, issueUpdate);
+				}else {
+					jiraClient.updateIssue(issueKey, issueUpdate);
+				}
+			}
 		}catch (Exception e) {
 			String errorMesasge = "Falhou ao tentar atualizar a issue: " + issueKey + ", erro: " + e.getLocalizedMessage() 
 				+ "\nValores utilizados" + Utils.convertObjectToJson(issueUpdate);
 			logger.error(errorMesasge);
 			slackService.sendBotMessage(errorMesasge);
 			telegramService.sendBotMessage(errorMesasge);
+			
+			throw new Exception(errorMesasge);
 		}
 	}
 
-	public void updateIssueDebug(JiraIssue issue, JiraIssueTransitionUpdate issueUpdate) throws JsonProcessingException {
+	public void updateIssueDebug(JiraIssue issue, JiraIssueCreateAndUpdate issueUpdate) throws JsonProcessingException {
 		String issueKey = issue.getKey();
 		jiraClientDebug.changeIssueWithTransition(issueKey, issueUpdate);
 	}
@@ -791,17 +980,24 @@ public class JiraService {
 		}
 	}
 
-	public String getAttachmentContent(JiraIssue issue, String filename) {
-		String attachmentContent = null;
+	public byte[] getAttachmentContent(JiraIssue issue, String filename) throws IOException {
+		byte[] attachmentContent = null;
 		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
 		if(issueDetalhada.getFields().getAttachment() != null && !issueDetalhada.getFields().getAttachment().isEmpty()) {
 			for (JiraIssueAttachment attachment : issueDetalhada.getFields().getAttachment()) {
 				if(attachment.getFilename().equals(filename)) {
-					attachmentContent = jiraClient.getAttachmentContent(attachment.getId().toString(), attachment.getFilename());
+					String mimeType = attachment.getMimeType();
+					if(StringUtils.isNotBlank(mimeType) && mimeType.contains("text")) {
+						attachmentContent = jiraClient.getAttachmentContent(attachment.getId().toString(), attachment.getFilename());
+					}else {
+						attachmentContent = jiraClient.getAttachmentContentBinary(attachment.getId().toString(), attachment.getFilename());
+					}
+					
 					break;
 				}
 			}
 		}
+		
 		return attachmentContent;
 	}
 
@@ -1059,49 +1255,53 @@ public class JiraService {
 	}
 	
 	/* obtem o objeto customFieldOption correspondente ao projeto na estrutura de documentacoes dado nas propriedades do projeto atual */
-	public JiraCustomFieldOption getEstruturaDocumentacao(String projectKey) {
-		JiraCustomFieldOption estruturaDocumentacao = null;
+	/**
+	 * Recupera os ids da estrutura de documentacao do projeto dado, o valor terá o formato:
+	 * <id-opcao-pai>:<id-opcao-filha>
+	 * 
+	 * @param projectKey
+	 * @return
+	 */
+	public String getEstruturaDocumentacao(String projectKey) {
+		String identificacaoEstruturaDocumentacao = null;
 		if(projectKey != null) {
 			boolean encontrouIdentificacao = false;
-			String propertyValue = getPropertyFromJiraProject(projectKey, PROJECT_PROPERTY_DOCUMENTATION_FIELDVALUE_DOC_STRUCTURE);
-			if(StringUtils.isNotBlank(propertyValue)) {
-				estruturaDocumentacao = Utils.convertJsonToObject(propertyValue, JiraCustomFieldOption.class);
-				if(estruturaDocumentacao != null) {
-					encontrouIdentificacao = true;
-				}
+			identificacaoEstruturaDocumentacao = getPropertyFromJiraProject(projectKey, PROJECT_PROPERTY_DOCUMENTATION_FIELDVALUE_DOC_STRUCTURE);
+			if(StringUtils.isNotBlank(identificacaoEstruturaDocumentacao)) {
+				encontrouIdentificacao = true;
 			}
 			if(!encontrouIdentificacao) {
 				// se não encontrou o valor na propriedade - recupera com base no nome do projeto
 				JiraProject project = jiraClient.getProjectDetails(projectKey, new HashMap<String, String>());
 				if(project != null) {
-					estruturaDocumentacao = getEstruturaDocumentacaoOption(project.getName());
-					if(estruturaDocumentacao != null) {
+					identificacaoEstruturaDocumentacao = getEstruturaDocumentacaoOption(project.getName());
+					if(identificacaoEstruturaDocumentacao != null) {
 						// grava o valor na propriedade - para evitar essa outra consulta onerosa
-						changePropertyFromJiraProject(projectKey, PROJECT_PROPERTY_DOCUMENTATION_FIELDVALUE_DOC_STRUCTURE, Utils.convertObjectToJson(estruturaDocumentacao));
+						changePropertyFromJiraProject(projectKey, PROJECT_PROPERTY_DOCUMENTATION_FIELDVALUE_DOC_STRUCTURE, identificacaoEstruturaDocumentacao);
 					}
 				}
 			}
 		}
 		
-		return estruturaDocumentacao;
+		return identificacaoEstruturaDocumentacao;
 	}
 	
-	public JiraCustomFieldOption getEstruturaDocumentacaoOption(String searchItems) {
+	public String getEstruturaDocumentacaoOption(String searchItems) {
+		List<String> identificacaoEstruturaDocumentacao = new ArrayList<>();
 		JiraCustomFieldOption parentOption = null;
-		List<JiraCustomFieldOption> childenOption = new ArrayList<JiraCustomFieldOption>();
+		List<JiraCustomFieldOption> childOption = new ArrayList<JiraCustomFieldOption>();
 		JiraCustomField customField = getCustomFieldDetailed(FIELD_ESTRUTURA_DOCUMENTACAO, searchItems, Boolean.TRUE.toString());
 		if(customField != null && customField.getOptions() != null && !customField.getOptions().isEmpty()) {
 			for (JiraCustomFieldOption customOption : customField.getOptions()) {
-				parentOption = customOption;
+				identificacaoEstruturaDocumentacao = new ArrayList<>();
+				identificacaoEstruturaDocumentacao.add(customOption.getId().toString());
 				if(customOption.getCascadingOptions() != null && !customOption.getCascadingOptions().isEmpty()) {
-					childenOption.add(customOption.getCascadingOptions().get(0)); 
+					identificacaoEstruturaDocumentacao.add(customOption.getCascadingOptions().get(0).getId().toString());
 					break;
 				}
 			}
 		}
-		parentOption.setCascadingOptions(childenOption);
-		
-		return parentOption;
+		return String.join(":", identificacaoEstruturaDocumentacao);
 	}
 
 	@Cacheable(cacheNames = "project-versions")
@@ -1152,7 +1352,7 @@ public class JiraService {
 				jiraVersion.setProjectId(project.getId());
 				jiraVersion.setStartDate(Utils.dateToStringPattern(new Date(), Utils.DATE_SIMPLE_PATTERN)); // assumi que iniciará a versão na criacao do registro
 				if(StringUtils.isNotBlank(releaseDate)) {
-					Date releaseDateTime = Utils.stringToDate(releaseDate, Utils.DATE_SIMPLE_PATTERN);
+					Date releaseDateTime = Utils.getDateFromString(releaseDate);
 					jiraVersion.setReleaseDate(Utils.dateToStringPattern(releaseDateTime, Utils.DATE_SIMPLE_PATTERN));
 					jiraVersion.setReleased(true);
 				}else {

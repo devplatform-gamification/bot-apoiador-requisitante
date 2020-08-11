@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import com.devplatform.model.gitlab.GitlabPipeline;
 import com.devplatform.model.gitlab.GitlabProjectExtended;
+import com.devplatform.model.gitlab.GitlabProjectVariable;
 import com.devplatform.model.gitlab.GitlabTag;
 import com.devplatform.model.gitlab.GitlabTagRelease;
 import com.devplatform.model.gitlab.GitlabUser;
@@ -151,11 +152,35 @@ public interface GitlabClient {
 			@PathVariable("mergeRequestIid") BigDecimal mergeRequestIId
 			);
 
-	@GetMapping(value = "/api/v4/projects/{projectId}/repository/compare/?from={fromBranch}&to= {toBranch}", consumes = "application/json")
+	@GetMapping(value = "/api/v4/projects/{projectId}/repository/compare/?from={fromBranch}&to={toBranch}", consumes = "application/json")
 	public GitlabRefCompareResponse compareBranches(
 			@PathVariable("projectId") String projectId,
 			@PathVariable("fromBranch") String fromBranch,
 			@PathVariable("toBranch") String toBranch
+			);
+
+	@GetMapping(value = "/api/v4/projects/{projectId}/variables/", consumes = "application/json")
+	public List<GitlabProjectVariable> getProjectVariables(
+			@PathVariable("projectId") String projectId
+			);
+
+	@GetMapping(value = "/api/v4/projects/{projectId}/variables/{variableKey}", consumes = "application/json")
+	public GitlabProjectVariable getSingleProjectVariable(
+			@PathVariable("projectId") String projectId,
+			@PathVariable("variableKey") String variableKey
+			);
+
+	@PostMapping(value = "/api/v4/projects/{projectId}/variables/", consumes = "application/json")
+	public GitlabProjectVariable createProjectVariable(
+			@PathVariable("projectId") String projectId,
+			@RequestBody GitlabProjectVariable projectVariable
+			);
+
+	@PutMapping(value = "/api/v4/projects/{projectId}/variables/{variableKey}", consumes = "application/json")
+	public GitlabProjectVariable changeProjectVariable(
+			@PathVariable("projectId") String projectId,
+			@PathVariable("variableKey") String variableKey,
+			@RequestBody GitlabProjectVariable projectVariable
 			);
 
 }

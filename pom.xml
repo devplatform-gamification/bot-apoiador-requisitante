@@ -19,6 +19,7 @@
 		<java.version>1.8</java.version>
 		<spring-cloud.version>Hoxton.SR5</spring-cloud.version>
 		<devplatform-commons.version>0.1.9-SNAPSHOT</devplatform-commons.version>
+		<jira.version>8.5.3</jira.version>
 	</properties>
 
 	<dependencies>
@@ -52,14 +53,20 @@
 			<version>2.5.0.RELEASE</version>
 		</dependency>
 
-
 		<!-- common dev-platform elements -->
 		<dependency>
 			<groupId>com.dev-platform</groupId>
 			<artifactId>devplatform-commons</artifactId>
 			<version>${devplatform-commons.version}</version>
 		</dependency>
-
+<!-- 
+		<dependency>
+		    <groupId>com.atlassian.jira</groupId>
+		    <artifactId>jira-api</artifactId>
+		    <version>${jira.version}</version>
+		    <scope>provided</scope>
+		</dependency>
+ -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>

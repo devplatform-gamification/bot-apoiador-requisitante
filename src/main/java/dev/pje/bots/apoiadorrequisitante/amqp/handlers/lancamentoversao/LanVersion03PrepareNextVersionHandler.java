@@ -1,7 +1,6 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers;
+package dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
@@ -13,6 +12,8 @@ import com.devplatform.model.gitlab.response.GitlabCommitResponse;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.event.JiraEventIssue;
 
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
@@ -84,16 +85,16 @@ public class LanVersion03PrepareNextVersionHandler extends Handler<JiraEventIssu
 						proximaVersao = Utils.calculateNextOrdinaryVersion(versaoASerLancada, 2);
 					}
 
-					String versaoAtual = gitlabService.getActualVersion(gitlabProjectId, branchDesenvolvimento);
+					String versaoAtual = gitlabService.getActualVersion(gitlabProjectId, branchDesenvolvimento, false);
 					String lastCommitId = null;
 					// verifica se é necessário alterar o POM
 					if(StringUtils.isNotBlank(versaoAtual) && StringUtils.isNotBlank(proximaVersao)) {
-						if(!versaoAtual.equalsIgnoreCase(proximaVersao)) {
+						if(!Utils.clearVersionNumber(versaoAtual).equalsIgnoreCase(proximaVersao)) {
 							// é necessário alterar o POM
-							List<String> pomList = gitlabService.getListPathPoms(gitlabProjectId);
 							String commitMessage = "[" + issue.getKey() + "] Início da versão " + proximaVersao;
 							String proximaVersaoSNAPSHOT = proximaVersao + "-SNAPSHOT";
-							GitlabCommitResponse response = gitlabService.atualizaVersaoPom(gitlabProjectId, branchDesenvolvimento, pomList, proximaVersao, versaoAtual, commitMessage);
+							GitlabCommitResponse response = gitlabService.atualizaVersaoPom(gitlabProjectId, branchDesenvolvimento, 
+									proximaVersaoSNAPSHOT, versaoAtual, commitMessage);
 							if(response != null) {
 								messages.info("Atualizada a versão do POM.XML de: " + versaoAtual + " - para: " + proximaVersaoSNAPSHOT);
 								lastCommitId = response.getId();
@@ -103,24 +104,26 @@ public class LanVersion03PrepareNextVersionHandler extends Handler<JiraEventIssu
 						}else {
 							messages.info("O POM.XML já está atualizado");
 						}
-						// Gerar a pasta de scripts da próxima versão
-						String commitMessage = "[" + issue.getKey() + "] Criacao da pasta de scripts da versao " + proximaVersao;
-						GitlabCommitResponse response = gitlabService.createScriptsDir(gitlabProjectId, branchDesenvolvimento, lastCommitId, proximaVersao, commitMessage);
-						if(response != null) {
-							messages.info("Criada pasta de scripts da versao " + proximaVersao);
+						if(!messages.hasSomeError()) {
+							// Gerar a pasta de scripts da próxima versão
+							String commitMessage = "[" + issue.getKey() + "] Criacao da pasta de scripts da versao " + proximaVersao;
+							GitlabCommitResponse response = gitlabService.createScriptsDir(gitlabProjectId, branchDesenvolvimento, lastCommitId, proximaVersao, commitMessage);
+							if(response != null) {
+								messages.info("Criada pasta de scripts da versao " + proximaVersao);
+							}
+							// Inicializar os metadados da próxima versão no jira
+							// identificar quais os projetos relacionados ao da issue, ex.: PJE: PJEII / PJEVII / PJELEG / para os demais usar o próprio projeto da issue
+							jiraService.createVersionInRelatedProjects(issue.getFields().getProject().getKey(), proximaVersao);
+							// cria o "sprint do grupo" para a próxima versao
+							String novaSprintDoGrupo = "Sprint " + proximaVersao;
+							try {
+								jiraService.createSprintDoGrupoOption(novaSprintDoGrupo);
+								messages.info("Criada a sprint do grupo: " + novaSprintDoGrupo);
+							}catch (Exception e) {
+								messages.error("Não foi possível criar a sprint do grupo: " + novaSprintDoGrupo);
+							}
+							// migra as issues da sprint anterior para a nova sprint
 						}
-						// Inicializar os metadados da próxima versão no jira
-						// identificar quais os projetos relacionados ao da issue, ex.: PJE: PJEII / PJEVII / PJELEG / para os demais usar o próprio projeto da issue
-						jiraService.createVersionInRelatedProjects(issue.getFields().getProject().getKey(), proximaVersao);
-						// cria o "sprint do grupo" para a próxima versao
-						String novaSprintDoGrupo = "Sprint " + proximaVersao;
-						try {
-							jiraService.createSprintDoGrupoOption(novaSprintDoGrupo);
-							messages.info("Criada a sprint do grupo: " + novaSprintDoGrupo);
-						}catch (Exception e) {
-							messages.error("Não foi possível criar a sprint do grupo: " + novaSprintDoGrupo);
-						}
-						// migra as issues da sprint anterior para a nova sprint
 					}else {
 						messages.error("Não foi possível identificar a versão atual (" + versaoAtual + ") ou a próxima versão: (" + proximaVersao + ")");
 					}

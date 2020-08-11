@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers;
+package dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -21,6 +21,8 @@ import com.devplatform.model.jira.JiraIssuetype;
 import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.jira.event.JiraEventIssue;
 
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.ReleaseNotesTextModel;
@@ -145,7 +147,7 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 								JiraUser author = issueItem.getFields().getResponsavelCodificacao();
 								releaseItem.setAuthor(author);
 								releaseItem.setIssueKey(issueItem.getKey());
-								releaseItem.setSummary(Utils.cleanSummary(issueItem.getFields().getSummary()));
+								releaseItem.setSummary(Utils.clearSummary(issueItem.getFields().getSummary()));
 								
 								releaseItem.setPriority(issueItem.getFields().getPriority().getId().intValue());
 								if(issueItem.getFields().getNotasRelease() != null){
@@ -181,7 +183,7 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 
 							String dataTagStr = null;
 							if(releaseNotes.getReleaseDate() != null) {
-								Date dataReleaseNotes = Utils.stringToDate(releaseNotes.getReleaseDate(), null);
+								Date dataReleaseNotes = Utils.getDateFromString(releaseNotes.getReleaseDate());
 								dataTagStr = Utils.dateToStringPattern(dataReleaseNotes, JiraService.JIRA_DATETIME_PATTERN);
 							}
 							jiraService.atualizarDataGeracaoTag(issue, dataTagStr, updateFields);
@@ -190,7 +192,7 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 							messages.error("Não foram encontradas issues finalizadas para a versão " + versaoAfetada);
 						}
 					}else {
-						messages.error("Não foi identificada uma versão afetada, por favor, valide as informações da issue.");
+						messages.error("Não foi identificada uma versão afetada válida, por favor, valide as informações da issue.");
 					}
 				}else {
 					messages.error("O usuário [~" + jiraEventIssue.getUser().getKey() + "] não possui permissão para lançar a versão.");

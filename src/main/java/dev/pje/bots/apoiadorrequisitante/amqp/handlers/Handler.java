@@ -4,15 +4,14 @@ import java.util.Map;
 
 import javax.annotation.PostConstruct;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraIssueTransition;
-import com.devplatform.model.jira.request.JiraIssueFieldsRequest;
-import com.devplatform.model.jira.request.JiraIssueTransitionUpdate;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.devplatform.model.jira.request.JiraIssueCreateAndUpdate;
 
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
@@ -21,7 +20,7 @@ import dev.pje.bots.apoiadorrequisitante.services.TelegramService;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 
 @Component
-abstract class Handler<E> {
+public abstract class Handler<E> {
 
 	abstract protected Logger getLogger();
 	
@@ -51,34 +50,42 @@ abstract class Handler<E> {
 		messages.setLogLevel(getLogLevel());
 	}
 	
-	abstract void handle(E event) throws Exception;
+	public abstract void handle(E event) throws Exception;
 	
-	protected void enviarAlteracaoJira(JiraIssue issue, Map<String, Object> updateFields, String transictionId) throws JsonProcessingException{
+	protected void enviarAlteracaoJira(JiraIssue issue, Map<String, Object> updateFields, String transictionId) throws Exception{
 		if(!updateFields.isEmpty()) {
-			JiraIssueTransition transition = jiraService.findTransitionById(issue, transictionId);
-			if(transition != null) {
-				JiraIssueTransitionUpdate issueTransitionUpdate = new JiraIssueTransitionUpdate(transition, updateFields);
-				messages.debug("update string: " + Utils.convertObjectToJson(issueTransitionUpdate));
-				jiraService.updateIssue(issue, issueTransitionUpdate);
-				messages.info("Issue atualizada");
-			}else {
-				messages.error("Não há transição para realizar esta alteração");
+			JiraIssueCreateAndUpdate jiraIssueCreateAndUpdate = new JiraIssueCreateAndUpdate();
+			jiraIssueCreateAndUpdate.setUpdate(updateFields);
+			
+			if(StringUtils.isNotBlank(transictionId)) {
+				JiraIssueTransition transition = jiraService.findTransitionById(issue, transictionId);
+				if(transition != null) {
+					jiraIssueCreateAndUpdate.setTransition(transition);
+				}else {
+					messages.error("Não há transição para realizar esta alteração: " + transictionId);
+				}
 			}
+			messages.debug("update string: " + Utils.convertObjectToJson(jiraIssueCreateAndUpdate));
+			jiraService.updateIssue(issue, jiraIssueCreateAndUpdate);
+			messages.info("Issue atualizada");
 		}
 	}
 
-	protected void enviarCriacaoJiraIssue(Map<String, Object> issueFields) throws JsonProcessingException{
+	protected JiraIssue enviarCriacaoJiraIssue(Map<String, Object> createFields, Map<String, Object> updateFields) throws Exception{
 		JiraIssue issue = null;
-		if(issueFields != null && !issueFields.isEmpty()) {
-			JiraIssueFieldsRequest createIssueDefaultFields = new JiraIssueFieldsRequest(issueFields);
-			messages.debug("update string: " + Utils.convertObjectToJson(createIssueDefaultFields));
-			issue = jiraService.createIssue(createIssueDefaultFields);
+		if(createFields != null && !createFields.isEmpty()) {
+			JiraIssueCreateAndUpdate jiraIssueCreateAndUpdate = new JiraIssueCreateAndUpdate();
+			jiraIssueCreateAndUpdate.setFields(createFields);
+			jiraIssueCreateAndUpdate.setUpdate(updateFields);
+			messages.debug("create issue string: " + Utils.convertObjectToJson(jiraIssueCreateAndUpdate));
+			issue = jiraService.createIssue(jiraIssueCreateAndUpdate);
 		}
 		if(issue != null) {
 			messages.info("Issue criada: " + issue.getKey());
 		}else {
 			messages.error("Não foi criada a nova issue");
 		}
+		return issue;
 	}
 
 }
