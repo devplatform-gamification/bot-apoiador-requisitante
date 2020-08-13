@@ -103,7 +103,7 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 									dataLancamentoVersao = tag.getCommit().getCommittedDate();
 								}
 								if(tag.getCommit().getCommitterName() != null) {
-									usuarioCommiter = jiraService.getUserFromUserName(tag.getCommit().getCommitterEmail());
+									usuarioCommiter = jiraService.findUserByUserName(tag.getCommit().getCommitterEmail());
 								}
 								messages.info("A tag: " + versaoASerLancada + " já foi lançada em: " + dataLancamentoVersao);
 							}

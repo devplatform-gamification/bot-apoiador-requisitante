@@ -19,6 +19,8 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.devplatform.model.gitlab.GitlabUser;
+import com.devplatform.model.gitlab.GitlabUserIdentity;
 import com.devplatform.model.jira.JiraGroup;
 import com.devplatform.model.jira.JiraGroups;
 import com.devplatform.model.jira.JiraIssue;
@@ -26,6 +28,7 @@ import com.devplatform.model.jira.JiraIssueAttachment;
 import com.devplatform.model.jira.JiraIssueComment;
 import com.devplatform.model.jira.JiraIssueFieldOption;
 import com.devplatform.model.jira.JiraIssueTransition;
+import com.devplatform.model.jira.JiraIssueTransitionProperty;
 import com.devplatform.model.jira.JiraIssueTransitions;
 import com.devplatform.model.jira.JiraIssuetype;
 import com.devplatform.model.jira.JiraProject;
@@ -33,6 +36,7 @@ import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.jira.JiraVersion;
 import com.devplatform.model.jira.custom.JiraCustomField;
 import com.devplatform.model.jira.custom.JiraCustomFieldOption;
+import com.devplatform.model.jira.custom.JiraWorkflow;
 import com.devplatform.model.jira.request.JiraCustomFieldOptionsRequest;
 import com.devplatform.model.jira.request.JiraIssueCreateAndUpdate;
 import com.devplatform.model.jira.request.JiraIssueLinkRequest;
@@ -135,10 +139,13 @@ public class JiraService {
 	public static final String FIELD_VERSION_TYPE = "customfield_13906";
 	public static final String FIELD_ESTRUTURA_DOCUMENTACAO = "customfield_14004";
 	
-	public static final String FIELD_BRANCHS_RELACIONADOS = "customfield_13005";
+	public static final String FIELD_BRANCHES_RELACIONADOS = "customfield_13005";
+	public static final String FIELD_INTEGRADO_NOS_BRANCHES = "customfield_12101";
 	public static final String FIELD_MRS_ABERTOS = "customfield_12509";
 	public static final String FIELD_MRS_ACEITOS = "customfield_12505";
 
+	public static final String FIELD_RESPONSAVEL_REVISAO = "customfield_12200";
+	
 	public static final Integer TEXT_FIELD_CHARACTER_LIMIT = 327670;
 	
 	public static final String JIRA_DATETIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSSZZ";
@@ -146,6 +153,8 @@ public class JiraService {
 	public static final String PROJECT_PROPERTY_GITLAB_PROJECT_ID = "git.project.id";
 	public static final String PROJECT_PROPERTY_JIRA_RELATED_PROJECTS_KEYS = "jira-related-projects.keys";
 	public static final String PROJECT_PROPERTY_DOCUMENTATION_FIELDVALUE_DOC_STRUCTURE = "fieldvalue.estrutura-documentacao.id";
+	
+	public static final String OAUTH_IDENTITY_PROVIDER_PJE_CLOUD = "oauth2_generic";
 	
 	 // armazena o json do de-para do campo: estrutura-documentacao para o nome do path TODO - criar script para manter isso atualizado
 	public static final String PROJECT_PROPERTY_DOCUMENTATION_STRUCTURE_TO_PATH = "documentacao.structure_to_pathname.json";
@@ -156,9 +165,11 @@ public class JiraService {
 			String username = user.getName();
 			Map<String, String> options = new HashMap<>();
 			options.put("expand", "groups");
-			options.put("username", username);
-
-			groups = jiraClient.getUserDetails(options).getGroups();
+			
+			JiraUser userDetailed = getUser(username, options);
+			if(userDetailed != null) {
+				groups = userDetailed.getGroups();
+			}
 		}
 		return groups;
 	}
@@ -342,6 +353,72 @@ public class JiraService {
 			}
 		}		
 	}
+	
+	private JiraVersion getProjectVersion(JiraIssue issue, String versionName, boolean createIfDoesNotExists) {
+		JiraVersion version = null;
+		String projectKey = null;
+		if(issue != null && issue.getFields() != null && issue.getFields().getProject() != null && issue.getFields().getProject().getKey() != null) {
+			projectKey = issue.getFields().getProject().getKey();
+		}else {
+			JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+			if(issueDetalhada != null && issueDetalhada.getFields() != null && issueDetalhada.getFields().getProject() != null && issueDetalhada.getFields().getProject().getKey() != null) {
+				projectKey = issue.getFields().getProject().getKey();
+			}
+		}
+		version = findProjecVersion(projectKey, versionName);
+		if(version == null && createIfDoesNotExists) {
+			version = createProjectVersion(projectKey, versionName, null, null);
+		}
+		return version;
+	}
+
+	public void atualizarIntegradoNosBranches(JiraIssue issue, String branchName, Map<String, Object> updateFields, boolean replaceValue) throws Exception {
+		JiraVersion branch = getProjectVersion(issue, branchName, true);
+		atualizarIntegradoNosBranches(issue, branch, updateFields, replaceValue);
+	}
+	
+	public void atualizarIntegradoNosBranches(JiraIssue issue,  JiraVersion branch, Map<String, Object> updateFields, boolean replaceValue) throws Exception {
+		if (branch != null) {
+			JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+			
+			boolean houveAlteracao = false;
+			if(issueDetalhada.getFields().getIntegradoNosBranches() == null || issueDetalhada.getFields().getIntegradoNosBranches().isEmpty() 
+					|| !issueDetalhada.getFields().getIntegradoNosBranches().contains(branch)) {
+				houveAlteracao = true;
+			}
+
+			if(houveAlteracao || replaceValue) {
+				List<JiraVersion> branches = issueDetalhada.getFields().getIntegradoNosBranches();
+				if(replaceValue) {
+					branches = new ArrayList<>();
+				}
+				branches.add(branch);
+
+				Map<String, Object> updateField = createUpdateObject(FIELD_INTEGRADO_NOS_BRANCHES, branches, "UPDATE");
+				if(updateField != null && updateField.get(FIELD_INTEGRADO_NOS_BRANCHES) != null) {
+					updateFields.put(FIELD_INTEGRADO_NOS_BRANCHES, updateField.get(FIELD_INTEGRADO_NOS_BRANCHES));
+				}
+			}
+		}		
+	}
+
+	public void atualizarResponsavelRevisao(JiraIssue issue,  JiraUser usuario, Map<String, Object> updateFields) throws Exception {
+		if (usuario != null) {
+			JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+			
+			boolean houveAlteracao = false;
+			if(issueDetalhada.getFields().getResponsavelRevisao() == null || !issueDetalhada.getFields().getResponsavelRevisao().getKey().equals(usuario.getKey())) {
+				houveAlteracao = true;
+			}
+
+			if(houveAlteracao) {
+				Map<String, Object> updateField = createUpdateObject(FIELD_RESPONSAVEL_REVISAO, usuario, "UPDATE");
+				if(updateField != null && updateField.get(FIELD_RESPONSAVEL_REVISAO) != null) {
+					updateFields.put(FIELD_RESPONSAVEL_REVISAO, updateField.get(FIELD_RESPONSAVEL_REVISAO));
+				}
+			}
+		}		
+	}
 
 	public void atualizarDataReleaseNotes(JiraIssue issue,  String dataReleaseNotes, Map<String, Object> updateFields) throws Exception {
 		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
@@ -375,24 +452,29 @@ public class JiraService {
 		}
 	}
 
-	public void atualizarBranchRelacionado(JiraIssue issue,  String branchName, Map<String, Object> updateFields) throws Exception {
+	public void atualizarBranchRelacionado(JiraIssue issue,  String branchName, Map<String, Object> updateFields, boolean replaceValue) throws Exception {
 		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
 		
 		boolean houveAlteracao = false;
-		if(StringUtils.isBlank(issueDetalhada.getFields().getBranchsRelacionados()) || !issueDetalhada.getFields().getBranchsRelacionados().contains(branchName)) {
+		if(StringUtils.isBlank(issueDetalhada.getFields().getBranchesRelacionados()) || !issueDetalhada.getFields().getBranchesRelacionados().contains(branchName)) {
 			houveAlteracao = true;
 		}
 
-		if(houveAlteracao) {
-			String branchsRelacionados = Utils.addOption(issueDetalhada.getFields().getBranchsRelacionados(), branchName);
-			Map<String, Object> updateField = createUpdateObject(FIELD_BRANCHS_RELACIONADOS, branchsRelacionados, "UPDATE");
-			if(updateField != null && updateField.get(FIELD_BRANCHS_RELACIONADOS) != null) {
-				updateFields.put(FIELD_BRANCHS_RELACIONADOS, updateField.get(FIELD_BRANCHS_RELACIONADOS));
+		if(houveAlteracao || replaceValue) {
+			String branchesRelacionados = null;
+			if(replaceValue) {
+				branchesRelacionados = branchName;
+			}else {
+				branchesRelacionados = Utils.addOption(issueDetalhada.getFields().getBranchesRelacionados(), branchName);
+			}
+			Map<String, Object> updateField = createUpdateObject(FIELD_BRANCHES_RELACIONADOS, branchesRelacionados, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_BRANCHES_RELACIONADOS) != null) {
+				updateFields.put(FIELD_BRANCHES_RELACIONADOS, updateField.get(FIELD_BRANCHES_RELACIONADOS));
 			}
 		}
 	}
 
-	public void atualizarMRsAbertos(JiraIssue issue,  String mrAberto, Map<String, Object> updateFields) throws Exception {
+	public void atualizarMRsAbertos(JiraIssue issue,  String mrAberto, Map<String, Object> updateFields, boolean replaceValue) throws Exception {
 		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
 		
 		boolean houveAlteracao = false;
@@ -400,8 +482,13 @@ public class JiraService {
 			houveAlteracao = true;
 		}
 
-		if(houveAlteracao) {
-			String mrsAbertos = Utils.addOption(issueDetalhada.getFields().getMrAbertos(), mrAberto);
+		if(houveAlteracao || replaceValue) {
+			String mrsAbertos = null;
+			if(replaceValue) {
+				mrsAbertos = mrAberto;
+			}else {
+				mrsAbertos = Utils.addOption(issueDetalhada.getFields().getMrAbertos(), mrAberto);
+			}
 			Map<String, Object> updateField = createUpdateObject(FIELD_MRS_ABERTOS, mrsAbertos, "UPDATE");
 			if(updateField != null && updateField.get(FIELD_MRS_ABERTOS) != null) {
 				updateFields.put(FIELD_MRS_ABERTOS, updateField.get(FIELD_MRS_ABERTOS));
@@ -409,7 +496,7 @@ public class JiraService {
 		}
 	}
 	
-	public void atualizarMRsAceitos(JiraIssue issue,  String mrAceito, Map<String, Object> updateFields) throws Exception {
+	public void atualizarMRsAceitos(JiraIssue issue,  String mrAceito, Map<String, Object> updateFields, boolean replaceValue) throws Exception {
 		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
 		
 		boolean houveAlteracao = false;
@@ -417,8 +504,13 @@ public class JiraService {
 			houveAlteracao = true;
 		}
 
-		if(houveAlteracao) {
-			String mrsAceitos = Utils.addOption(issueDetalhada.getFields().getMrAceitos(), mrAceito);
+		if(houveAlteracao || replaceValue) {
+			String mrsAceitos = null;
+			if(replaceValue) {
+				mrsAceitos = mrAceito;
+			}else {
+				mrsAceitos = Utils.addOption(issueDetalhada.getFields().getMrAceitos(), mrAceito);
+			}
 			Map<String, Object> updateField = createUpdateObject(FIELD_MRS_ABERTOS, mrsAceitos, "UPDATE");
 			if(updateField != null && updateField.get(FIELD_MRS_ABERTOS) != null) {
 				updateFields.put(FIELD_MRS_ABERTOS, updateField.get(FIELD_MRS_ABERTOS));
@@ -712,7 +804,7 @@ public class JiraService {
 					FIELD_URL_RELEASE_NOTES.equals(fieldName) ||
 					FIELD_MRS_ACEITOS.equals(fieldName) ||
 					FIELD_MRS_ABERTOS.equals(fieldName) ||
-					FIELD_BRANCHS_RELACIONADOS.equals(fieldName) ||
+					FIELD_BRANCHES_RELACIONADOS.equals(fieldName) ||
 					
 					FIELD_DESCRIPTION.equals(fieldName)
 					)) {
@@ -804,6 +896,39 @@ public class JiraService {
 			if(!identificouCampo) {
 				throw new Exception("Valor para update fora do padrão - deveria ser JiraIssueLinkRequest, recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
+		}else if(valueToUpdate != null &&
+				FIELD_INTEGRADO_NOS_BRANCHES.equals(fieldName)) {
+			boolean identificouCampo = false;
+			if(valueToUpdate instanceof List) {
+				@SuppressWarnings("rawtypes")
+				List<?> list = (List) valueToUpdate;
+				
+				List<JiraVersion> jiraVersions = new ArrayList<>();
+				Map<String, Object> newJiraVersions = new HashMap<>();
+				if(!list.isEmpty() && list.get(0) instanceof JiraVersion) {
+					
+					jiraVersions = (List<JiraVersion>)valueToUpdate;
+				}
+				newJiraVersions.put("set", jiraVersions);
+				objectToUpdate.put(fieldName, newJiraVersions);
+				identificouCampo = true;
+			}
+			if(!identificouCampo) {
+				throw new Exception("Valor para update fora do padrão - deveria ser List<JiraVersion>, recebeu: " +  valueToUpdate.getClass().getTypeName());
+			}
+		}else if(valueToUpdate != null &&
+				FIELD_RESPONSAVEL_REVISAO.equals(fieldName)) {
+			boolean identificouCampo = false;
+			if(valueToUpdate instanceof JiraUser) {
+				JiraUser user = (JiraUser)valueToUpdate;
+				Map<String, Object> newJiraUser = new HashMap<>();
+				newJiraUser.put("set", user);
+				objectToUpdate.put(fieldName, newJiraUser);
+				identificouCampo = true;
+			}
+			if(!identificouCampo) {
+				throw new Exception("Valor para update fora do padrão - deveria ser JiraUser, recebeu: " +  valueToUpdate.getClass().getTypeName());
+			}
 		}
 		
 		return objectToUpdate;
@@ -868,6 +993,86 @@ public class JiraService {
 			}
 		}
 		return superEpicThemes;
+	}
+	
+	@Cacheable(cacheNames = "issue-workflow")
+	public JiraWorkflow getIssueWorkflow(String issueKey) {
+		JiraWorkflow workflow = null;
+		try {
+			workflow = jiraClient.getIssueWorkflow(issueKey);
+		}catch (Exception e) {
+			String errorMesasge = "Erro ao recuperar o workflow da issue: " + issueKey + "erro: " + e.getLocalizedMessage();
+			logger.error(errorMesasge);
+			slackService.sendBotMessage(errorMesasge);
+			telegramService.sendBotMessage(errorMesasge);
+		}
+		
+		return workflow;
+	}
+
+	@Cacheable(cacheNames = "issue-transition-properties")
+	public List<JiraIssueTransitionProperty> getIssueTransitionProperties(String issueKey, String transitionId){
+		List<JiraIssueTransitionProperty> properties = null;
+		try {
+			JiraWorkflow workflow = getIssueWorkflow(issueKey);
+			if(workflow != null && StringUtils.isNotBlank(workflow.getName())) {
+				properties = jiraClient.getTransitionProperties(transitionId, workflow.getName());
+			}else {
+				throw new Exception("Não encontrou o workflow da issue");
+			}
+		}catch (Exception e) {
+			String errorMesasge = "Erro ao recuperar as propriedades da transição: " + transitionId + " da issue: " + issueKey + "erro: " + e.getLocalizedMessage();
+			logger.error(errorMesasge);
+			slackService.sendBotMessage(errorMesasge);
+			telegramService.sendBotMessage(errorMesasge);
+		}
+		return properties;
+	}
+	
+	public JiraIssueTransitionProperty getIssueTransitionProperty(String issueKey, String transitionId, String propertyKey) {
+		JiraIssueTransitionProperty property = null;
+		List<JiraIssueTransitionProperty> issueProperties = getIssueTransitionProperties(issueKey, transitionId);
+		if(issueProperties != null && !issueProperties.isEmpty()) {
+			for (JiraIssueTransitionProperty issueProperty : issueProperties) {
+				if(issueProperty.getKey().equalsIgnoreCase(propertyKey)) {
+					property = issueProperty;
+					break;
+				}
+			}
+		}
+		return property;
+	}
+
+	/**
+	 * Busca 
+	 * @param issue
+	 * @param transitionIdOrNameOrPropertyKey
+	 * @return
+	 */
+	@Cacheable(cacheNames = "issue-transition")
+	public JiraIssueTransition findTransitionByIdOrNameOrPropertyKey(JiraIssue issue, String transitionIdOrNameOrPropertyKey) {
+		JiraIssueTransition founded = findTransitionById(issue, transitionIdOrNameOrPropertyKey);
+		if(founded == null) {
+			founded = findTransitionByName(issue, transitionIdOrNameOrPropertyKey);
+		}
+		if(founded == null) {
+			founded = findTransitionByPropertyKey(issue, transitionIdOrNameOrPropertyKey);
+		}
+		
+		return founded;
+	}
+
+	public JiraIssueTransition findTransitionByPropertyKey(JiraIssue issue, String transitionPropertyKey) {
+		JiraIssueTransition founded = null;
+		JiraIssueTransitions transitions = this.recuperarTransicoesIssue(issue);
+		for (JiraIssueTransition transition : transitions.getTransitions()) {
+			if(issue != null && getIssueTransitionProperty(issue.getKey(), transition.getId(), transitionPropertyKey) != null) {
+				founded = transition;
+				break;
+			}
+		}
+		
+		return founded;
 	}
 
 	public JiraIssueTransition findTransitionByName(JiraIssue issue, String transitionName) {
@@ -1002,9 +1207,19 @@ public class JiraService {
 		return attachmentContent;
 	}
 
+	@Cacheable(cacheNames = "issue-transitions")
 	public JiraIssueTransitions recuperarTransicoesIssue(JiraIssue issue) {
 		String issueKey = issue.getKey();
-		return jiraClient.getIssueTransitions(issueKey);
+		JiraIssueTransitions transitions = null;
+		try {
+			transitions = jiraClient.getIssueTransitions(issueKey);
+		}catch (Exception e) {
+			String errorMesasge = "Erro ao recuperar as transições da issue: " + issueKey + "erro: " + e.getLocalizedMessage();
+			logger.error(errorMesasge);
+			slackService.sendBotMessage(errorMesasge);
+			telegramService.sendBotMessage(errorMesasge);
+		}
+		return transitions;
 	}
 	
 	/**
@@ -1084,11 +1299,16 @@ public class JiraService {
 	}
 	
 	@Cacheable(cacheNames = "user-from-name")
-	public JiraUser getUserFromUserName(String userName) {
+	public JiraUser findUserByUserName(String userName) {
+		JiraUser user = null;
 		Map<String, String> options = new HashMap<>();
 		options.put("username", userName);
-		List<JiraUser> usuarios = jiraClient.findUser(options);
-		return (usuarios != null && !usuarios.isEmpty()) ? usuarios.get(0) : null;
+		try {
+			List<JiraUser> usuarios = jiraClient.findUser(options);
+			user = (usuarios != null && !usuarios.isEmpty()) ? usuarios.get(0) : null;
+		}catch (Exception e) {
+		}
+		return user;
 	}
 
 	public JiraUser getCommentAuthor(JiraIssueComment comment) {
@@ -1109,6 +1329,42 @@ public class JiraService {
 			// ignora
 		}
 		return tribunaisRequisitantes;
+	}
+	
+	public JiraUser getJiraUserFromGitlabUser(GitlabUser gitlabUser) {
+		JiraUser jiraUser = null;
+		if(gitlabUser != null) {
+			if(StringUtils.isNotBlank(gitlabUser.getEmail())) {
+				jiraUser = findUserByUserName(gitlabUser.getEmail());
+			}
+			if(jiraUser == null && gitlabUser.getIdentities() != null && !gitlabUser.getIdentities().isEmpty()) {
+				for (GitlabUserIdentity identity : gitlabUser.getIdentities()) {
+					if(OAUTH_IDENTITY_PROVIDER_PJE_CLOUD.equalsIgnoreCase(identity.getProvider())) {
+						jiraUser = findUserByUserName(identity.getExternUid());
+						break;
+					}
+				}
+			}
+		}
+		return jiraUser;
+	}
+	
+	public JiraUser getUser(String username, Map<String, String> options) {
+		JiraUser user = null;
+		try {
+			if(options == null) {
+				options = new HashMap<>();
+			}
+			options.put("username", username);
+			user = jiraClient.getUserDetails(options);
+		}catch (Exception e) {
+			String errorMesasge = "Erro ao tentar recuperar o usuário: |" + username + "| - erro: " + e.getLocalizedMessage();
+			logger.error(errorMesasge);
+			slackService.sendBotMessage(errorMesasge);
+			telegramService.sendBotMessage(errorMesasge);
+		}
+		
+		return user;
 	}
 
 	public JiraUser getIssueReporter(JiraIssue issue) {

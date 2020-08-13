@@ -88,7 +88,6 @@ public interface GitlabClient {
 			@PathVariable("projectId") String projectId,
 			@RequestBody GitlabCommitRequest codeCommit
 			);
-
 	
 	@PostMapping(value = "/api/v4/projects/{projectId}/repository/commits/{commitSHA}/cherry_pick", consumes = "application/json")
 	public GitlabCommitResponse cherryPick(
@@ -119,6 +118,11 @@ public interface GitlabClient {
 	@GetMapping(value = "/api/v4/projects/{projectId}", consumes = "application/json")
 	public GitlabProjectExtended getSingleProject(
 			@PathVariable("projectId") String projectId
+			);
+	
+	@GetMapping(value = "/api/v4/projects/?{search}", consumes = "application/json")
+	public List<GitlabProjectExtended> searchProject(
+			@PathVariable("search") Map<String, String> search
 			);
 	
 	@GetMapping(value = "/api/v4/projects/{projectId}/merge_requests/{mergeRequestIid}", consumes = "application/json")

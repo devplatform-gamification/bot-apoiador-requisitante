@@ -39,6 +39,7 @@ public class Documentation03CheckAutomaticMergeHandler extends Handler<JiraEvent
 		return MessagesLogger.LOGLEVEL_INFO;
 	}
 
+	private static final boolean APROVAR_MR_NA_TORA = false;
 	/**
 	 * Caso a issue esteja marcada para ser homologada automaticamente, esta etapa fará a aprovação do merge
 	 * - a tramitação da issue será feita por outro handler genérico que monitore os merges
@@ -94,12 +95,15 @@ public class Documentation03CheckAutomaticMergeHandler extends Handler<JiraEvent
 										if(mrCandidate.getState().equals(GitlabMergeRequestStateEnum.OPENED)) {
 											messages.info("Aprovando o MR: "+ mrIId + " - do projeto: " + gitlabProjectId);
 											GitlabMRResponse response = null;
-//											response = gitlabService.acceptMergeRequest(gitlabProjectId, mrIIdBD);
-											if(response == null) {
-												messages.error("Falhou ao tentar aprovar o MR: "+ mrIId + " - do projeto: " + gitlabProjectId);
+											if(APROVAR_MR_NA_TORA) {
+												response = gitlabService.acceptMergeRequest(gitlabProjectId, mrIIdBD);
+												if(response == null) {
+													messages.error("Falhou ao tentar aprovar o MR: "+ mrIId + " - do projeto: " + gitlabProjectId);
+												}
 											}
 										}else {
 											messages.info("Ignorando o MR: " + mrIId + " - do projeto: " + gitlabProjectId + " - sua situação é: " + mrCandidate.getState().toString());
+											// TODO - utilizar a saída "Edição avançada" e retirar esse MR da lista
 										}
 									}
 								}else {

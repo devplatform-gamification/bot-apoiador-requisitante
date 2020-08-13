@@ -63,7 +63,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 	 * ok 7. se for release notes:
 	 * ok 7.1 adiciona o release na lista de releases concatenadas
 	 * ok 7.2 adiciona o release na lista de releases com links separados
-	 * TODO - ADICIONA NO SISTE DA ELISA AQUI
+	 * TODO - ADICIONA NO SITE DA ELISA AQUI
 	 * ok 8. cria um path do link de documentacao (apenas sem o host:porta)
 	 * 10. Proxima atividade
 	 *  
@@ -130,9 +130,9 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 					String mrAbertoUrl = null;
 					
 					String branchName = issue.getKey();
-					String branchsRelacionados = issue.getFields().getBranchsRelacionados();
-					if(StringUtils.isNotBlank(branchsRelacionados)) {
-						String[] branches = branchsRelacionados.split(",");
+					String branchesRelacionados = issue.getFields().getBranchesRelacionados();
+					if(StringUtils.isNotBlank(branchesRelacionados)) {
+						String[] branches = branchesRelacionados.split(",");
 						if(branches.length > 0 && StringUtils.isNotBlank(branches[0])) {
 							branchName = branches[0].trim();
 						}
@@ -312,9 +312,9 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 						// adiciona a URL relacionada
 						jiraService.atualizarURLPublicacao(issue, documentationURL, updateFields);
 						// adiciona o nome do branch relacionado
-						jiraService.atualizarBranchRelacionado(issue, branchName, updateFields);
+						jiraService.atualizarBranchRelacionado(issue, branchName, updateFields, false);
 						// adiciona o MR aberto
-						jiraService.atualizarMRsAbertos(issue, mrAbertoUrl, updateFields);
+						jiraService.atualizarMRsAbertos(issue, mrAbertoUrl, updateFields, false);
 						
 						jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
 						

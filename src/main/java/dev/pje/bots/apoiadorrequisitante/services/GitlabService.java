@@ -39,6 +39,7 @@ import com.devplatform.model.gitlab.response.GitlabRefCompareResponse;
 import com.devplatform.model.gitlab.response.GitlabRepositoryFile;
 import com.devplatform.model.gitlab.response.GitlabRepositoryTree;
 import com.devplatform.model.gitlab.vo.GitlabCommitFileVO;
+import com.devplatform.model.gitlab.vo.GitlabMergeRequestVO;
 import com.devplatform.model.gitlab.vo.GitlabScriptVersaoVO;
 
 import dev.pje.bots.apoiadorrequisitante.clients.GitlabClient;
@@ -60,7 +61,7 @@ public class GitlabService {
 	@Autowired
 	private SlackService slackService;
 
-	@Value("${clients.gitlab.url}") 
+	@Value("${clients.gitlab.url}")
 	private String gitlabUrl;
 	
 	public static final String BRANCH_DEVELOP = "develop";
@@ -601,7 +602,22 @@ public class GitlabService {
 		}
 		return project;
 	}
-	
+
+	@Cacheable(cacheNames = "search-projects")
+	public List<GitlabProjectExtended> searchProjectByNamespace(String projectNamespace) {
+		List<GitlabProjectExtended> projects = null;
+		try {
+			Map<String, String> searchData = new HashMap<>();
+			searchData.put("search_namespaces", Boolean.TRUE.toString());
+			searchData.put("search", projectNamespace);
+			projects = gitlabClient.searchProject(searchData);
+		}catch (Exception e) {
+			String msgError = "Falhou ao tentar buscar o projeto: " + projectNamespace + "  - erro: " + e.getLocalizedMessage();
+			logger.error(msgError);
+			telegramService.sendBotMessage(msgError);
+		}
+		return projects;
+	}
 	
 	public boolean isBranchMergedIntoTarget(String projectId, String branchSource, String branchTarget) {
 		boolean branchMerged = false;
@@ -640,6 +656,41 @@ public class GitlabService {
 			telegramService.sendBotMessage(msgError);
 		}
 		return MR;
+	}
+	
+	public String checkMRsOpened(String MRs) {
+		List<String> mrAbertosConfirmados = new ArrayList<>();
+		
+		List<GitlabMergeRequestVO> MRsVO = GitlabUtils.getMergeRequestVOListFromString(MRs, gitlabUrl);
+		// pesquisar MR com a identificacao do projeto + número do MR
+		if(MRsVO != null && !MRsVO.isEmpty()) {
+			Map<String, GitlabProjectExtended> projectsCache = new HashMap<>();
+			for (GitlabMergeRequestVO MR : MRsVO) {
+				String projectNamespace = MR.getProjectNamespace();
+				if(StringUtils.isNotBlank(projectNamespace)) {
+					if(projectsCache.get(projectNamespace) == null) {
+						List<GitlabProjectExtended> projects = searchProjectByNamespace(projectNamespace);
+						if(projects != null && !projects.isEmpty()) {
+							projectsCache.put(projectNamespace, projects.get(0));
+						}
+					}
+					if(projectsCache.get(projectNamespace) != null) {
+						GitlabProjectExtended project = projectsCache.get(projectNamespace);
+						BigDecimal mrIID = MR.getMrIId();
+						// pesquisa pelo MR
+						if(project != null && project.getId() != null && mrIID != null) {
+							GitlabMRResponse response = getMergeRequest(project.getId().toString(), mrIID);
+							if(response != null && GitlabMergeRequestStateEnum.OPENED.equals(response.getState())) {
+								if(StringUtils.isNotBlank(response.getWebUrl()) && !mrAbertosConfirmados.contains(response.getWebUrl())) {
+									mrAbertosConfirmados.add(response.getWebUrl());
+								}
+							}
+						}
+					}
+				}
+			}	
+		}
+		return String.join(", ", mrAbertosConfirmados);
 	}
 
 	/**
@@ -937,6 +988,4 @@ public class GitlabService {
 		}
 		return projectVariable;
 	}
-
-
 }

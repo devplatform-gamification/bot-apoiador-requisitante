@@ -110,7 +110,7 @@ public class LanVersion05ProcessReleaseNotesHandler extends Handler<JiraEventIss
 									JiraUser usuarioCommiter = null;
 									if (tag.getCommit().getCommitterName() != null) {
 										usuarioCommiter = jiraService
-												.getUserFromUserName(tag.getCommit().getCommitterEmail());
+												.findUserByUserName(tag.getCommit().getCommitterEmail());
 									}
 									if (usuarioCommiter != null) {
 										releaseNotes.setAuthor(usuarioCommiter);

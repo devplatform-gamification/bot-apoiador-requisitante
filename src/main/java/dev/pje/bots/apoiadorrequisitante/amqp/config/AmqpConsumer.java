@@ -1,5 +1,6 @@
 package dev.pje.bots.apoiadorrequisitante.amqp.config;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.ExchangeTypes;
@@ -11,17 +12,19 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.devplatform.model.gitlab.event.GitlabEventMergeRequest;
 import com.devplatform.model.gitlab.event.GitlabEventPush;
 import com.devplatform.model.jira.event.JiraEventIssue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.CheckingNewScriptMigrationsInCommitHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.GitlabEventHandlerGitflow;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraEventHandlerClassification;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.JiraIssueCheckApoiadorRequisitanteEventHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation01TriageHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation02CreateSolutionHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation03CheckAutomaticMergeHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.gitlab.CheckingNewScriptMigrationsInCommitHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.gitlab.GitlabEventHandlerGitflow;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.gitlab.MergeRequestUpdateHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion01TriageHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion02GenerateReleaseCandidateHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion03PrepareNextVersionHandler;
@@ -43,12 +46,16 @@ public class AmqpConsumer {
 	@Autowired
 	private JiraEventHandlerClassification jiraEventHandlerClassification;
 
+	/**************/
 	@Autowired
 	private CheckingNewScriptMigrationsInCommitHandler checkingNewScriptMigrationsInCommit;
 
 	@Autowired
 	private GitlabEventHandlerGitflow gitlabEventHandlerGitflow;
-	
+
+	@Autowired
+	private MergeRequestUpdateHandler mergeRequestUpdated;
+
 	/**************/
 	@Autowired
 	private LanVersion01TriageHandler lanversion01;
@@ -118,7 +125,11 @@ public class AmqpConsumer {
 				jiraEventHandlerClassification.handle(jiraEventIssue);
 			}
 		}
-	}	
+	}
+	
+	/************************/
+	// Consumers de gitlab
+	/************************/
 
 	@RabbitListener(
 			autoStartup = "${spring.rabbitmq.template.custom.commit-script-queue.auto-startup}",
@@ -154,7 +165,36 @@ public class AmqpConsumer {
 			logger.info("[GITFLOW][GITLAB] - project: " + projectName + " branch: " + branchName);
 			gitlabEventHandlerGitflow.handle(gitEventPush);
 		}
-	}	
+	}
+
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.gitlab-merge-request-updated.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.gitlab-merge-request-updated.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.gitlab.merge-request.routing-key}"})
+		)
+	public void gitlabMergeRequestUpdated(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			GitlabEventMergeRequest gitEventMR = objectMapper.readValue(body, GitlabEventMergeRequest.class);
+			if(gitEventMR != null) {
+				String projectName = gitEventMR.getProject().getName();
+				String mergeTitle = "Título não identificado";
+				if(gitEventMR.getObjectAttributes() != null && StringUtils.isNotBlank(gitEventMR.getObjectAttributes().getTitle())) {
+					mergeTitle = gitEventMR.getObjectAttributes().getTitle();
+				}
+				logger.info(mergeRequestUpdated.getMessagePrefix() + " - " + "project: " + projectName + " - MR: " + mergeTitle);
+				mergeRequestUpdated.handle(gitEventMR);
+			}else {
+				logger.error(mergeRequestUpdated.getMessagePrefix() + " Objeto não parece ser de um evento de MR");
+			}
+		}
+	}
+	
+	/************************/
+	// Consumers de lancamento de versao
+	/************************/
 
 	@RabbitListener(
 			autoStartup = "${spring.rabbitmq.template.custom.lanver01-triage-queue.auto-startup}",

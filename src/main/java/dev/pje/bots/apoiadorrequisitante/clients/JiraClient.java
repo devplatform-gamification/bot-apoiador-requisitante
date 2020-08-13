@@ -17,11 +17,13 @@ import org.springframework.web.multipart.MultipartFile;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraIssueAttachment;
 import com.devplatform.model.jira.JiraIssueComment;
+import com.devplatform.model.jira.JiraIssueTransitionProperty;
 import com.devplatform.model.jira.JiraIssueTransitions;
 import com.devplatform.model.jira.JiraProject;
 import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.jira.JiraVersion;
 import com.devplatform.model.jira.custom.JiraCustomField;
+import com.devplatform.model.jira.custom.JiraWorkflow;
 import com.devplatform.model.jira.request.JiraCustomFieldOptionsRequest;
 import com.devplatform.model.jira.request.JiraIssueCreateAndUpdate;
 import com.devplatform.model.jira.request.fields.JiraComment;
@@ -61,6 +63,14 @@ public interface JiraClient {
 	public void updateIssue(
 			@PathVariable("issueKey") String issueKey, @RequestBody JiraIssueCreateAndUpdate issueUpdate);
 
+	@GetMapping(value = "/rest/scriptrunner/latest/custom/issue/{issueKey}/workflow", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public JiraWorkflow getIssueWorkflow(
+			@PathVariable("issueKey") String issueKey);
+
+	@GetMapping(value = "/rest/api/2/workflow/transitions/{transitionId}/properties?workflowName={workflowName}", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public List<JiraIssueTransitionProperty> getTransitionProperties(
+			@PathVariable("transitionId") String transitionId,
+			@PathVariable("workflowName") String workflowName);
 
 	@GetMapping(value = "/rest/scriptrunner/latest/custom/customFields/{customFieldId}/option?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraCustomField getCustomFieldOptions(
@@ -130,5 +140,5 @@ public interface JiraClient {
 	public JiraVersion updateVersion(
 			@PathVariable("versionId") String versionId,
 			@RequestBody JiraVersion version);
-
+	
 }

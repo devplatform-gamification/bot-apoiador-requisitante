@@ -35,6 +35,9 @@ spring:
         gitflow-queue: 
           name: ${RABBIT_GITFLOW_QUEUE:gitflow-queue}
           auto-startup: ${RABBIT_GITFLOW_QUEUE_AUTOSTARTUP:false}
+        gitlab-merge-request-updated:
+          name: ${RABBIT_GITLAB_MERGE_REQUEST_UPDATED_QUEUE:gitlab-merge-request-updated-queue}
+          auto-startup: ${RABBIT_GITLAB_MERGE_REQUEST_UPDATED_QUEUE_AUTOSTARTUP:false}
           
         lanver01-triage-queue:
           name: ${RABBIT_LANVER01_TRIAGE_QUEUE:lanver01-triage-queue}
@@ -86,8 +89,9 @@ spring:
           push:
             routing-key: ${RABBIT_GITLAB_PUSH_ROUTINGKEY_PREFIX:dev-platform.gitlab.PUSH}
           tag-push:
-            routing-key: ${RABBIT_GITLAB_TAGPUSH_ROUTINGKEY_PREFIX::dev-platform.gitlab.TAG_PUSH}
-        
+            routing-key: ${RABBIT_GITLAB_TAGPUSH_ROUTINGKEY_PREFIX:dev-platform.gitlab.TAG_PUSH}
+          merge-request:
+            routing-key: ${RABBIT_GITLAB_MERGE_REQUEST_ROUTINGKEY_PREFIX:dev-platform.gitlab.MERGE_REQUEST}
 springfox:
   documentation:
     swagger:

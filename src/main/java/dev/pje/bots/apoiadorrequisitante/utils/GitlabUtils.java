@@ -15,6 +15,8 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
+import com.devplatform.model.gitlab.vo.GitlabMergeRequestVO;
+
 public class GitlabUtils {
 	public static String getVersionFromPomXML(String pomxml, String versionTagPath) {
 		String version = "";
@@ -126,6 +128,24 @@ public class GitlabUtils {
 		}
 		return mergeIIds;
 	}
+
+	public static List<GitlabMergeRequestVO> getMergeRequestVOListFromString(String merges, String serverUrl){
+		List<GitlabMergeRequestVO> MRs = new ArrayList<>();
+		if(StringUtils.isNotBlank(merges)) {
+			String[] weburls = merges.split(",");
+			for (String weburl: weburls) {
+				if(StringUtils.isNotBlank(weburl)) {
+					String projectNamespace = getMergeProjectNamespaceFromWebUrl(serverUrl, weburl.trim());
+					String mergeIId = getMergeIIdFromWebUrl(weburl.trim());
+					GitlabMergeRequestVO mr = new GitlabMergeRequestVO(projectNamespace, mergeIId);
+					if(!MRs.contains(mr)) {
+						MRs.add(mr);
+					}
+				}
+			}
+		}
+		return MRs;
+	}
 	
 	public static String getMergeIIdFromWebUrl(String weburl) {
 		String mergeIId = null;
@@ -137,4 +157,35 @@ public class GitlabUtils {
 		}
 		return mergeIId;
 	}
+
+	public static String getMergeProjectNamespaceFromWebUrl(String serverUrl, String weburl) {
+		String projectNamespace = null;
+		if(StringUtils.isNotBlank(weburl)) {
+			String weburlWithoutServer = null;
+			if(StringUtils.isNotBlank(serverUrl)) {
+				weburlWithoutServer = weburl.replace(serverUrl, "");
+			}else {
+				weburlWithoutServer = weburl.replaceFirst("$./", "");
+			}
+			if(StringUtils.isNotBlank(weburlWithoutServer)) {
+				if(weburlWithoutServer.startsWith("/")) {
+					weburlWithoutServer.replaceFirst("/", "");
+					List<String> projectNamespaceList = new ArrayList<>();
+					String[] paths = weburlWithoutServer.split("/");
+					for (String path : paths) {
+						if(path.equals("-")) {
+							break;
+						}else {
+							projectNamespaceList.add(path);
+						}
+					}
+					if(projectNamespaceList != null && !projectNamespaceList.isEmpty()) {
+						projectNamespace = String.join("/", projectNamespaceList);
+					}
+				}
+			}
+		}
+		return projectNamespace;
+	}
+
 }
