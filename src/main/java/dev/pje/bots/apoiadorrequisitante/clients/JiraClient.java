@@ -67,7 +67,8 @@ public interface JiraClient {
 	public JiraWorkflow getIssueWorkflow(
 			@PathVariable("issueKey") String issueKey);
 
-	@GetMapping(value = "/rest/api/2/workflow/transitions/{transitionId}/properties?workflowName={workflowName}", consumes = MediaType.APPLICATION_JSON_VALUE)
+//	@GetMapping(value = "/rest/api/2/workflow/transitions/{transitionId}/properties?workflowName={workflowName}", consumes = MediaType.APPLICATION_JSON_VALUE)
+	@GetMapping(value = "/rest/scriptrunner/latest/custom/workflow/transitions/{transitionId}/properties?workflowName={workflowName}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public List<JiraIssueTransitionProperty> getTransitionProperties(
 			@PathVariable("transitionId") String transitionId,
 			@PathVariable("workflowName") String workflowName);

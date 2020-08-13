@@ -120,9 +120,9 @@ public interface GitlabClient {
 			@PathVariable("projectId") String projectId
 			);
 	
-	@GetMapping(value = "/api/v4/projects/?{search}", consumes = "application/json")
+	@GetMapping(value = "/api/v4/projects?{search}", consumes = "application/json")
 	public List<GitlabProjectExtended> searchProject(
-			@PathVariable("search") Map<String, String> search
+			@SpringQueryMap Map<String, String> search
 			);
 	
 	@GetMapping(value = "/api/v4/projects/{projectId}/merge_requests/{mergeRequestIid}", consumes = "application/json")

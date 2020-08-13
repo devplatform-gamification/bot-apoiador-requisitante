@@ -39,7 +39,7 @@ public class Documentation03CheckAutomaticMergeHandler extends Handler<JiraEvent
 		return MessagesLogger.LOGLEVEL_INFO;
 	}
 
-	private static final boolean APROVAR_MR_NA_TORA = false;
+	private static final boolean APROVAR_MR_NA_TORA = true; // FIXME - retirar quando colocar em produção
 	/**
 	 * Caso a issue esteja marcada para ser homologada automaticamente, esta etapa fará a aprovação do merge
 	 * - a tramitação da issue será feita por outro handler genérico que monitore os merges

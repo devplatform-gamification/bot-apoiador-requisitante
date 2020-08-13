@@ -127,7 +127,8 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 						messages.error("Não foi possível identificar qual é o repositório no gitlab para este projeto do jira.");
 					}
 					String documentationURL = null;
-					String mrAbertoUrl = null;
+					String MRsAbertos = issue.getFields().getMrAbertos();
+					String MrsAbertosConfirmados = gitlabService.checkMRsOpened(MRsAbertos);
 					
 					String branchName = issue.getKey();
 					String branchesRelacionados = issue.getFields().getBranchesRelacionados();
@@ -286,7 +287,11 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 										}
 										if(mrResponse != null) {
 											messages.info("MR " + mrResponse.getIid() + " aberto para o branch: " + branchName + " no projeto: " + gitlabProjectId);
-											mrAbertoUrl = mrResponse.getWebUrl();
+											if(StringUtils.isBlank(MrsAbertosConfirmados)) {
+												MrsAbertosConfirmados = mrResponse.getWebUrl();
+											}else  if(!MrsAbertosConfirmados.contains(mrResponse.getWebUrl())) {
+												MrsAbertosConfirmados += ", " + mrResponse.getWebUrl();
+											}
 											messages.debug(mrResponse.toString());
 										}
 									}
@@ -314,7 +319,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 						// adiciona o nome do branch relacionado
 						jiraService.atualizarBranchRelacionado(issue, branchName, updateFields, false);
 						// adiciona o MR aberto
-						jiraService.atualizarMRsAbertos(issue, mrAbertoUrl, updateFields, false);
+						jiraService.atualizarMRsAbertos(issue, MrsAbertosConfirmados, updateFields, true);
 						
 						jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
 						

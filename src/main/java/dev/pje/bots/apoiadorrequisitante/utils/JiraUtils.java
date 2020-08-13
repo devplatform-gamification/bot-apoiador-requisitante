@@ -75,4 +75,26 @@ public class JiraUtils {
 		}
 		return fieldNameToJQL;
 	}
+	
+	public static boolean containsVersion(List<JiraVersion> versions, JiraVersion version) {
+		boolean contains = false;
+		if(versions != null && !versions.isEmpty() && version != null) {
+			for (JiraVersion jiraVersion : versions) {
+				if(jiraVersion.getId() != null && version.getId() != null) {
+					if(jiraVersion.getId().equals(version.getId())) {
+						contains = true;
+						break;
+					}
+				}
+				if(StringUtils.isNotBlank(jiraVersion.getName()) && jiraVersion.getProjectId() != null &&
+						StringUtils.isNotBlank(version.getName()) && version.getProjectId() != null) {
+					if(jiraVersion.getName().equals(version.getName()) && jiraVersion.getProjectId().equals(version.getProjectId())) {
+						contains = true;
+						break;
+					}
+				}
+			}
+		}
+		return contains;
+	}
 }

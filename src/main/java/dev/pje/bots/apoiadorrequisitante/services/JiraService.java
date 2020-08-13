@@ -383,13 +383,13 @@ public class JiraService {
 			
 			boolean houveAlteracao = false;
 			if(issueDetalhada.getFields().getIntegradoNosBranches() == null || issueDetalhada.getFields().getIntegradoNosBranches().isEmpty() 
-					|| !issueDetalhada.getFields().getIntegradoNosBranches().contains(branch)) {
+					|| !JiraUtils.containsVersion(issueDetalhada.getFields().getIntegradoNosBranches(), branch)) {
 				houveAlteracao = true;
 			}
 
 			if(houveAlteracao || replaceValue) {
 				List<JiraVersion> branches = issueDetalhada.getFields().getIntegradoNosBranches();
-				if(replaceValue) {
+				if(branches == null || replaceValue) {
 					branches = new ArrayList<>();
 				}
 				branches.add(branch);
@@ -489,6 +489,7 @@ public class JiraService {
 			}else {
 				mrsAbertos = Utils.addOption(issueDetalhada.getFields().getMrAbertos(), mrAberto);
 			}
+			
 			Map<String, Object> updateField = createUpdateObject(FIELD_MRS_ABERTOS, mrsAbertos, "UPDATE");
 			if(updateField != null && updateField.get(FIELD_MRS_ABERTOS) != null) {
 				updateFields.put(FIELD_MRS_ABERTOS, updateField.get(FIELD_MRS_ABERTOS));
@@ -511,9 +512,9 @@ public class JiraService {
 			}else {
 				mrsAceitos = Utils.addOption(issueDetalhada.getFields().getMrAceitos(), mrAceito);
 			}
-			Map<String, Object> updateField = createUpdateObject(FIELD_MRS_ABERTOS, mrsAceitos, "UPDATE");
-			if(updateField != null && updateField.get(FIELD_MRS_ABERTOS) != null) {
-				updateFields.put(FIELD_MRS_ABERTOS, updateField.get(FIELD_MRS_ABERTOS));
+			Map<String, Object> updateField = createUpdateObject(FIELD_MRS_ACEITOS, mrsAceitos, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_MRS_ACEITOS) != null) {
+				updateFields.put(FIELD_MRS_ACEITOS, updateField.get(FIELD_MRS_ACEITOS));
 			}
 		}
 	}
@@ -897,33 +898,59 @@ public class JiraService {
 				throw new Exception("Valor para update fora do padrão - deveria ser JiraIssueLinkRequest, recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
 		}else if(valueToUpdate != null &&
-				FIELD_INTEGRADO_NOS_BRANCHES.equals(fieldName)) {
+				(FIELD_INTEGRADO_NOS_BRANCHES.equals(fieldName)
+				)) {
 			boolean identificouCampo = false;
 			if(valueToUpdate instanceof List) {
 				@SuppressWarnings("rawtypes")
 				List<?> list = (List) valueToUpdate;
-				
-				List<JiraVersion> jiraVersions = new ArrayList<>();
+				List<Map<String, Object>> jiraVersionArray = new ArrayList<>();
+
+				int numConvertedElements = 0;
 				Map<String, Object> newJiraVersions = new HashMap<>();
-				if(!list.isEmpty() && list.get(0) instanceof JiraVersion) {
-					
-					jiraVersions = (List<JiraVersion>)valueToUpdate;
+				List<Map<String, Object>> versionsArray = new ArrayList<Map<String,Object>>();
+				for (Object object : list) {
+					if(object instanceof JiraVersion) {
+						JiraVersion version = (JiraVersion) object;
+						Map<String, Object> versionObj = new HashMap<>();
+						versionObj.put("id", version.getId().toString());
+						versionObj.put("name", version.getName());
+						versionObj.put("projectId", version.getProjectId());
+
+						versionsArray.add(versionObj);
+					}
 				}
-				newJiraVersions.put("set", jiraVersions);
-				objectToUpdate.put(fieldName, newJiraVersions);
+				numConvertedElements = versionsArray.size();
+				newJiraVersions.put("set", versionsArray);
+				jiraVersionArray.add(newJiraVersions);
+				
+				if(numConvertedElements != list.size()) {
+					throw new Exception("Algum dos valores para a identificação de versão não pode ser identificado.");
+				}
+				objectToUpdate.put(fieldName, jiraVersionArray);
 				identificouCampo = true;
 			}
 			if(!identificouCampo) {
 				throw new Exception("Valor para update fora do padrão - deveria ser List<JiraVersion>, recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
 		}else if(valueToUpdate != null &&
-				FIELD_RESPONSAVEL_REVISAO.equals(fieldName)) {
+				(
+					FIELD_RESPONSAVEL_REVISAO.equals(fieldName)
+				)) {
 			boolean identificouCampo = false;
 			if(valueToUpdate instanceof JiraUser) {
 				JiraUser user = (JiraUser)valueToUpdate;
+				Map<String, Object> userObj = new HashMap<>();
+				userObj.put("key", user.getKey());
+				userObj.put("name", user.getName());
+				
 				Map<String, Object> newJiraUser = new HashMap<>();
-				newJiraUser.put("set", user);
-				objectToUpdate.put(fieldName, newJiraUser);
+				newJiraUser.put("set", userObj);
+				
+				List<Map<String, Object>> jiraUserArray = new ArrayList<>();
+				jiraUserArray.add(newJiraUser);
+				
+				objectToUpdate.put(fieldName, jiraUserArray);
 				identificouCampo = true;
 			}
 			if(!identificouCampo) {
@@ -1021,7 +1048,7 @@ public class JiraService {
 				throw new Exception("Não encontrou o workflow da issue");
 			}
 		}catch (Exception e) {
-			String errorMesasge = "Erro ao recuperar as propriedades da transição: " + transitionId + " da issue: " + issueKey + "erro: " + e.getLocalizedMessage();
+			String errorMesasge = "Erro ao recuperar as propriedades da transição: " + transitionId + " da issue: " + issueKey + " - erro: " + e.getLocalizedMessage();
 			logger.error(errorMesasge);
 			slackService.sendBotMessage(errorMesasge);
 			telegramService.sendBotMessage(errorMesasge);
@@ -1161,13 +1188,15 @@ public class JiraService {
 
 	public void sendTextAsComment(JiraIssue issue, String text) {
 		JiraComment comment = new JiraComment(text);
-		try {
-			jiraClient.sendComment(issue.getKey(), comment);
-		}catch (Exception e) {
-			String errorMesasge = "Erro ao tentar enviar o comentário: [" + text + "] - erro: " + e.getLocalizedMessage();
-			logger.error(errorMesasge);
-			slackService.sendBotMessage(errorMesasge);
-			telegramService.sendBotMessage(errorMesasge);
+		if(StringUtils.isNotBlank(text)) {
+			try {
+				jiraClient.sendComment(issue.getKey(), comment);
+			}catch (Exception e) {
+				String errorMesasge = "Erro ao tentar enviar o comentário: [" + text + "] - erro: " + e.getLocalizedMessage();
+				logger.error(errorMesasge);
+				slackService.sendBotMessage(errorMesasge);
+				telegramService.sendBotMessage(errorMesasge);
+			}
 		}
 	}
 

@@ -173,10 +173,12 @@ public class GitlabUtils {
 					List<String> projectNamespaceList = new ArrayList<>();
 					String[] paths = weburlWithoutServer.split("/");
 					for (String path : paths) {
-						if(path.equals("-")) {
-							break;
-						}else {
-							projectNamespaceList.add(path);
+						if(StringUtils.isNotBlank(path)) {
+							if(path.equals("-")) {
+								break;
+							}else {
+								projectNamespaceList.add(path);
+							}
 						}
 					}
 					if(projectNamespaceList != null && !projectNamespaceList.isEmpty()) {

@@ -49,7 +49,7 @@ public class MergeRequestUpdateHandler extends Handler<GitlabEventMergeRequest>{
 		return MessagesLogger.LOGLEVEL_INFO;
 	}
 
-
+	private static final Boolean ATUAR_PROJETO_PJE = false; // TODO - retirar isso depois que transformar o bot revisor em um consumer
 
 	private static final String TRANSITION_PROPERTY_KEY_INDICAR_APROVACAO = "MR APROVADO"; // TODO buscar por propriedade da transicao
 	private static final String TRANSITION_PROPERTY_KEY_INDICAR_FECHAMENTO = "MR FECHADO"; // TODO buscar por propriedade da transicao
@@ -84,8 +84,9 @@ public class MergeRequestUpdateHandler extends Handler<GitlabEventMergeRequest>{
 	public void handle(GitlabEventMergeRequest gitlabEventMR) throws Exception {
 		messages.clean();
 		if (gitlabEventMR != null && gitlabEventMR.getObjectAttributes() != null && gitlabEventMR.getObjectAttributes().getAction() != null
-				&& GitlabMergeRequestActionsEnum.MERGE.equals(gitlabEventMR.getObjectAttributes().getAction())
-				&& GitlabMergeRequestActionsEnum.CLOSE.equals(gitlabEventMR.getObjectAttributes().getAction())) {
+				&& (GitlabMergeRequestActionsEnum.MERGE.equals(gitlabEventMR.getObjectAttributes().getAction())
+						|| GitlabMergeRequestActionsEnum.CLOSE.equals(gitlabEventMR.getObjectAttributes().getAction())
+						)) {
 
 			String sourceBranch = gitlabEventMR.getObjectAttributes().getSourceBranch();
 
@@ -101,81 +102,88 @@ public class MergeRequestUpdateHandler extends Handler<GitlabEventMergeRequest>{
 				issueKey = Utils.getIssueKeyFromCommitMessage(lastCommitTitle);
 			}
 
+
 			if(StringUtils.isNotBlank(issueKey)) {
 				JiraIssue issue = jiraService.recuperaIssueDetalhada(issueKey);
 				// recupera a lista de "MRs Abertos" e verifica se continuam abertos
 				if(issue != null) {
-					String MRsAbertos = issue.getFields().getMrAbertos();
-					String MrsAbertosConfirmados = gitlabService.checkMRsOpened(MRsAbertos);
-					Map<String, Object> updateFields = new HashMap<>();
-					String transitionID = null;
-					jiraService.atualizarMRsAbertos(issue, MrsAbertosConfirmados, updateFields, true);
-					JiraUser revisorUsuarioJira = jiraService.getJiraUserFromGitlabUser(revisor);
-					jiraService.atualizarResponsavelRevisao(issue, revisorUsuarioJira, updateFields);
-					jiraService.atualizarBranchRelacionado(issue, sourceBranch, updateFields, false);
 
-					JiraIssueTransition transition = null;
-					JiraMarkdown jiraMarkdown = new JiraMarkdown();
-					StringBuilder textoComentarioAcao = new StringBuilder();
+					if(ATUAR_PROJETO_PJE || !issue.getFields().getProject().getProjectCategory().getName().equalsIgnoreCase("PJE")) {
+						String MRsAbertos = issue.getFields().getMrAbertos();
+						String MrsAbertosConfirmados = gitlabService.checkMRsOpened(MRsAbertos);
+						Map<String, Object> updateFields = new HashMap<>();
+						String transitionID = null;
+						jiraService.atualizarMRsAbertos(issue, MrsAbertosConfirmados, updateFields, true);
+						JiraUser revisorUsuarioJira = jiraService.getJiraUserFromGitlabUser(revisor);
+						jiraService.atualizarResponsavelRevisao(issue, revisorUsuarioJira, updateFields);
+						jiraService.atualizarBranchRelacionado(issue, sourceBranch, updateFields, false);
 
-					String MrURL = gitlabEventMR.getObjectAttributes().getUrl();
-					String MrIId = gitlabEventMR.getObjectAttributes().getIid().toString();
+						JiraIssueTransition transition = null;
+						JiraMarkdown jiraMarkdown = new JiraMarkdown();
+						StringBuilder textoComentarioAcao = new StringBuilder();
 
-					if(GitlabMergeRequestActionsEnum.MERGE.equals(gitlabEventMR.getObjectAttributes().getAction())) {
-						jiraService.atualizarMRsAceitos(issue, MrURL, updateFields, false);
-						jiraService.atualizarIntegradoNosBranches(issue, targetBranch, updateFields, false);
-						textoComentarioAcao.append(jiraMarkdown.link(MrURL, "MR#" + MrIId))
+						String MrURL = gitlabEventMR.getObjectAttributes().getUrl();
+						String MrIId = gitlabEventMR.getObjectAttributes().getIid().toString();
+
+						if(GitlabMergeRequestActionsEnum.MERGE.equals(gitlabEventMR.getObjectAttributes().getAction())) {
+							jiraService.atualizarMRsAceitos(issue, MrURL, updateFields, false);
+							jiraService.atualizarIntegradoNosBranches(issue, targetBranch, updateFields, false);
+							textoComentarioAcao.append(jiraMarkdown.underline(jiraMarkdown.link(MrURL, "MR#" + MrIId)))
 							.append(" integrado ao branch ")
-							.append(targetBranch);
-						if(revisorUsuarioJira != null && revisorUsuarioJira.getDisplayName() != null) {
-							if(revisorUsuarioJira.getDisplayName().equalsIgnoreCase(jiraBotUser)) {
-								textoComentarioAcao.append(" automaticamente pelo [~" + revisorUsuarioJira.getDisplayName() + "]");
-							}else {
-								textoComentarioAcao.append(" pelo usuário revisor [~" + revisorUsuarioJira.getDisplayName() + "]");
+							.append(jiraMarkdown.bold(targetBranch));
+							if(revisorUsuarioJira != null && revisorUsuarioJira.getDisplayName() != null) {
+								if(revisorUsuarioJira.getDisplayName().equalsIgnoreCase(jiraBotUser)) {
+									textoComentarioAcao.append(" automaticamente pelo ")
+									.append(jiraMarkdown.underline("[~" + revisorUsuarioJira.getName() + "]"));
+								}else {
+									textoComentarioAcao.append(" pelo usuário revisor ")
+									.append(jiraMarkdown.underline("[~" + revisorUsuarioJira.getName() + "]"));
+								}
+							}
+							transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, TRANSITION_PROPERTY_KEY_INDICAR_APROVACAO);
+
+						}else if(GitlabMergeRequestActionsEnum.CLOSE.equals(gitlabEventMR.getObjectAttributes().getAction())) {
+							transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, TRANSITION_PROPERTY_KEY_INDICAR_FECHAMENTO);						
+
+							textoComentarioAcao.append(jiraMarkdown.underline(jiraMarkdown.link(MrURL, "MR#" + MrIId)))
+							.append(" " + jiraMarkdown.bold("fechado") + " ");
+							if(revisorUsuarioJira != null && revisorUsuarioJira.getDisplayName() != null) {
+								if(revisorUsuarioJira.getDisplayName().equalsIgnoreCase(jiraBotUser)) {
+									textoComentarioAcao.append(" automaticamente pelo ")
+									.append(jiraMarkdown.underline("[~" + revisorUsuarioJira.getName() + "]"));
+								}else {
+									textoComentarioAcao.append(" pelo usuário revisor ")
+									.append(jiraMarkdown.underline("[~" + revisorUsuarioJira.getName() + "]"));
+								}
 							}
 						}
-						transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, TRANSITION_PROPERTY_KEY_INDICAR_APROVACAO);
 
-					}else if(GitlabMergeRequestActionsEnum.CLOSE.equals(gitlabEventMR.getObjectAttributes().getAction())) {
-						transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, TRANSITION_PROPERTY_KEY_INDICAR_FECHAMENTO);						
-
-						textoComentarioAcao.append(jiraMarkdown.link(MrURL, "MR#" + MrIId))
-							.append(" fechado ");
-						if(revisorUsuarioJira != null && revisorUsuarioJira.getDisplayName() != null) {
-							if(revisorUsuarioJira.getDisplayName().equalsIgnoreCase(jiraBotUser)) {
-								textoComentarioAcao.append(" automaticamente pelo [~" + revisorUsuarioJira.getDisplayName() + "]");
-							}else {
-								textoComentarioAcao.append(" pelo usuário revisor [~" + revisorUsuarioJira.getDisplayName() + "]");
-							}
+						// se não tiver encontrado a transição específica relacionada à operação, busca a transição de "Edição avançada"
+						if(transition == null) {
+							messages.info("Não foi identificada uma saída padrão desta issue para registro da nova situação do "
+									+ "MR relacionado. Buscando transição '" + JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA + "'");
+							transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA);
 						}
-					}
 
-					// se não tiver encontrado a transição específica relacionada à operação, busca a transição de "Edição avançada"
-					if(transition == null) {
-						messages.info("Não foi identificada uma saída padrão desta issue para registro da nova situação do "
-								+ "MR relacionado. Buscando transição '" + JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA + "'");
-						transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA);
-					}
+						// se encontrou a transicao, transita para ela, caso contrário apenas adiciona um comentário à issue
+						if(transition != null) {
+							transitionID = transition.getId();
 
-					// se encontrou a transicao, transita para ela, caso contrário apenas adiciona um comentário à issue
-					if(transition != null) {
-						transitionID = transition.getId();
+							StringBuilder textoComentario = new StringBuilder(messages.getMessagesToJira());
+							textoComentario.append(jiraMarkdown.newLine());
+							textoComentario.append(textoComentarioAcao.toString());
 
-						StringBuilder textoComentario = new StringBuilder(messages.getMessagesToJira());
-						textoComentario.append(jiraMarkdown.newLine());
-						textoComentario.append(jiraMarkdown.block("Caso se pretenda utilizar anexos (imagem ou outro formato) deve-se utilizar no arquivo principal de documentação .adoc, referências"
-								+ " à pasta '" + JiraService.DOCUMENTATION_ASSETS_DIR + "', pois todos os documentos anexados a esta issue que não sejam .adoc serão enviados ao reposiorio na pasta"
-								+ " '" + JiraService.DOCUMENTATION_ASSETS_DIR + "' no mesmo path do arquivo principal."));
+							jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
 
-						jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
-						jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-
-						enviarAlteracaoJira(issue, updateFields, transitionID);
+							enviarAlteracaoJira(issue, updateFields, transitionID);
+						}else {
+							messages.info("Não foi identificada uma transição válida para registro da nova situação do MR, os dados relacionados"
+									+ " serão registrados na issue como comentário.");
+							messages.info(updateFields.toString());
+							jiraService.sendTextAsComment(issue, messages.getMessagesToJira());
+						}
 					}else {
-						messages.info("Não foi identificada uma transição válida para registro da nova situação do MR, os dados relacionados"
-								+ " serão registrados na issue como comentário.");
-						messages.info(updateFields.toString());
-						jiraService.sendTextAsComment(issue, messages.getMessagesToJira());
+						messages.info("Este consumer não atuará nas issues do PJe");
 					}
 
 				}else {

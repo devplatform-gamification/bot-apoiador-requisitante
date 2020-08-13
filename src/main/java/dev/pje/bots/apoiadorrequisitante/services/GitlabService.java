@@ -606,8 +606,8 @@ public class GitlabService {
 	@Cacheable(cacheNames = "search-projects")
 	public List<GitlabProjectExtended> searchProjectByNamespace(String projectNamespace) {
 		List<GitlabProjectExtended> projects = null;
+		Map<String, String> searchData = new HashMap<>();
 		try {
-			Map<String, String> searchData = new HashMap<>();
 			searchData.put("search_namespaces", Boolean.TRUE.toString());
 			searchData.put("search", projectNamespace);
 			projects = gitlabClient.searchProject(searchData);
