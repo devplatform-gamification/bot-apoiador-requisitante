@@ -29,6 +29,10 @@ public class TelegramService {
 	@Value("${project.telegram.channel.triage-bot-id}")
 	private String NOME_GRUPO_BOT_TRIAGEM;
 
+	@Value("${project.telegram.channel.oficial-id}")
+	private String NOME_GRUPO_OFICIAL;
+
+
 	public static Integer MAX_MESSAGE_SIZE = 4096;
 	public static Integer numMessagesSent = 0;
 
@@ -98,5 +102,9 @@ public class TelegramService {
 	
 	public void sendBotMessageHtml(String text) {
 		sendSimpleMessage(NOME_GRUPO_BOT_TRIAGEM, text, true, TelegramMessageParseModeEnum.HTML);
-	}	
+	}
+
+	public void sendOficialChannelMessageHtml(String text) {
+		sendSimpleMessage(NOME_GRUPO_OFICIAL, text, true, TelegramMessageParseModeEnum.HTML);
+	}
 }

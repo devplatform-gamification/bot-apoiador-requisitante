@@ -51,9 +51,6 @@ public class LanVersion05ProcessReleaseNotesHandler extends Handler<JiraEventIss
 	@Autowired
 	private ReleaseNotesTextModel releaseNotesModel;
 
-	private static final String TRANSITION_ID_IMPEDIMENTO = "71"; // TODO buscar por propriedade da transicao
-	private static final String TRANSITION_ID_FINALIZAR_PROCESSAMENTO_RELEASE_NOTES = "61"; // TODO buscar por propriedade da transicao
-
 	/**
 	 * :: Processando release notes ::
 	 *    Verifica se há o backup do release notes como anexo da issue
@@ -137,7 +134,7 @@ public class LanVersion05ProcessReleaseNotesHandler extends Handler<JiraEventIss
 					// tramita para o impedmento, enviando as mensagens nos comentários
 					Map<String, Object> updateFieldsErrors = new HashMap<>();
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFieldsErrors);
-					enviarAlteracaoJira(issue, updateFieldsErrors, TRANSITION_ID_IMPEDIMENTO);
+					enviarAlteracaoJira(issue, updateFieldsErrors, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 				}else {
 					// tramita automaticamente, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
@@ -160,7 +157,7 @@ public class LanVersion05ProcessReleaseNotesHandler extends Handler<JiraEventIss
 					jiraService.atualizarDataGeracaoTag(issue, dataTagStr, updateFields);
 
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_FINALIZAR_PROCESSAMENTO_RELEASE_NOTES);
+					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_SAIDA_PADRAO, true, true);
 				}
 			}
 		}

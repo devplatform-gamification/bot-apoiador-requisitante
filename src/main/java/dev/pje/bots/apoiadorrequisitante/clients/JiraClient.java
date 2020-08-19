@@ -17,7 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraIssueAttachment;
 import com.devplatform.model.jira.JiraIssueComment;
-import com.devplatform.model.jira.JiraIssueTransitionProperty;
+import com.devplatform.model.jira.JiraProperty;
 import com.devplatform.model.jira.JiraIssueTransitions;
 import com.devplatform.model.jira.JiraProject;
 import com.devplatform.model.jira.JiraUser;
@@ -67,12 +67,21 @@ public interface JiraClient {
 	public JiraWorkflow getIssueWorkflow(
 			@PathVariable("issueKey") String issueKey);
 
-//	@GetMapping(value = "/rest/api/2/workflow/transitions/{transitionId}/properties?workflowName={workflowName}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	@GetMapping(value = "/rest/scriptrunner/latest/custom/workflow/transitions/{transitionId}/properties?workflowName={workflowName}", consumes = MediaType.APPLICATION_JSON_VALUE)
-	public List<JiraIssueTransitionProperty> getTransitionProperties(
+	public List<JiraProperty> getTransitionProperties(
 			@PathVariable("transitionId") String transitionId,
 			@PathVariable("workflowName") String workflowName);
+	
+	@GetMapping(value = "/rest/scriptrunner/latest/custom/issue/{issueKeyOrId}/transitions/{transitionId}/properties", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public List<JiraProperty> getIssueTransitionProperties(
+			@PathVariable("issueKeyOrId") String issueKey,
+			@PathVariable("transitionId") String transitionId
+			);
 
+	@GetMapping(value = "/rest/scriptrunner/latest/custom/issue/{issueKeyOrId}/statusproperties", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public List<JiraProperty> getIssueStatusProperties(
+			@PathVariable("issueKeyOrId") String issueKey);
+	
 	@GetMapping(value = "/rest/scriptrunner/latest/custom/customFields/{customFieldId}/option?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraCustomField getCustomFieldOptions(
 			@PathVariable("customFieldId") String customField, @SpringQueryMap Map<String, String> options);
@@ -80,6 +89,12 @@ public interface JiraClient {
 	@PostMapping(value = "/rest/scriptrunner/latest/custom/customFields/{customFieldId}/option", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraCustomField addCustomFieldOptions(
 			@PathVariable("customFieldId") String customFieldId, @RequestBody JiraCustomFieldOptionsRequest customFieldOptionsRequest);
+
+	@PostMapping(value = "/rest/scriptrunner/latest/custom/customFields/{customFieldId}/option/{optionId}", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public JiraCustomField updateCustomFieldOption(
+			@PathVariable("customFieldId") String customFieldId, 
+			@PathVariable("optionId") String optionId,
+			@RequestBody JiraCustomFieldOptionsRequest customFieldOptionsRequest);
 
 	@GetMapping(value = "/rest/api/latest/search?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraJQLSearchResponse searchIssuesWithJQL(@SpringQueryMap Map<String, String> options);

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import com.devplatform.model.bot.VersionReleaseNoteIssues;
 import com.devplatform.model.bot.VersionReleaseNotes;
 import com.devplatform.model.bot.VersionReleaseNotesIssueTypeEnum;
+import com.devplatform.model.jira.JiraIssueTipoVersaoEnum;
 import com.devplatform.model.jira.JiraUser;
 
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
@@ -92,10 +93,14 @@ public class ReleaseNotesTextModel extends AbstractTextModel{
 			markdownText.append(markdown.newLine());
 
 			// tipo de versao + resumo das issues (núm de issues de cada tipo)
-			StringBuilder textToHighlight = new StringBuilder()
-				.append("Esta é uma versão: ")
-				.append(releaseNotes.getVersionType())
-				.append(" - ");
+			StringBuilder textToHighlight = new StringBuilder();
+			
+			
+			if(!Utils.compareAsciiIgnoreCase(releaseNotes.getVersionType(), JiraIssueTipoVersaoEnum.ORDINARIA.toString())) {
+				textToHighlight.append("Esta é uma versão: ")
+					.append(releaseNotes.getVersionType())
+					.append(" - ");
+			}
 
 			List<String> contadorTipoIssue = new ArrayList<>();
 			if(releaseNotes.getNewFeatures() != null && !releaseNotes.getNewFeatures().isEmpty()) {

@@ -47,10 +47,6 @@ public class LanVersion02GenerateReleaseCandidateHandler extends Handler<JiraEve
 	@Autowired
 	private ReleaseCandidateTextModel releaseCandidateModel;
 
-	private static final String TRANSITION_ID_IMPEDIMENTO = "221"; // TODO buscar por propriedade da transicao
-	private static final String TRANSITION_ID_CONCLUIR_RC = "211"; // TODO buscar por propriedade da transicao
-		
-
 	/**
 	 * - Verificar se já não existe a tag da RC
 	 * - Gerar tag RC
@@ -158,7 +154,7 @@ public class LanVersion02GenerateReleaseCandidateHandler extends Handler<JiraEve
 					// tramita para o impedmento, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_IMPEDIMENTO);
+					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 				}else {
 					if(!tagReleaseJaExistente || !releaseBranchJaExistente) {
 						publicarMensagemLancamentoVersao(releaseCandidateModel);
@@ -170,7 +166,7 @@ public class LanVersion02GenerateReleaseCandidateHandler extends Handler<JiraEve
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.atualizarVersaoASerLancada(issue, versaoASerLancada, updateFields);
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_CONCLUIR_RC);
+					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_SAIDA_PADRAO, true, true);
 				}
 			}
 		}

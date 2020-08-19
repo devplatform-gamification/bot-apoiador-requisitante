@@ -103,7 +103,6 @@ public class Documentation03CheckAutomaticMergeHandler extends Handler<JiraEvent
 											}
 										}else {
 											messages.info("Ignorando o MR: " + mrIId + " - do projeto: " + gitlabProjectId + " - sua situação é: " + mrCandidate.getState().toString());
-											// TODO - utilizar a saída "Edição avançada" e retirar esse MR da lista
 										}
 									}
 								}else {

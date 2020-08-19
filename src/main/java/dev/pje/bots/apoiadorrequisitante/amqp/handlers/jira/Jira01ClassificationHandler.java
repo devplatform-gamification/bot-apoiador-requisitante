@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers;
+package dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira;
 
 import java.util.HashMap;
 import java.util.List;
@@ -18,9 +18,9 @@ import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.services.TelegramService;
 
 @Component
-public class JiraEventHandlerClassification {
+public class Jira01ClassificationHandler {
 	
-	private static final Logger logger = LoggerFactory.getLogger(JiraEventHandlerClassification.class);
+	private static final Logger logger = LoggerFactory.getLogger(Jira01ClassificationHandler.class);
 
 	@Autowired
 	private JiraService jiraService;
@@ -29,7 +29,7 @@ public class JiraEventHandlerClassification {
 	private TelegramService telegramService;
 
 	public void handle(JiraEventIssue jiraEventIssue) {
-		telegramService.sendBotMessage("[AREA-CONHECIMENTO][JIRA] - " + jiraEventIssue.getIssue().getKey() + " - " + jiraEventIssue.getIssueEventTypeName().name());
+		telegramService.sendBotMessage("|JIRA||01||AREA-CONHECIMENTO| - " + jiraEventIssue.getIssue().getKey() + " - " + jiraEventIssue.getIssueEventTypeName().name());
 		List<String> epicThemeList = jiraEventIssue.getIssue().getFields().getEpicTheme();
 		List<String> superEpicThemeList = jiraService.findSuperEpicTheme(epicThemeList);
 
@@ -48,10 +48,10 @@ public class JiraEventHandlerClassification {
 					jiraIssueCreateAndUpdate.setUpdate(updateFields);
 
 					jiraService.updateIssue(issue, jiraIssueCreateAndUpdate);
-					telegramService.sendBotMessage("[AREA-CONHECIMENTO][" + issue.getKey() + "] Issue atualizada");
+					telegramService.sendBotMessage("|JIRA||01||AREA-CONHECIMENTO|[" + issue.getKey() + "] Issue atualizada");
 					logger.info("Issue atualizada");
 				}else {
-					telegramService.sendBotMessage("*[AREA-CONHECIMENTO][" + issue.getKey() + "] Erro!!* \n Não há transição para realizar esta alteração");
+					telegramService.sendBotMessage("|JIRA||01||AREA-CONHECIMENTO|[" + issue.getKey() + "] Erro!!* \n Não há transição para realizar esta alteração");
 					logger.error("Não há transição para realizar esta alteração");
 				}
 			}

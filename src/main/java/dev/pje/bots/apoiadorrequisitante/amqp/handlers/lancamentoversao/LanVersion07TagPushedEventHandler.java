@@ -1,39 +1,15 @@
 package dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao;
 
-import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.devplatform.model.bot.VersionReleaseNotes;
-import com.devplatform.model.bot.VersionReleaseNotesIssueTypeEnum;
-import com.devplatform.model.gitlab.GitlabCommit;
 import com.devplatform.model.gitlab.event.GitlabEventPush;
-import com.devplatform.model.gitlab.response.GitlabBranchResponse;
-import com.devplatform.model.gitlab.response.GitlabCommitResponse;
-import com.devplatform.model.jira.JiraIssue;
-import com.devplatform.model.jira.JiraIssueTransition;
-import com.devplatform.model.jira.JiraIssuetype;
-import com.devplatform.model.jira.JiraProject;
 
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
-import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
-import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.ReleaseNotesTextModel;
-import dev.pje.bots.apoiadorrequisitante.utils.Utils;
-import dev.pje.bots.apoiadorrequisitante.utils.markdown.AsciiDocMarkdown;
-import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
 
 @Component
 public class LanVersion07TagPushedEventHandler extends Handler<GitlabEventPush>{
@@ -57,9 +33,6 @@ public class LanVersion07TagPushedEventHandler extends Handler<GitlabEventPush>{
 
 	@Autowired
 	private ReleaseNotesTextModel releaseNotesModel;
-
-	private static final String TRANSITION_ID_IMPEDIMENTO = "191"; // TODO buscar por propriedade da transicao
-	private static final String TRANSITION_ID_FINALIZAR_PROCESSAMENTO_PUBLICACAO_RELEASE_NOTES = "201"; // TODO buscar por propriedade da transicao
 
 	/**
 	 * :: TAG pushed ::

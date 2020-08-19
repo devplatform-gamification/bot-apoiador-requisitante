@@ -83,9 +83,11 @@ public class GitlabService {
 	
 	public static final String GITLAB_DATETIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSS";
 	
+	public static final String PROJECT_PROPERTY_JIRA_MAIN_RELATED_PROJECT = "JIRA_MAIN_RELATED_PROJECT";
 	public static final String PROJECT_PROPERTY_POM_VERSION_TAGNAME = "POM_TAGNAME_PROJECT_VERSION";
 	
-	public static final String POM_TAGNAME_PROJECT_VERSION_DEFAULT = "release";
+	public static final String JIRA_MAIN_RELATED_PROJECT_DEFAULT = "PJEII";
+	public static final String POM_TAGNAME_PROJECT_VERSION_DEFAULT = "project/version";
 	
 	public List<GitlabRepositoryTree> getFilesFromPath(GitlabProject project, String branch, String path) {
 		String projectId = project.getId().toString();
@@ -931,12 +933,12 @@ public class GitlabService {
 		return getActualVersion(projectId, branchName, onlyNumbers);
 	}
 	
-	public String getActualVersion(String projectId, String branchName, Boolean onlyNumbers) {
+	public String getActualVersion(String projectId, String ref, Boolean onlyNumbers) {
 		String actualVersion = null;
-		String pomContent = getRawFile(projectId, POMXML, branchName);
+		String pomContent = getRawFile(projectId, POMXML, ref);
 		if (StringUtils.isNotBlank(pomContent)) {
 			String projectVersionTagname = getProjectVersionTagName(projectId);
-			actualVersion = GitlabUtils.getVersionFromPomXML(pomContent, projectVersionTagname);
+			actualVersion = Utils.getElementFromXML(pomContent, projectVersionTagname);
 		}
 		
 		if(StringUtils.isNotBlank(actualVersion) && onlyNumbers != null && onlyNumbers) {
@@ -973,6 +975,18 @@ public class GitlabService {
 		}
 		
 		return tagName;
+	}
+	
+	public String getJiraRelatedProjectKey(String projectId){
+		String jiraProjectKey = null;
+		GitlabProjectVariable projectVariable = getProjectVariable(projectId, PROJECT_PROPERTY_JIRA_MAIN_RELATED_PROJECT);
+		if(projectVariable != null) {
+			jiraProjectKey = projectVariable.getValue();
+		}else {
+			jiraProjectKey = JIRA_MAIN_RELATED_PROJECT_DEFAULT;
+		}
+		
+		return jiraProjectKey;
 	}
 	
 	public GitlabProjectVariable getProjectVariable(String projectId, String variableKey) {

@@ -1,9 +1,7 @@
 package dev.pje.bots.apoiadorrequisitante.services;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +26,7 @@ import com.devplatform.model.jira.JiraIssueAttachment;
 import com.devplatform.model.jira.JiraIssueComment;
 import com.devplatform.model.jira.JiraIssueFieldOption;
 import com.devplatform.model.jira.JiraIssueTransition;
-import com.devplatform.model.jira.JiraIssueTransitionProperty;
+import com.devplatform.model.jira.JiraProperty;
 import com.devplatform.model.jira.JiraIssueTransitions;
 import com.devplatform.model.jira.JiraIssuetype;
 import com.devplatform.model.jira.JiraProject;
@@ -91,6 +89,8 @@ public class JiraService {
 	
 	public static final String STATUS_DOCUMENTATION_PROCESSING_ID = "10674";
 	public static final String STATUS_DOCUMENTATION_HOMOLOGATION_ID = "10480";
+	public static final String STATUS_DOCUMENTATION_MANUAL_INTEGRATION_ID = "10043";
+	public static final String STATUS_DOCUMENTATION_FINISH_HOMOLOGATION_ID = "10054";
 	
 	public static final Integer ISSUELINKTYPE_DOCUMENTATION_ID = 10410;
 	public static final String ISSUELINKTYPE_DOCUMENTATION_INWARDNAME = "documents";
@@ -107,6 +107,19 @@ public class JiraService {
 	public static final String GRUPO_LANCADORES_VERSAO = "PJE_LancadoresDeVersao";
 	public static final String PREFIXO_GRUPO_TRIBUNAL = "PJE_TRIBUNAL_";
 	public static final String TRANSICTION_DEFAULT_EDICAO_AVANCADA = "Edição avançada";
+	
+	public static final String TRANSITION_PROPERTY_KEY_EDICAO_AVANCADA = "EDICAO_AVANCADA";
+	public static final String TRANSITION_PROPERTY_KEY_FINALIZAR_DEMANDA = "FECHAR";
+	public static final String TRANSITION_PROPERTY_KEY_TRIAGEM_CONFIRMADA = "TRIAGEM_CONFIRMADA";
+	public static final String TRANSITION_PROPERTY_KEY_DEMANDANTE = "SOLICITAR_DEMANDANTE";
+	public static final String TRANSITION_PROPERTY_KEY_RESPONDIDO = "RESPONDIDO";
+	public static final String TRANSITION_PROPERTY_KEY_IMPEDIMENTO = "IMPEDIMENTO";
+	public static final String TRANSITION_PROPERTY_KEY_SOLICITAR_HOMOLOGACAO = "SOLICITAR_HOMOLOGACAO";
+	public static final String TRANSITION_PROPERTY_KEY_APROVADA = "APROVADO";
+	public static final String TRANSITION_PROPERTY_KEY_REPROVADA = "REPROVADO";
+	public static final String TRANSITION_PROPERTY_KEY_SAIDA_PADRAO = "SAIDA_PADRAO";
+	
+	public static final String STATUS_PROPERTY_KEY_DEMANDANTE = "DEMANDANTE";
 
 	public static final String RELEASE_NOTES_JSON_FILENAME = "release-notes.json";
 	public static final String RELEASE_NOTES_FILENAME_PREFIX = "release-notes_";
@@ -123,6 +136,7 @@ public class JiraService {
 
 	public static final String FIELD_AFFECTED_VERSION = "versions";
 	public static final String FIELD_AFFECTED_VERSION_TO_JQL = "affectedVersion";
+	public static final String FIELD_FIX_VERSION = "fixVersions";
 	public static final String FIELD_COMMENT = "comment";
 	public static final String FIELD_TRIBUNAL_REQUISITANTE = "customfield_11700";
 	public static final String FIELD_SUPER_EPIC_THEME = "customfield_11800";
@@ -145,11 +159,13 @@ public class JiraService {
 	public static final String FIELD_MRS_ACEITOS = "customfield_12505";
 
 	public static final String FIELD_RESPONSAVEL_REVISAO = "customfield_12200";
+	public static final String FIELD_RESPONSAVEL_ISSUE = "assignee";
 	
 	public static final Integer TEXT_FIELD_CHARACTER_LIMIT = 327670;
 	
 	public static final String JIRA_DATETIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSSZZ";
 	
+	public static final String STEP_PROPERTY_STATUS_ID = "jira.status.id";
 	public static final String PROJECT_PROPERTY_GITLAB_PROJECT_ID = "git.project.id";
 	public static final String PROJECT_PROPERTY_JIRA_RELATED_PROJECTS_KEYS = "jira-related-projects.keys";
 	public static final String PROJECT_PROPERTY_DOCUMENTATION_FIELDVALUE_DOC_STRUCTURE = "fieldvalue.estrutura-documentacao.id";
@@ -219,16 +235,24 @@ public class JiraService {
 		}
 		return tribunal;
 	}
-	
+
 	public String getJqlIssuesFromFixVersion(String version, boolean onlyClosed, String projectKey) {
+		List<String> projectKeys = new ArrayList<String>();
+		if(projectKey != null) {
+			projectKeys.add(projectKey);
+		}
+		return getJqlIssuesFromFixVersion(version, onlyClosed, projectKeys);
+	}
+	
+	public String getJqlIssuesFromFixVersion(String version, boolean onlyClosed, List<String> projectKeys) {
 		String jql = "category in (PJE, PJE-CLOUD) AND fixVersion in (" + version + ")";
 		if(onlyClosed) {
 			jql += " AND status in (Fechado, Resolvido)";
 		}
-		if(StringUtils.isNotBlank(projectKey)) {
-			jql += " AND project = " + projectKey;
+		if(projectKeys != null && !projectKeys.isEmpty()) {
+			jql += " AND project IN (" + String.join(", ", projectKeys) + ") ";
 		}
-		jql += " ORDER BY priority DESC, key ASC";
+		jql += " ORDER BY project ASC, status ASC, priority DESC, key ASC";
 		
 		return jql;
 	}
@@ -372,6 +396,36 @@ public class JiraService {
 		return version;
 	}
 
+	public void atualizarFixVersion(JiraIssue issue, String fixVersion, Map<String, Object> updateFields, boolean replaceValue) throws Exception {
+		JiraVersion version = getProjectVersion(issue, fixVersion, true);
+		atualizarFixVersion(issue, version, updateFields, replaceValue);
+	}
+
+	public void atualizarFixVersion(JiraIssue issue,  JiraVersion fixVersion, Map<String, Object> updateFields, boolean replaceValue) throws Exception {
+		if (fixVersion != null) {
+			JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+			
+			boolean houveAlteracao = false;
+			if(issueDetalhada.getFields().getFixVersions() == null || issueDetalhada.getFields().getFixVersions().isEmpty() 
+					|| !JiraUtils.containsVersion(issueDetalhada.getFields().getFixVersions(), fixVersion)) {
+				houveAlteracao = true;
+			}
+
+			if(houveAlteracao || replaceValue) {
+				List<JiraVersion> fixVersions = issueDetalhada.getFields().getFixVersions();
+				if(fixVersions == null || replaceValue) {
+					fixVersions = new ArrayList<>();
+				}
+				fixVersions.add(fixVersion);
+
+				Map<String, Object> updateField = createUpdateObject(FIELD_FIX_VERSION, fixVersions, "UPDATE");
+				if(updateField != null && updateField.get(FIELD_FIX_VERSION) != null) {
+					updateFields.put(FIELD_FIX_VERSION, updateField.get(FIELD_FIX_VERSION));
+				}
+			}
+		}		
+	}
+	
 	public void atualizarIntegradoNosBranches(JiraIssue issue, String branchName, Map<String, Object> updateFields, boolean replaceValue) throws Exception {
 		JiraVersion branch = getProjectVersion(issue, branchName, true);
 		atualizarIntegradoNosBranches(issue, branch, updateFields, replaceValue);
@@ -397,6 +451,24 @@ public class JiraService {
 				Map<String, Object> updateField = createUpdateObject(FIELD_INTEGRADO_NOS_BRANCHES, branches, "UPDATE");
 				if(updateField != null && updateField.get(FIELD_INTEGRADO_NOS_BRANCHES) != null) {
 					updateFields.put(FIELD_INTEGRADO_NOS_BRANCHES, updateField.get(FIELD_INTEGRADO_NOS_BRANCHES));
+				}
+			}
+		}		
+	}
+
+	public void atualizarResponsavelIssue(JiraIssue issue,  JiraUser usuario, Map<String, Object> updateFields) throws Exception {
+		if (usuario != null) {
+			JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+			
+			boolean houveAlteracao = false;
+			if(issueDetalhada.getFields().getAssignee() == null || !issueDetalhada.getFields().getAssignee().getKey().equals(usuario.getKey())) {
+				houveAlteracao = true;
+			}
+
+			if(houveAlteracao) {
+				Map<String, Object> updateField = createUpdateObject(FIELD_RESPONSAVEL_ISSUE, usuario, "UPDATE");
+				if(updateField != null && updateField.get(FIELD_RESPONSAVEL_ISSUE) != null) {
+					updateFields.put(FIELD_RESPONSAVEL_ISSUE, updateField.get(FIELD_RESPONSAVEL_ISSUE));
 				}
 			}
 		}		
@@ -761,16 +833,12 @@ public class JiraService {
 					cascadeOptionId = options[1];
 				}
 			}
-			JiraCustomFieldOption customFieldOption = new JiraCustomFieldOption();
-			customFieldOption.setId(new BigDecimal(parentOptionId));
+			Map<String, Object> customFieldOption = new HashMap<>();
+			customFieldOption.put("id", parentOptionId);
 			if(StringUtils.isNotBlank(cascadeOptionId)) {
-				JiraCustomFieldOption childFieldOption = new JiraCustomFieldOption();
-				childFieldOption.setId(new BigDecimal(cascadeOptionId));
-
-				List<JiraCustomFieldOption> cascadingOption = new ArrayList<>();
-				cascadingOption.add(childFieldOption);
-				
-				customFieldOption.setCascadingOptions(cascadingOption);
+				Map<String, String> customFieldChildOption = new HashMap<>();
+				customFieldChildOption.put("id", cascadeOptionId);
+				customFieldOption.put("child", customFieldChildOption);
 			}
 			
 			Map<String, Object> issueField = new HashMap<>();
@@ -898,7 +966,9 @@ public class JiraService {
 				throw new Exception("Valor para update fora do padrão - deveria ser JiraIssueLinkRequest, recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
 		}else if(valueToUpdate != null &&
-				(FIELD_INTEGRADO_NOS_BRANCHES.equals(fieldName)
+				(
+						FIELD_INTEGRADO_NOS_BRANCHES.equals(fieldName)
+						|| FIELD_FIX_VERSION.equals(fieldName)
 				)) {
 			boolean identificouCampo = false;
 			if(valueToUpdate instanceof List) {
@@ -1038,15 +1108,10 @@ public class JiraService {
 	}
 
 	@Cacheable(cacheNames = "issue-transition-properties")
-	public List<JiraIssueTransitionProperty> getIssueTransitionProperties(String issueKey, String transitionId){
-		List<JiraIssueTransitionProperty> properties = null;
+	public List<JiraProperty> getIssueTransitionProperties(String issueKey, String transitionId){
+		List<JiraProperty> properties = null;
 		try {
-			JiraWorkflow workflow = getIssueWorkflow(issueKey);
-			if(workflow != null && StringUtils.isNotBlank(workflow.getName())) {
-				properties = jiraClient.getTransitionProperties(transitionId, workflow.getName());
-			}else {
-				throw new Exception("Não encontrou o workflow da issue");
-			}
+			properties = jiraClient.getIssueTransitionProperties(issueKey, transitionId);
 		}catch (Exception e) {
 			String errorMesasge = "Erro ao recuperar as propriedades da transição: " + transitionId + " da issue: " + issueKey + " - erro: " + e.getLocalizedMessage();
 			logger.error(errorMesasge);
@@ -1056,11 +1121,47 @@ public class JiraService {
 		return properties;
 	}
 	
-	public JiraIssueTransitionProperty getIssueTransitionProperty(String issueKey, String transitionId, String propertyKey) {
-		JiraIssueTransitionProperty property = null;
-		List<JiraIssueTransitionProperty> issueProperties = getIssueTransitionProperties(issueKey, transitionId);
+	public JiraProperty getIssueTransitionProperty(String issueKey, String transitionId, String propertyKey) {
+		JiraProperty property = null;
+		List<JiraProperty> issueProperties = getIssueTransitionProperties(issueKey, transitionId);
 		if(issueProperties != null && !issueProperties.isEmpty()) {
-			for (JiraIssueTransitionProperty issueProperty : issueProperties) {
+			for (JiraProperty issueProperty : issueProperties) {
+				if(issueProperty.getKey().equalsIgnoreCase(propertyKey)) {
+					property = issueProperty;
+					break;
+				}
+			}
+		}
+		return property;
+	}
+
+	@Cacheable(cacheNames = "issue-status-properties")
+	public List<JiraProperty> getIssueStatusProperties(String issueKey, String statusId){
+		List<JiraProperty> properties = null;
+		try {
+			List<JiraProperty> probableProperties = jiraClient.getIssueStatusProperties(issueKey);
+			if(StringUtils.isNotBlank(statusId) && probableProperties != null && !probableProperties.isEmpty()) {
+				for (JiraProperty property : probableProperties) {
+					if(STEP_PROPERTY_STATUS_ID.equals(property.getKey())) {
+						properties = probableProperties;
+						break;
+					}
+				}
+			}
+		}catch (Exception e) {
+			String errorMesasge = "Erro ao recuperar as propriedades do status atual da issue: " + issueKey + " - erro: " + e.getLocalizedMessage();
+			logger.error(errorMesasge);
+			slackService.sendBotMessage(errorMesasge);
+			telegramService.sendBotMessage(errorMesasge);
+		}
+		return properties;
+	}
+	
+	public JiraProperty getIssueStatusProperty(String issueKey, String statusId, String propertyKey) {
+		JiraProperty property = null;
+		List<JiraProperty> issueProperties = getIssueStatusProperties(issueKey, statusId);
+		if(issueProperties != null && !issueProperties.isEmpty()) {
+			for (JiraProperty issueProperty : issueProperties) {
 				if(issueProperty.getKey().equalsIgnoreCase(propertyKey)) {
 					property = issueProperty;
 					break;
@@ -1324,7 +1425,16 @@ public class JiraService {
 	
 	@Cacheable
 	public JiraIssue recuperaIssue(String issueKey, Map<String, String> options) {
-		return jiraClient.getIssueDetails(issueKey, options);
+		JiraIssue issueDetails = null;
+		try {
+			issueDetails = jiraClient.getIssueDetails(issueKey, options);
+		}catch (Exception e) {
+			String errorMesasge = "Erro ao recuperar os detalhes da issue: " + issueKey + "erro: " + e.getLocalizedMessage();
+			logger.error(errorMesasge);
+			slackService.sendBotMessage(errorMesasge);
+			telegramService.sendBotMessage(errorMesasge);
+		}
+		return issueDetails;
 	}
 	
 	@Cacheable(cacheNames = "user-from-name")
@@ -1455,7 +1565,7 @@ public class JiraService {
 	}
 	
 	public void createVersionInRelatedProjects(String projectKey, String newVersion) {
-		List<String> relatedProjectKeys = getProjetosJiraRelacionados(projectKey);
+		List<String> relatedProjectKeys = getJiraRelatedProjects(projectKey);
 		if(relatedProjectKeys != null) {
 			for (String relatedProjectKey : relatedProjectKeys) {
 				String versionDescription = "Contempla as demandas relacionadas à versão: " + newVersion;
@@ -1471,7 +1581,7 @@ public class JiraService {
 	}
 	
 	public void releaseVersionInRelatedProjects(String projectKey, String actualVersion, String newVersion, String releaseDate, String versionDescription) {
-		List<String> relatedProjectKeys = getProjetosJiraRelacionados(projectKey);
+		List<String> relatedProjectKeys = getJiraRelatedProjects(projectKey);
 		if(relatedProjectKeys != null) {
 			for (String relatedProjectKey : relatedProjectKeys) {
 				// busca a versao, se ela não existir cria
@@ -1521,20 +1631,20 @@ public class JiraService {
 		return versionUpdated;
 	}
 	
-	public List<String> getProjetosJiraRelacionados(String projectKey){
+	public List<String> getJiraRelatedProjects(String projectKey){
 		List<String> projetosRelacionados = new ArrayList<>();
+		projetosRelacionados.add(projectKey);
 		if(projectKey != null) {
-			boolean encontrouRelacionados = false;
 			String projectKeyValue = getPropertyFromJiraProject(projectKey, PROJECT_PROPERTY_JIRA_RELATED_PROJECTS_KEYS);
 			if(StringUtils.isNotBlank(projectKeyValue)) {
 				String[] projectKeys = projectKeyValue.split(",");
 				if(projectKeys != null && projectKeys.length > 0) {
-					projetosRelacionados.addAll(Arrays.asList(projectKeys));
-					encontrouRelacionados = true;
+					for (String pKey : projectKeys) {
+						if(!projetosRelacionados.contains(pKey)) {
+							projetosRelacionados.add(pKey);
+						}
+					}
 				}
-			}
-			if(!encontrouRelacionados) {
-				projetosRelacionados.add(projectKey);
 			}
 		}
 		return projetosRelacionados;
@@ -1665,29 +1775,79 @@ public class JiraService {
 		return project;
 	}
 	
-	public JiraCustomField getSprintsDoGrupo(String searchItems, String onlyEnabled) {
-		return getCustomFieldDetailed(FIELD_SPRINT_DO_GRUPO, searchItems, onlyEnabled);
+	public JiraCustomField createSprintDoGrupoOption(String optionName) {
+		JiraCustomField sprintDoGrupo = getCustomFieldDetailed(FIELD_SPRINT_DO_GRUPO, optionName, Boolean.TRUE.toString());
+		return createCustomFieldOption(optionName, null, sprintDoGrupo);
+	}
+
+	public JiraCustomField createSubCategoriaEstruturaDocumentacao(String categoriaId, String nomeSubCategoria) {
+		JiraCustomField subCategorias = getCustomFieldDetailed(FIELD_ESTRUTURA_DOCUMENTACAO, nomeSubCategoria, Boolean.TRUE.toString());
+		return createCustomFieldOption(nomeSubCategoria, categoriaId, subCategorias); // TODO - alterar esta função para permitir consulta com cascading de opcoes
+	}
+
+	public JiraCustomField createCategoriaEstruturaDocumentacao(String nomeCategoria) {
+		JiraCustomField categorias = getCustomFieldDetailed(FIELD_ESTRUTURA_DOCUMENTACAO, nomeCategoria, Boolean.TRUE.toString());
+		return createCustomFieldOption(nomeCategoria, null, categorias);
 	}
 	
-	public void createSprintDoGrupoOption(String optionName) {
-		JiraCustomField sprintDoGrupo = getSprintsDoGrupo(optionName, Boolean.TRUE.toString());
-		if(sprintDoGrupo != null) {
+	/**
+	 * Caso tenha sido passado o parentOptionId, busca na lista de opcoes filhas desse opcao pai, caso contrário, busca la lista de pais
+	 * se não encontrar a opção, cadastra, se a nova opcao for uma subopcao, solicita update da opcao pai, caso contrário cadastra nova opcao pai
+	 * 
+	 * @param optionName
+	 * @param parentOptionId
+	 * @param customField
+	 * @return
+	 */
+	public JiraCustomField createCustomFieldOption(String optionName, String parentOptionId, JiraCustomField customField) {
+		JiraCustomField customFieldResponse = null;
+		JiraCustomFieldOption parentOption = null;
+		if(customField != null) {
 			boolean optionExists = false;
-			if(!sprintDoGrupo.getOptions().isEmpty()) {
-				for (JiraCustomFieldOption sprintOption : sprintDoGrupo.getOptions()) {
-					if(Utils.compareAsciiIgnoreCase(sprintOption.getValue(), optionName)) {
-						optionExists = true;
-						break;
+			if(!customField.getOptions().isEmpty()) {
+				for (JiraCustomFieldOption option : customField.getOptions()) {
+					if(StringUtils.isNotBlank(parentOptionId)) {
+						if(parentOptionId.equals(option.getId().toString()) && option.getCascadingOptions() != null) {
+							for (JiraCustomFieldOption childOption : option.getCascadingOptions()) {
+								if(Utils.compareAsciiIgnoreCase(childOption.getValue(), optionName)) {
+									optionExists = true;
+									break;
+								}
+							}
+							if(optionExists) {
+								break;
+							}
+							parentOption = option;
+						}
+					}else {
+						if(Utils.compareAsciiIgnoreCase(option.getValue(), optionName)) {
+							optionExists = true;
+							break;
+						}
 					}
 				}
 			}
 			if(!optionExists) {
 				JiraCustomFieldOption newOption = new JiraCustomFieldOption();
 				newOption.setValue(optionName);
+				if(parentOption != null) {
+					List<JiraCustomFieldOption> childrenOptions = parentOption.getCascadingOptions();
+					if(childrenOptions == null) {
+						childrenOptions = new ArrayList<>();
+					}
+					childrenOptions.add(newOption);
+					parentOption.setCascadingOptions(childrenOptions);
 
-				JiraCustomFieldOptionsRequest optionsRequest = new JiraCustomFieldOptionsRequest(newOption);
-				jiraClient.addCustomFieldOptions(sprintDoGrupo.getId().toString(), optionsRequest);
+					JiraCustomFieldOptionsRequest optionsRequest = new JiraCustomFieldOptionsRequest(parentOption);
+					customFieldResponse = jiraClient.updateCustomFieldOption(customField.getId().toString(), parentOption.getId().toString(), optionsRequest);
+
+				}else {
+					JiraCustomFieldOptionsRequest optionsRequest = new JiraCustomFieldOptionsRequest(newOption);
+					customFieldResponse = jiraClient.addCustomFieldOptions(customField.getId().toString(), optionsRequest);
+				}
 			}
 		}
+		return customFieldResponse;
 	}
+
 }

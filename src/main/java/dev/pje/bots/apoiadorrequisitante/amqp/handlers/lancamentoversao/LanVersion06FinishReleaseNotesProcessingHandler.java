@@ -67,9 +67,6 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 	@Autowired
 	private NewVersionReleasedSimpleCallTextModel newVersionSimpleCallModel;
 
-	private static final String TRANSITION_ID_IMPEDIMENTO = "191"; // TODO buscar por propriedade da transicao
-	private static final String TRANSITION_ID_FINALIZAR_PROCESSAMENTO_PUBLICACAO_RELEASE_NOTES = "201"; // TODO buscar por propriedade da transicao
-
 	/**
 	 * :: Finalizar versao ::
 	 *    Tenta recuperar o release notes do arquivo anexado à issue
@@ -148,7 +145,7 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 								jiraService.criarNovoLink(issue, issueDocumentacao.getKey(), 
 										JiraService.ISSUELINKTYPE_DOCUMENTATION_ID.toString(), JiraService.ISSUELINKTYPE_DOCUMENTATION_OUTWARDNAME, false, updateFields);
 								if(updateFields != null && !updateFields.isEmpty()) {
-									enviarAlteracaoJira(issue, updateFields, null);
+									enviarAlteracaoJira(issue, updateFields, null, false, false);
 								}
 							}
 
@@ -176,7 +173,15 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 							}
 							if(!messages.hasSomeError()) {
 								// comunicar o lançamento da versão
-								comunicarLancamentoVersao(releaseNotes);
+								Boolean comunicarLancamentoVersao = false;
+								if(issue.getFields().getComunicarLancamentoVersao() != null 
+										&& !issue.getFields().getComunicarLancamentoVersao().isEmpty()) {
+									
+									if(issue.getFields().getComunicarLancamentoVersao().get(0).getValue().equalsIgnoreCase("Sim")) {
+										comunicarLancamentoVersao = true;
+									}
+								}
+								comunicarLancamentoVersao(releaseNotes, comunicarLancamentoVersao);
 								
 								// indica a data de lançamento da versão atual no jira, atualizando o número da versão também se necessário
 								jiraService.releaseVersionInRelatedProjects(
@@ -184,22 +189,35 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 											versaoAfetada, 
 											releaseNotes.getVersion(), 
 											dataReleaseNotesStr, "Alterações da versão: " + releaseNotes.getVersion());
-								// cria a nova versao nos projetos associado no jira
-								String projectKey = issue.getFields().getProject().getKey();
-								jiraService.createVersionInRelatedProjects(issue.getFields().getProject().getKey(), releaseNotes.getNextVersion());
 
-								// criar nova issue de lancamento de versão para a próxima versão
-								JiraIssuetype issueType = issue.getFields().getIssuetype();
-								JiraIssue issueProximaVersao = criarIssueLancamentoVersao(projectKey, issueType, releaseNotes);
-								if(issueProximaVersao != null) {
-									// add link issue anterior
-									Map<String, Object> updateFields = new HashMap<>();
-
-									jiraService.criarNovoLink(issue, issueProximaVersao.getKey(), 
-											JiraService.ISSUELINKTYPE_RELATES_ID.toString(), JiraService.ISSUELINKTYPE_RELATES_OUTWARDNAME, false, updateFields);
+								// verifia se foi solicitada a inicializacao da próxima versão indicada
+								Boolean iniciarProximaVersaoAutomaticamente = false;
+								if(issue.getFields().getIniciarProximaVersaoAutomaticamente() != null 
+										&& !issue.getFields().getIniciarProximaVersaoAutomaticamente().isEmpty()) {
 									
-									if(updateFields != null && !updateFields.isEmpty()) {
-										enviarAlteracaoJira(issue, updateFields, null);
+									if(issue.getFields().getIniciarProximaVersaoAutomaticamente().get(0).getValue().equalsIgnoreCase("Sim")) {
+										iniciarProximaVersaoAutomaticamente = true;
+										messages.info("Iniciando a issue da próxima versão: " + releaseNotes.getNextVersion() + " automaticamente como solicitado.");
+									}
+								}
+								if(iniciarProximaVersaoAutomaticamente) {
+									// cria a nova versao nos projetos associados no jira
+									String projectKey = issue.getFields().getProject().getKey();
+									jiraService.createVersionInRelatedProjects(issue.getFields().getProject().getKey(), releaseNotes.getNextVersion());
+									
+									// criar nova issue de lancamento de versão para a próxima versão
+									JiraIssuetype issueType = issue.getFields().getIssuetype();
+									JiraIssue issueProximaVersao = criarIssueLancamentoVersao(projectKey, issueType, releaseNotes);
+									if(issueProximaVersao != null) {
+										// add link issue anterior
+										Map<String, Object> updateFields = new HashMap<>();
+										
+										jiraService.criarNovoLink(issue, issueProximaVersao.getKey(), 
+												JiraService.ISSUELINKTYPE_RELATES_ID.toString(), JiraService.ISSUELINKTYPE_RELATES_OUTWARDNAME, false, updateFields);
+										
+										if(updateFields != null && !updateFields.isEmpty()) {
+											enviarAlteracaoJira(issue, updateFields, null, false, false);
+										}
 									}
 								}
 							}
@@ -216,7 +234,7 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 				if(messages.hasSomeError()) {
 					// tramita para o impedmento, enviando as mensagens nos comentários
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_IMPEDIMENTO);
+					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 				}else {
 					// tramita automaticamente, enviando as mensagens nos comentários
 					// atualiza o anexo com o backup do relase em json
@@ -235,22 +253,27 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 					jiraService.atualizarURLPublicacao(issue, releaseNotes.getUrl(), updateFields);
 					
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_FINALIZAR_PROCESSAMENTO_PUBLICACAO_RELEASE_NOTES);
+					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_FINALIZAR_DEMANDA, true, true);
 				}
 			}
 		}
 	}
 	
-	private void comunicarLancamentoVersao(VersionReleaseNotes releaseNotes) {
+	private void comunicarLancamentoVersao(VersionReleaseNotes releaseNotes, Boolean comunicarCanaisOficiais) {
 		TelegramMarkdownHtml telegramMarkdown = new TelegramMarkdownHtml();
 		
 		newVersionReleasedNewsModel.setReleaseNotes(releaseNotes);
 		String versionReleasedNews = newVersionReleasedNewsModel.convert(telegramMarkdown);
-		telegramService.sendBotMessageHtml(versionReleasedNews);// FIXME = encaminhar para o canal correto
+		telegramService.sendBotMessageHtml(versionReleasedNews);
+		
 		
 		newVersionSimpleCallModel.setReleaseNotes(releaseNotes);
 		String versionReleasedSimpleCall = newVersionSimpleCallModel.convert(telegramMarkdown); // FIXME - criar o markdown para rocketchat + slack
 		slackService.sendBotMessage(versionReleasedSimpleCall);
+		
+		if(comunicarCanaisOficiais) {
+			telegramService.sendOficialChannelMessageHtml(versionReleasedNews);
+		}
 		
 		// TODO criar service e client para o rocketchat
 	}
@@ -401,7 +424,7 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 		boolean tagReleaseCreated = false;
 
 		GitlabTag tag = gitlabService.getVersionTag(gitlabProjectId, tagName);
-		if (tag != null && tag.getCommit() != null) {
+		if (tag != null && tag.getCommit() != null && tag.getRelease() != null) {
 			tagReleaseCreated = StringUtils.isNotBlank(tag.getRelease().getDescription());
 		}
 		

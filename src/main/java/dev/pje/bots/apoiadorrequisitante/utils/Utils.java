@@ -2,6 +2,7 @@ package dev.pje.bots.apoiadorrequisitante.utils;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -18,9 +19,21 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathFactory;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.util.UriUtils;
+import org.w3c.dom.CharacterData;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
 
 import com.devplatform.model.bot.VersionReleaseNotes;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -214,7 +227,7 @@ public class Utils {
 
 	public static String urlEncode(String text) throws UnsupportedEncodingException {
 		String urlEncoded = null;
-		if(StringUtils.isNotBlank(text)) {
+		if(StringUtils.isNotEmpty(text)) {
 			String[] paths = text.split("/");
 			List<String> pathsList = new ArrayList<>();
 			if(paths != null && paths.length > 0) {
@@ -365,6 +378,45 @@ public class Utils {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public static String getElementFromXML(String xml, String tagPath) {
+		String elementValue = "";
+		try {
+	        DocumentBuilderFactory dbf =
+	            DocumentBuilderFactory.newInstance();
+	        DocumentBuilder db = dbf.newDocumentBuilder();
+	        InputSource is = new InputSource();
+	        is.setCharacterStream(new StringReader(xml));
+	
+	        Document doc = db.parse(is);
+	        
+	        XPathFactory xpathFactory = XPathFactory.newInstance();
+	        XPath xpath = xpathFactory.newXPath();
+	        
+	        if(StringUtils.isNotBlank(tagPath)) {
+	        	NodeList nodeList = (NodeList) xpath.evaluate(tagPath, doc,
+	        			XPathConstants.NODESET);	        	
+
+	        	if(nodeList.getLength() > 0) {
+	        		Element line = (Element) nodeList.item(0);
+	        		elementValue = getCharacterDataFromElement(line);	        	
+	        	}
+	        }
+	    }
+	    catch (Exception e) {
+	        e.printStackTrace();
+	    }
+		return elementValue;
+	}
+	
+	public static String getCharacterDataFromElement(Element e) {
+		Node child = e.getFirstChild();
+		if (child instanceof CharacterData) {
+			CharacterData cd = (CharacterData) child;
+			return cd.getData();
+		}
+		return "?";
 	}
 }
 	

@@ -22,22 +22,29 @@ spring:
         concurrency: ${RABBIT_CONCURRENCY:3}
         max-concurrency: ${RABBIT_MAX_CONCURRENCY:10}
     template:
-      default-receive-queue: ${RABBIT_QUEUE:apoiador-requisitante.queue}
+      default-receive-queue: ${RABBIT_QUEUE:jira02-apoiador-requisitante.queue}
       exchange: ${RABBIT_EXCHANGE:dev-platform.exchange}
       custom:
         # TODO - migrar esta queue para um novo servico separado deste daqui - pre-requisito: o clientejira deve estar separado em um servico fora deste aqui
-        classification-queue: 
-          name: ${RABBIT_SUPEREPICTHEME_QUEUE:super-epic-theme.queue}
-          auto-startup: ${RABBIT_SUPEREPICTHEME_QUEUE_AUTOSTARTUP:false}
+        jira02-classification-queue: 
+          name: ${RABBIT_JIRA01_SUPEREPICTHEME_QUEUE:jira01-super-epic-theme.queue}
+          auto-startup: ${RABBIT_JIRA01_SUPEREPICTHEME_QUEUE_AUTOSTARTUP:false}
+        jira03-resposta-demandante:
+          name: ${RABBIT_JIRA03_RESPOSTA_DEMANDANTE_QUEUE:jira03-resposta-demandante.queue}
+          auto-startup: ${RABBIT_JIRA03_RESPOSTA_DEMANDANTE_QUEUE_AUTOSTARTUP:false}
+
         commit-script-queue:
-          name: ${RABBIT_COMMIT_SCRIPT_QUEUE:commit-script.queue}
+          name: ${RABBIT_COMMIT_SCRIPT_QUEUE:gitlab01-commit-script.queue}
           auto-startup: ${RABBIT_COMMIT_SCRIPT_QUEUE_AUTOSTARTUP:false}
-        gitflow-queue: 
-          name: ${RABBIT_GITFLOW_QUEUE:gitflow-queue}
+        gitflow-queue:
+          name: ${RABBIT_GITFLOW_QUEUE:gitlab02-gitflow-queue}
           auto-startup: ${RABBIT_GITFLOW_QUEUE_AUTOSTARTUP:false}
-        gitlab-merge-request-updated:
-          name: ${RABBIT_GITLAB_MERGE_REQUEST_UPDATED_QUEUE:gitlab-merge-request-updated-queue}
-          auto-startup: ${RABBIT_GITLAB_MERGE_REQUEST_UPDATED_QUEUE_AUTOSTARTUP:false}
+        gitlab03-merge-request-updated:
+          name: ${RABBIT_GITLAB03_MERGE_REQUEST_UPDATED_QUEUE:gitlab03-merge-request-updated-queue}
+          auto-startup: ${RABBIT_GITLAB03_MERGE_REQUEST_UPDATED_QUEUE_AUTOSTARTUP:false}
+        gitlab04-tag-pushed:
+          name: ${RABBIT_GITLAB04_TAG_PUSHED_QUEUE:gitlab04-tag-pushed-queue}
+          auto-startup: ${RABBIT_GITLAB04_TAG_PUSHED_QUEUE_AUTOSTARTUP:false}
           
         lanver01-triage-queue:
           name: ${RABBIT_LANVER01_TRIAGE_QUEUE:lanver01-triage-queue}
@@ -78,6 +85,14 @@ spring:
           name: ${RABBIT_DOCUMENTATION03_CHECK_AUTOMATIC_MERGE_QUEUE:documentation03-check-automatic-merge-queue}
           auto-startup: ${RABBIT_DOCUMENTATION03_CHECK_AUTOMATIC_MERGE_AUTOSTARTUP:false}
           routing-key-updated: ${RABBIT_DOCUMENTATION03_CHECK_AUTOMATIC_MERGE_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.*.10480.PJEDOC.#}
+        documentation04-manual-merge:
+          name: ${RABBIT_DOCUMENTATION04_MANUAL_MERGE_QUEUE:documentation04-manual-merge-queue}
+          auto-startup: ${RABBIT_DOCUMENTATION04_MANUAL_MERGE_AUTOSTARTUP:false}
+          routing-key-updated: ${RABBIT_DOCUMENTATION04_MANUAL_MERGE_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.*.10043.PJEDOC.#}
+        documentation05-finish-homologation:
+          name: ${RABBIT_DOCUMENTATION05_FINISH_HOMOLOGATION_QUEUE:documentation05-finish-homologation-queue}
+          auto-startup: ${RABBIT_DOCUMENTATION05_FINISH_HOMOLOGATION_AUTOSTARTUP:false}
+          routing-key-updated: ${RABBIT_DOCUMENTATION05_FINISH_HOMOLOGATION_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.*.10054.PJEDOC.#}
           
           
         jira:
@@ -85,6 +100,13 @@ spring:
             routing-key: ${RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_CREATED.#}
           issue-updated:
             routing-key: ${RABBIT_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.#}
+          issue-commented:
+            routing-key: ${RABBIT_JIRA_ISSUE_COMMENTED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_COMMENTED.#}
+          issue-comment-edited:
+            routing-key: ${RABBIT_JIRA_ISSUE_COMMENT_EDITED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_COMMENT_EDITED.#}
+          issue-generic:
+            routing-key: ${RABBIT_JIRA_ISSUE_GENERIC_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_GENERIC.#}
+
         gitlab:
           push:
             routing-key: ${RABBIT_GITLAB_PUSH_ROUTINGKEY_PREFIX:dev-platform.gitlab.PUSH}
@@ -119,3 +141,4 @@ project:
     name: ${PROJECT_TELEGRAM_CHANNEL_NAME:my-telegram-channel-name}
     url: ${PROJECT_TELEGRAM_CHANNEL_URL:my-telegram-channel-url}
     triage-bot-id: ${PROJECT_TELEGRAM_TRIAGE_BOT_CHANNEL_ID:my-telegram-triage-bot-channel-id}
+    oficial-id: ${PROJECT_TELEGRAM_OFICIAL_CHANNEL_ID:my-telegram-oficial-channel-id}

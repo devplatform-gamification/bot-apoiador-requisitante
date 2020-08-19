@@ -127,7 +127,7 @@ public class Documentation01TriageHandler extends Handler<JiraEventIssue>{
 												jiraService.criarNovoLink(issue, issueDuplicada.getKey(), 
 														JiraService.ISSUELINKTYPE_DUPLICATES_ID.toString(), JiraService.ISSUELINKTYPE_DUPLICATES_OUTWARDNAME, false, updateFields);
 												if(updateFields != null && !updateFields.isEmpty()) {
-													enviarAlteracaoJira(issue, updateFields, null);
+													enviarAlteracaoJira(issue, updateFields, null, false, false);
 												}
 											}
 										}
@@ -188,7 +188,7 @@ public class Documentation01TriageHandler extends Handler<JiraEventIssue>{
 						// indica que há pendências - encaminha ao demandante
 						Map<String, Object> updateFields = new HashMap<>();
 						jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
-						enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_INDICAR_PENDENCIAS);
+						enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_INDICAR_PENDENCIAS, true, true);
 					}else {
 						// tramita automaticamente, enviando as mensagens nos comentários
 						Map<String, Object> updateFields = new HashMap<>();
@@ -196,10 +196,8 @@ public class Documentation01TriageHandler extends Handler<JiraEventIssue>{
 						if(!publicarDocumentacaoAutomaticamente) {
 							jiraService.removerPublicarDocumentacaoAutomaticamente(issue, updateFields);
 						}
-											
 						jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
-
-						enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_CONFIRMAR_TRIAGEM);
+						enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_CONFIRMAR_TRIAGEM, true, true);
 					}
 				}		
 			}

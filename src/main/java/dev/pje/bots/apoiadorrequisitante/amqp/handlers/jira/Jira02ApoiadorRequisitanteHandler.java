@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers;
+package dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,9 +21,9 @@ import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.services.TelegramService;
 
 @Component
-public class JiraIssueCheckApoiadorRequisitanteEventHandler {
+public class Jira02ApoiadorRequisitanteHandler {
 	
-	private static final Logger logger = LoggerFactory.getLogger(JiraIssueCheckApoiadorRequisitanteEventHandler.class);
+	private static final Logger logger = LoggerFactory.getLogger(Jira02ApoiadorRequisitanteHandler.class);
 
 	@Autowired
 	private JiraService jiraService;
@@ -32,7 +32,7 @@ public class JiraIssueCheckApoiadorRequisitanteEventHandler {
 	private TelegramService telegramService;
 
 	public void handle(JiraEventIssue jiraEventIssue) {
-		telegramService.sendBotMessage("[REQUISITANTE][JIRA] - " + jiraEventIssue.getIssue().getKey() + " - " + jiraEventIssue.getIssueEventTypeName().name());
+		telegramService.sendBotMessage("|JIRA||02||REQUISITANTE| - " + jiraEventIssue.getIssue().getKey() + " - " + jiraEventIssue.getIssueEventTypeName().name());
 		JiraUser reporter = jiraService.getIssueReporter(jiraEventIssue.getIssue());
 		String tribunalUsuario = jiraService.getTribunalUsuario(reporter);
 		adicionarTribunalRequisitanteDemanda(
@@ -68,17 +68,17 @@ public class JiraIssueCheckApoiadorRequisitanteEventHandler {
 						textoInclusao = "Incluindo " + linkTribunal +" como requisitante desta demanda de acordo com a participação de: [~" + usuario.getName() + "]";
 					}
 					jiraService.adicionarComentario(issue,textoInclusao, updateFields);
-					JiraIssueTransition edicaoAvancada = jiraService.findTransitionByName(issue, JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA);
+					JiraIssueTransition edicaoAvancada = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA);
 					if(edicaoAvancada != null) {
 						JiraIssueCreateAndUpdate jiraIssueCreateAndUpdate = new JiraIssueCreateAndUpdate();
 						jiraIssueCreateAndUpdate.setTransition(edicaoAvancada);
 						jiraIssueCreateAndUpdate.setUpdate(updateFields);
 
 						jiraService.updateIssue(issue, jiraIssueCreateAndUpdate);
-						telegramService.sendBotMessage("[REQUISITANTE][" + issue.getKey() + "] Issue atualizada");
+						telegramService.sendBotMessage("|JIRA||02||REQUISITANTE|[" + issue.getKey() + "] Issue atualizada");
 						logger.info("Issue atualizada");
 					}else {
-						telegramService.sendBotMessage("*[REQUISITANTE][" + issue.getKey() + "] Erro!!* \n Não há transição para realizar esta alteração");
+						telegramService.sendBotMessage("*|JIRA||02||REQUISITANTE|[" + issue.getKey() + "] Erro!!* \n Não há transição para realizar esta alteração");
 						logger.error("Não há transição para realizar esta alteração");
 					}
 				}

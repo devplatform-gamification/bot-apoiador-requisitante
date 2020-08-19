@@ -39,9 +39,6 @@ public class LanVersion03PrepareNextVersionHandler extends Handler<JiraEventIssu
 		return MessagesLogger.LOGLEVEL_INFO;
 	}
 	
-	private static final String TRANSITION_ID_IMPEDIMENTO = "221"; // TODO buscar por propriedade da transicao
-	private static final String TRANSITION_ID_FINALIZAR_PREPARACAO_PROXIMA_VERSAO = "231"; // TODO buscar por propriedade da transicao
-		
 	/**
 	 * :: Preparacao para a proxima versao ::
 	 *   Alterar o POM.XML do branch develop para a próxima versão 
@@ -135,13 +132,13 @@ public class LanVersion03PrepareNextVersionHandler extends Handler<JiraEventIssu
 					// tramita para o impedmento, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_IMPEDIMENTO);
+					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 				}else {
 					// tramita automaticamente, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.atualizarProximaVersao(issue, proximaVersao, updateFields);
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_FINALIZAR_PREPARACAO_PROXIMA_VERSAO);
+					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_SAIDA_PADRAO, true, true);
 				}
 			}
 		}

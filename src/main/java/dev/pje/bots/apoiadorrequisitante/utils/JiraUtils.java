@@ -50,9 +50,7 @@ public class JiraUtils {
 		String versaoAfetada = null;
 		if(versions != null && versions.size() == 1){
 			JiraVersion version = versions.get(0);
-			if(!version.getArchived() && !version.getReleased()){
-				versaoAfetada = version.getName();
-			}
+			versaoAfetada = version.getName();
 		}
 		return versaoAfetada;
 	}

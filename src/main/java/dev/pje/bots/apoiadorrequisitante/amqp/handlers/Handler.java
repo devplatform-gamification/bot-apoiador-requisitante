@@ -23,7 +23,7 @@ import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 public abstract class Handler<E> {
 
 	abstract protected Logger getLogger();
-	
+
 	abstract public String getMessagePrefix();
 
 	abstract public int getLogLevel();
@@ -41,7 +41,7 @@ public abstract class Handler<E> {
 	protected SlackService slackService;
 
 	protected MessagesLogger messages;
-	
+
 	@PostConstruct
 	public void init() {
 		messages = new MessagesLogger();
@@ -49,23 +49,55 @@ public abstract class Handler<E> {
 		messages.setMessagePrefix(getMessagePrefix());
 		messages.setLogLevel(getLogLevel());
 	}
-	
+
 	public abstract void handle(E event) throws Exception;
-	
-	protected void enviarAlteracaoJira(JiraIssue issue, Map<String, Object> updateFields, String transictionId) throws Exception{
+
+	/**
+	 * 
+	 * @param issue
+	 * @param updateFields
+	 * @param transictionIdOrNameOrPropertyKey - nome, id ou propriedade da transição
+	 * @param usarEdicaoAvancada - se nào enccontrar a transição, tenta encontrar a transição de "Edição avançada"
+	 * @param enviarComentario - se não enontrar nenhuma transição, envia as informações como um comentário
+	 * @throws Exception
+	 */
+	protected void enviarAlteracaoJira(JiraIssue issue, Map<String, Object> updateFields, String transictionIdOrNameOrPropertyKey, 
+			boolean usarEdicaoAvancada, boolean enviarComentario) throws Exception{
+
+		JiraIssueTransition transition = null;
+		JiraIssueCreateAndUpdate jiraIssueCreateAndUpdate = new JiraIssueCreateAndUpdate();
 		if(!updateFields.isEmpty()) {
-			JiraIssueCreateAndUpdate jiraIssueCreateAndUpdate = new JiraIssueCreateAndUpdate();
 			jiraIssueCreateAndUpdate.setUpdate(updateFields);
-			
-			if(StringUtils.isNotBlank(transictionId)) {
-				JiraIssueTransition transition = jiraService.findTransitionById(issue, transictionId);
-				if(transition != null) {
-					jiraIssueCreateAndUpdate.setTransition(transition);
+		}
+
+		if(StringUtils.isNotBlank(transictionIdOrNameOrPropertyKey)) {
+			transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, transictionIdOrNameOrPropertyKey);
+			if(transition == null && usarEdicaoAvancada) {
+				messages.info("Não foi identificada uma saída padrão desta issue. ");
+				messages.info("Buscando transição '" + JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA + "'");
+				transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA);
+			}
+			if(transition == null) {
+				if(enviarComentario) {
+					messages.info("Não foi identificada uma transição válida para registro da nova informação, os dados relacionados"
+							+ " serão registrados na issue como comentário.");
 				}else {
-					messages.error("Não há transição para realizar esta alteração: " + transictionId);
+					messages.error("Não há transição para realizar esta alteração: " + transictionIdOrNameOrPropertyKey);
 				}
 			}
-			messages.debug("update string: " + Utils.convertObjectToJson(jiraIssueCreateAndUpdate));
+			if(transition != null) {
+				jiraIssueCreateAndUpdate.setTransition(transition);
+			}
+		}
+		if(transition == null && enviarComentario) {
+			String comment = updateFields.toString();
+			if(StringUtils.isNotBlank(comment)) {
+				jiraService.sendTextAsComment(issue, comment);									
+			}
+		}else {
+			String msg = "update string: " + Utils.convertObjectToJson(jiraIssueCreateAndUpdate);
+			messages.debug(msg);
+			getLogger().info(msg);
 			jiraService.updateIssue(issue, jiraIssueCreateAndUpdate);
 			messages.info("Issue atualizada");
 		}
@@ -77,7 +109,9 @@ public abstract class Handler<E> {
 			JiraIssueCreateAndUpdate jiraIssueCreateAndUpdate = new JiraIssueCreateAndUpdate();
 			jiraIssueCreateAndUpdate.setFields(createFields);
 			jiraIssueCreateAndUpdate.setUpdate(updateFields);
-			messages.debug("create issue string: " + Utils.convertObjectToJson(jiraIssueCreateAndUpdate));
+			String msg = "create issue string: " + Utils.convertObjectToJson(jiraIssueCreateAndUpdate);
+			messages.debug(msg);
+			getLogger().info(msg);
 			issue = jiraService.createIssue(jiraIssueCreateAndUpdate);
 		}
 		if(issue != null) {

@@ -49,9 +49,6 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 		return MessagesLogger.LOGLEVEL_INFO;
 	}
 
-	private static final String TRANSITION_ID_INDICAR_IMPEDIMENTO = "41"; // TODO buscar por propriedade da transicao
-	private static final String TRANSITION_ID_ENVIAR_PARA_HOMOLOGACAO = "31"; // TODO buscar por propriedade da transicao
-		
 	/**
 	 * Criar documentacao relacionada à issue
 	 * ok 1. obtem os dados da estrutura de documentacao
@@ -310,7 +307,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 						// indica que há pendências - encaminha ao demandante
 						Map<String, Object> updateFields = new HashMap<>();
 						jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
-						enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_INDICAR_IMPEDIMENTO);
+						enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 					}else {
 						// tramita automaticamente, enviando as mensagens nos comentários
 						Map<String, Object> updateFields = new HashMap<>();
@@ -323,7 +320,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 						
 						jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
 						
-						enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_ENVIAR_PARA_HOMOLOGACAO);
+						enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_SOLICITAR_HOMOLOGACAO, true, true);
 					}
 				}
 				

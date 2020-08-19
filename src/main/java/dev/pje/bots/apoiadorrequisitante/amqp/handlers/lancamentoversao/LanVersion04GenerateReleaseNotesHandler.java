@@ -51,9 +51,6 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 	
 	@Autowired
 	private ReleaseNotesTextModel releaseNotesModel;
-	
-	private static final String TRANSITION_ID_IMPEDIMENTO = "151"; // TODO buscar por propriedade da transicao
-	private static final String TRANSITION_ID_SOLICITAR_CONFIRMACAO_RELEASE_NOTES = "141"; // TODO buscar por propriedade da transicao
 
 	/**
 	 * :: Gerando release notes ::
@@ -114,7 +111,7 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 
 						}
 						// busca as issues cujo "fixversion" = "versão afetada" e gera um release notes
-						String jql = jiraService.getJqlIssuesFromFixVersion(versaoAfetada, true, null);
+						String jql = jiraService.getJqlIssuesFromFixVersion(versaoAfetada, true, new ArrayList<>());
 						List<JiraIssue> issues = jiraService.getIssuesFromJql(jql);
 						if(issues != null && issues.size() > 0){
 							VersionReleaseNotes releaseNotes = new VersionReleaseNotes();
@@ -201,13 +198,13 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 					// tramita para o impedmento, enviando as mensagens nos comentários
 					Map<String, Object> updateFieldsErrors = new HashMap<>();
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFieldsErrors);
-					enviarAlteracaoJira(issue, updateFieldsErrors, TRANSITION_ID_IMPEDIMENTO);
+					enviarAlteracaoJira(issue, updateFieldsErrors, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 				}else {
 					// tramita automaticamente, enviando as mensagens nos comentários
 					jiraService.atualizarVersaoASerLancada(issue, versaoASerLancada, updateFields);
 					jiraService.atualizarProximaVersao(issue, proximaVersao, updateFields);
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_SOLICITAR_CONFIRMACAO_RELEASE_NOTES);
+					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_SOLICITAR_HOMOLOGACAO, true, true);
 				}
 			}
 		}

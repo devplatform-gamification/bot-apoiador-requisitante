@@ -38,8 +38,7 @@ public class LanVersion01TriageHandler extends Handler<JiraEventIssue>{
 		return MessagesLogger.LOGLEVEL_INFO;
 	}
 
-	private static final String TRANSITION_ID_FECHAR = "21"; // TODO buscar por propriedade da transicao
-	private static final String TRANSITION_ID_GERAR_RELEASE_CANDIDATE = "11"; // TODO buscar por propriedade da transicao
+	private static final String TRANSITION_PROPERTY_KEY_GERAR_RELEASE_CANDIDATE = "GERAR_RELEASE_CANDIDATE";
 		
 	/**
 	 * Este handler verifica:
@@ -98,24 +97,23 @@ public class LanVersion01TriageHandler extends Handler<JiraEventIssue>{
 							}
 						}
 					}else {
-						messages.error("O usuário [~" + jiraEventIssue.getUser().getDisplayName() + "] não tem permissão para criar esta issue.");
+						messages.error("Não foi identificada uma versão afetada, ou há mais de uma indicação.");
 					}
 				}else {
-					messages.error("Não foi identificada uma versão afetada, ou há mais de uma indicação.");
+					messages.error("O usuário [~" + jiraEventIssue.getUser().getName() + "] não tem permissão para criar esta issue.");
 				}
 									
 				if(messages.hasSomeError()) {
 					// tramita para o encerramento, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_FECHAR);
-
+					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_FINALIZAR_DEMANDA, true, true);
 				}else if(gerarAutomaticamente) {
 					// tramita automaticamente, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.atualizarVersaoASerLancada(issue, versaoASerLancada, updateFields);
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, TRANSITION_ID_GERAR_RELEASE_CANDIDATE);
+					enviarAlteracaoJira(issue, updateFields, TRANSITION_PROPERTY_KEY_GERAR_RELEASE_CANDIDATE, true, true);
 				}else if(versaoJaLancada) {
 					jiraService.sendTextAsComment(issue, messages.getMessagesToJira());
 				}
