@@ -78,8 +78,7 @@ public class LanVersion03PrepareNextVersionHandler extends Handler<JiraEventIssu
 
 				if(StringUtils.isNotBlank(versaoASerLancada)) {
 					if(StringUtils.isBlank(proximaVersao)){
-						// calcula com base no incremento de 1 dígito do terceiro número da "versão a ser lançada"
-						proximaVersao = Utils.calculateNextOrdinaryVersion(versaoASerLancada, 2);
+						proximaVersao = jiraService.calulateNextVersionNumber(issue.getFields().getProject().getKey(), versaoASerLancada);
 					}
 
 					String versaoAtual = gitlabService.getActualVersion(gitlabProjectId, branchDesenvolvimento, false);

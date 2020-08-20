@@ -105,8 +105,7 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 								messages.info("A tag: " + versaoASerLancada + " já foi lançada em: " + dataLancamentoVersao);
 							}
 							if(StringUtils.isBlank(proximaVersao)){
-								// calcula com base no incremento de 1 dígito do terceiro número da "versão a ser lançada"
-								proximaVersao = Utils.calculateNextOrdinaryVersion(versaoASerLancada, 2);
+								proximaVersao = jiraService.calulateNextVersionNumber(issue.getFields().getProject().getKey(), versaoASerLancada);
 							}
 
 						}
@@ -134,6 +133,9 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 							}
 							if(issue.getFields().getTipoVersao() != null && issue.getFields().getTipoVersao().getValue() != null){
 								releaseNotes.setVersionType(issue.getFields().getTipoVersao().getValue());
+							}
+							if(StringUtils.isNotBlank(issue.getFields().getUrlPublicacaoDocumentacao())) {
+								releaseNotes.setUrl(issue.getFields().getUrlPublicacaoDocumentacao());
 							}
 							List<VersionReleaseNoteIssues> newFeatures = new ArrayList<>();
 							List<VersionReleaseNoteIssues> improvements = new ArrayList<>();

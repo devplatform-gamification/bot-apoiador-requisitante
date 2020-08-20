@@ -11,6 +11,7 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.devplatform.model.gitlab.response.GitlabBranchResponse;
@@ -48,6 +49,9 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 	public int getLogLevel() {
 		return MessagesLogger.LOGLEVEL_INFO;
 	}
+
+	@Value("${project.documentation.url}")
+	private String DOCSURL;
 
 	/**
 	 * Criar documentacao relacionada à issue
@@ -264,7 +268,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 												versaoASerLancada, pathReleaseNotesLista);
 									}
 									if(!messages.hasSomeError()) {
-										String serverAddressTemplate = "https://SERVER-ADDRESS.COM.BR/";
+										String serverAddressTemplate = DOCSURL;
 										documentationURL = createDocumentationLink(serverAddressTemplate, documentoPrincipalNomeHtml, Utils.getPathFromFilePath(adocFilePath));
 									}
 									if(!messages.hasSomeError()) {

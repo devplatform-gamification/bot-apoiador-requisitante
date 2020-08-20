@@ -166,9 +166,9 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 								String releaseText = releaseNotesModel.convert(gitlabMarkdown);
 								GitlabTagRelease tagReleaseResponse = gitlabService.createTagRelease(releaseNotes.getGitlabProjectId(), releaseNotes.getVersion(), releaseText);
 								if(tagReleaseResponse != null) {
-									messages.info("Criada a release da tag do projeto: " + releaseNotes.getProject());
+									messages.info("Criada o documento de release da tag do projeto: " + releaseNotes.getProject());
 								}else {
-									messages.error("Erro ao criar release da tag do projeto: " + releaseNotes.getProject());
+									messages.error("Erro ao criar o documento de release da tag do projeto: " + releaseNotes.getProject());
 								}
 							}
 							if(!messages.hasSomeError()) {

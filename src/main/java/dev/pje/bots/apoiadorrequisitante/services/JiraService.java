@@ -169,6 +169,7 @@ public class JiraService {
 	public static final String PROJECT_PROPERTY_GITLAB_PROJECT_ID = "git.project.id";
 	public static final String PROJECT_PROPERTY_JIRA_RELATED_PROJECTS_KEYS = "jira-related-projects.keys";
 	public static final String PROJECT_PROPERTY_DOCUMENTATION_FIELDVALUE_DOC_STRUCTURE = "fieldvalue.estrutura-documentacao.id";
+	public static final String PROJECT_PROPERTY_DOCUMENTATION_RELEASE_NOTES_URL = "documentation.release-notes.url";
 	
 	public static final String OAUTH_IDENTITY_PROVIDER_PJE_CLOUD = "oauth2_generic";
 	
@@ -1381,6 +1382,10 @@ public class JiraService {
 		return getPropertyFromJiraProject(projectKey, PROJECT_PROPERTY_GITLAB_PROJECT_ID);
 	}
 	
+	public String getProjectDocumentationUrl(String projectKey) {
+		return getPropertyFromJiraProject(projectKey, PROJECT_PROPERTY_DOCUMENTATION_RELEASE_NOTES_URL);
+	}
+	
 	@Cacheable
 	public String getPropertyFromJiraProject(String projectKey, String propertyKey) {
 		String propertyValue = null;
@@ -1848,6 +1853,17 @@ public class JiraService {
 			}
 		}
 		return customFieldResponse;
+	}
+	
+	public String calulateNextVersionNumber(String projectKey, String versaoAtual) {
+		String proximaVersao = null;
+		// calcula com base no incremento de 1 dígito do terceiro número da "versão a ser lançada"
+		int index = 2;
+		if(versaoAtual.startsWith("1.7.") || versaoAtual.startsWith("2.0.")) {
+			index = 3;
+		}
+		proximaVersao = Utils.calculateNextOrdinaryVersion(versaoAtual, index);
+		return proximaVersao;
 	}
 
 }

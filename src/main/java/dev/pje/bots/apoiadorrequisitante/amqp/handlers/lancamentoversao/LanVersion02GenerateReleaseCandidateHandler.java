@@ -134,7 +134,7 @@ public class LanVersion02GenerateReleaseCandidateHandler extends Handler<JiraEve
 								GitlabBranchResponse branchResponse = gitlabService.createBranch(gitlabProjectId, nomeReleaseBranch, GitlabService.BRANCH_DEVELOP);
 								
 								if(branchResponse != null) {
-									messages.info("Branch criada: " + nomeReleaseBranch);
+									messages.info("Branch criada: " + nomeReleaseBranch + " no projeto: " + gitlabProjectId);
 								}else {
 									messages.error("Falhou ao tentar criar o branch: " + nomeReleaseBranch);
 								}

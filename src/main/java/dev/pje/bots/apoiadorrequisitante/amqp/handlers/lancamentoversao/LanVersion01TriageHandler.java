@@ -6,6 +6,7 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.devplatform.model.gitlab.GitlabTag;
@@ -38,7 +39,11 @@ public class LanVersion01TriageHandler extends Handler<JiraEventIssue>{
 		return MessagesLogger.LOGLEVEL_INFO;
 	}
 
+	@Value("${project.documentation.url}")
+	private String DOCSURL;
+
 	private static final String TRANSITION_PROPERTY_KEY_GERAR_RELEASE_CANDIDATE = "GERAR_RELEASE_CANDIDATE";
+	private static final String TRANSITION_PROPERTY_KEY_GERAR_RELEASE_NOTES = "GERAR_RELEASE_NOTES";
 		
 	/**
 	 * Este handler verifica:
@@ -102,6 +107,12 @@ public class LanVersion01TriageHandler extends Handler<JiraEventIssue>{
 				}else {
 					messages.error("O usuário [~" + jiraEventIssue.getUser().getName() + "] não tem permissão para criar esta issue.");
 				}
+				
+				// adicionar à issue a URL das releases do projeto em questão
+				String urlReleaseNotes = DOCSURL;
+				if(issue.getFields() != null && issue.getFields().getProject() != null && StringUtils.isNotBlank(issue.getFields().getProject().getKey())) {
+					urlReleaseNotes = jiraService.getProjectDocumentationUrl(issue.getFields().getProject().getKey());					
+				}
 									
 				if(messages.hasSomeError()) {
 					// tramita para o encerramento, enviando as mensagens nos comentários
@@ -111,11 +122,16 @@ public class LanVersion01TriageHandler extends Handler<JiraEventIssue>{
 				}else if(gerarAutomaticamente) {
 					// tramita automaticamente, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
+					jiraService.atualizarURLPublicacao(issue, urlReleaseNotes, updateFields);
 					jiraService.atualizarVersaoASerLancada(issue, versaoASerLancada, updateFields);
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
 					enviarAlteracaoJira(issue, updateFields, TRANSITION_PROPERTY_KEY_GERAR_RELEASE_CANDIDATE, true, true);
 				}else if(versaoJaLancada) {
-					jiraService.sendTextAsComment(issue, messages.getMessagesToJira());
+					// nesta situação - encaminhar para geração do release notes
+					Map<String, Object> updateFields = new HashMap<>();
+					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
+					jiraService.atualizarURLPublicacao(issue, urlReleaseNotes, updateFields);
+					enviarAlteracaoJira(issue, updateFields, TRANSITION_PROPERTY_KEY_GERAR_RELEASE_NOTES, true, true);
 				}
 			}
 		}

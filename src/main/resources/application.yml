@@ -22,7 +22,7 @@ spring:
         concurrency: ${RABBIT_CONCURRENCY:3}
         max-concurrency: ${RABBIT_MAX_CONCURRENCY:10}
     template:
-      default-receive-queue: ${RABBIT_QUEUE:jira02-apoiador-requisitante.queue}
+      default-receive-queue: ${RABBIT_JIRA02_APOIADOR_REQUISITANTE_QUEUE:jira02-apoiador-requisitante.queue}
       exchange: ${RABBIT_EXCHANGE:dev-platform.exchange}
       custom:
         # TODO - migrar esta queue para um novo servico separado deste daqui - pre-requisito: o clientejira deve estar separado em um servico fora deste aqui
@@ -34,11 +34,11 @@ spring:
           auto-startup: ${RABBIT_JIRA03_RESPOSTA_DEMANDANTE_QUEUE_AUTOSTARTUP:false}
 
         commit-script-queue:
-          name: ${RABBIT_COMMIT_SCRIPT_QUEUE:gitlab01-commit-script.queue}
-          auto-startup: ${RABBIT_COMMIT_SCRIPT_QUEUE_AUTOSTARTUP:false}
+          name: ${RABBIT_GITLAB01_COMMIT_SCRIPT_QUEUE:gitlab01-commit-script.queue}
+          auto-startup: ${RABBIT_GITLAB01_COMMIT_SCRIPT_QUEUE_AUTOSTARTUP:false}
         gitflow-queue:
-          name: ${RABBIT_GITFLOW_QUEUE:gitlab02-gitflow-queue}
-          auto-startup: ${RABBIT_GITFLOW_QUEUE_AUTOSTARTUP:false}
+          name: ${RABBIT_GITLAB02_GITFLOW_QUEUE:gitlab02-gitflow-queue}
+          auto-startup: ${RABBIT_GITLAB02_GITFLOW_QUEUE_AUTOSTARTUP:false}
         gitlab03-merge-request-updated:
           name: ${RABBIT_GITLAB03_MERGE_REQUEST_UPDATED_QUEUE:gitlab03-merge-request-updated-queue}
           auto-startup: ${RABBIT_GITLAB03_MERGE_REQUEST_UPDATED_QUEUE_AUTOSTARTUP:false}
