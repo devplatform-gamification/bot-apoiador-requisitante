@@ -12,9 +12,9 @@ import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.utils.ReleaseNotesTextModel;
 
 @Component
-public class LanVersion07TagPushedEventHandler extends Handler<GitlabEventPush>{
+public class LanVersion070TagPushedEventHandler extends Handler<GitlabEventPush>{
 
-	private static final Logger logger = LoggerFactory.getLogger(LanVersion07TagPushedEventHandler.class);
+	private static final Logger logger = LoggerFactory.getLogger(LanVersion070TagPushedEventHandler.class);
 
 	@Override
 	protected Logger getLogger() {
@@ -23,7 +23,7 @@ public class LanVersion07TagPushedEventHandler extends Handler<GitlabEventPush>{
 
 	@Override
 	public String getMessagePrefix() {
-		return "|VERSION-LAUNCH||06||PUBLISH-DOCS|";
+		return "|VERSION-LAUNCH||070||PUBLISH-DOCS|";
 	}
 
 	@Override

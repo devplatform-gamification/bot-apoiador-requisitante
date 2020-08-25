@@ -29,9 +29,9 @@ import dev.pje.bots.apoiadorrequisitante.utils.markdown.GitlabMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
 
 @Component
-public class LanVersion05ProcessReleaseNotesHandler extends Handler<JiraEventIssue>{
+public class LanVersion050ProcessReleaseNotesHandler extends Handler<JiraEventIssue>{
 
-	private static final Logger logger = LoggerFactory.getLogger(LanVersion05ProcessReleaseNotesHandler.class);
+	private static final Logger logger = LoggerFactory.getLogger(LanVersion050ProcessReleaseNotesHandler.class);
 
 	@Override
 	protected Logger getLogger() {
@@ -40,7 +40,7 @@ public class LanVersion05ProcessReleaseNotesHandler extends Handler<JiraEventIss
 
 	@Override
 	public String getMessagePrefix() {
-		return "|VERSION-LAUNCH||05||PROCESS-RELEASE-NOTES|";
+		return "|VERSION-LAUNCH||050||PROCESS-RELEASE-NOTES|";
 	}
 
 	@Override

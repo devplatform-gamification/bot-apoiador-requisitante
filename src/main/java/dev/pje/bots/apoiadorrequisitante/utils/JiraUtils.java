@@ -95,4 +95,12 @@ public class JiraUtils {
 		}
 		return contains;
 	}
+	
+	public static String getSprintDoGrupoName(String version) {
+		String sprintDoGrupoName = null;
+		if(StringUtils.isNotBlank(version)) {
+			sprintDoGrupoName = "Sprint " + version;
+		}
+		return sprintDoGrupoName;
+	}
 }

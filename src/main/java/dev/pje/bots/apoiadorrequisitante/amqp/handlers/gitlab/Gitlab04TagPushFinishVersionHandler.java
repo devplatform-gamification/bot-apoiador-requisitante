@@ -14,16 +14,19 @@ import org.springframework.stereotype.Component;
 import com.devplatform.model.gitlab.event.GitlabEventPushTag;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraIssueTransition;
+import com.devplatform.model.jira.custom.JiraCustomFieldOption;
 
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
+import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
+import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
 
 @Component
-public class Gitlab04TagPushHandler extends Handler<GitlabEventPushTag>{
+public class Gitlab04TagPushFinishVersionHandler extends Handler<GitlabEventPushTag>{
 
-	private static final Logger logger = LoggerFactory.getLogger(Gitlab04TagPushHandler.class);
+	private static final Logger logger = LoggerFactory.getLogger(Gitlab04TagPushFinishVersionHandler.class);
 
 	@Value("${clients.gitlab.url}")
 	private String gitlabUrl;
@@ -46,20 +49,32 @@ public class Gitlab04TagPushHandler extends Handler<GitlabEventPushTag>{
 		return MessagesLogger.LOGLEVEL_INFO;
 	}
 
+	private static final String TRANSITION_PROPERTY_KEY_INICIAR_RELEASE_CANDIDATE = "INICIAR_RELEASE_CANDIDATE";
+	private static final String TRANSITION_PROPERTY_KEY_CANCELAR_RELEASE_CANDIDATE = "CANCELAR_RELEASE_CANDIDATE";
 	private static final String TRANSITION_PROPERTY_KEY_FINALIZAR_VERSAO = "FINALIZAR VERSAO";
 	private static final String TRANSITION_PROPERTY_KEY_REABRIR_VERSAO = "REABRIR VERSAO";
 
 	private List<IssueTransitions> issueTransitions = new ArrayList<>();
 	/**
-	 * :: Lançamento de tag :: (geral)
+	 * :: Finalização da versão atual [lançamento de tag] :: (geral)
 	 * ok - recupera qual é a versão do projeto no commit da tag
 	 * ok - recupera qual(is) é o(são os) projeto(s) no jira relacionado(s) ao projeto da tag
 	 * ok - busca todas as issues identificadas como sendo dessa versão 
 	 * ok - Verifica se a tag está sendo criada ou removida
 	 * ok -- se tag criada:
-	 * ok --- tramita as issues para o fechamento da versão dada pelo número da tag
-	 * -- se tag removida:
-	 * --- tramita as issues para uma situacao de reabertura da versao encerrada 
+	 * ok--- verifia se é tag ordinária ou tag de release candidate
+	 * ok---- se tag de release candidate, tramita para "homologacao da release candidate"
+	 * ok---- se tag ordinária, tramita tramita as issues para o fechamento da versão dada pelo número da tag
+	 * ok- inativa a opção de "Sprint do grupo" corespondente à versão já lançada
+	 * - finaliza as versões dos projetos relacionados no jira
+	 * 
+	 * 
+	 * ok-- se tag removida:
+	 * ok-- verificar se trata-se de tag ordinária ou de tag de release candidate:
+	 * ok--- se release candidate - tramita para "cancelamento da release candidate"
+	 * ok--- se tag ordinária - tramita as issues para uma situacao de reabertura da versao encerrada
+	 * ok--- reativa a opção de "Sprint do grupo" correspondente à vresão abortada
+	 * - reabre as versões dos projetos relacionados no jira 
 	 */
 	@Override
 	public void handle(GitlabEventPushTag gitlabEventTag) throws Exception {
@@ -67,6 +82,11 @@ public class Gitlab04TagPushHandler extends Handler<GitlabEventPushTag>{
 		if (gitlabEventTag != null && gitlabEventTag.getProjectId() != null) {
 
 			String gitlabProjectId = gitlabEventTag.getProjectId().toString();
+			Boolean isTagReleaseCandidate = false;
+			if(StringUtils.isNotBlank(gitlabEventTag.getRef()) && gitlabEventTag.getRef().endsWith(GitlabService.TAG_RELEASE_CANDIDATE_SUFFIX)) {
+				// para confirmar, verifica se o projeto implementa o gitflow
+				isTagReleaseCandidate = gitlabService.isProjectImplementsGitflow(gitlabProjectId);
+			}
 			Boolean tagCreated = true;
 			String referenceCommit = gitlabEventTag.getAfter();
 			if(StringUtils.isNotBlank(referenceCommit)) {
@@ -89,10 +109,25 @@ public class Gitlab04TagPushHandler extends Handler<GitlabEventPushTag>{
 					String jiraProjectKey = gitlabService.getJiraRelatedProjectKey(gitlabProjectId);
 					// verifica se existem outros projetos relacionados a esse do jira
 					List<String> jiraRelatedProjectKeys = jiraService.getJiraRelatedProjects(jiraProjectKey);
-					// recupera a lista de issues com o status "aguardando o lançamento da versão"
+					// recupera a lista de issues desta versão, independente do status
 					String jql = jiraService.getJqlIssuesFromFixVersion(actualVersion, false, jiraRelatedProjectKeys);
 					List<JiraIssue> issues = jiraService.getIssuesFromJql(jql);
-					indicaLancamentoVersaoIssues(issues, actualVersion, tagCreated);
+					indicaLancamentoVersaoIssues(issues, actualVersion, tagCreated, isTagReleaseCandidate);
+					
+					// verifica se existe a sprint do grupo com o nome da versão atual
+					String sprintDoGrupoName = JiraUtils.getSprintDoGrupoName(actualVersion);
+					// na criacao da tag, inativa o capmo, no cancelamento da tag, reativa o campo (se houver campo, cria)
+					boolean apenasSprintDoGrupoAtivos = tagCreated;
+					JiraCustomFieldOption sprintDoGrupo = jiraService.findSprintDoGrupo(sprintDoGrupoName, apenasSprintDoGrupoAtivos);
+					if(sprintDoGrupo != null) {
+						if(tagCreated) {
+							jiraService.disableSprintDoGrupoOption(sprintDoGrupoName);
+						}else {
+							jiraService.enableSprintDoGrupoOption(sprintDoGrupoName);
+						}
+					}else if(!tagCreated) {
+						jiraService.createSprintDoGrupoOption(sprintDoGrupoName);
+					}
 				}else {
 					messages.error("Falhou ao tentar identificar a versão do projeto: " + gitlabProjectId + " no commit: "+ referenceCommit);
 				}
@@ -100,7 +135,8 @@ public class Gitlab04TagPushHandler extends Handler<GitlabEventPushTag>{
 		}
 	}
 	
-	private void indicaLancamentoVersaoIssues(List<JiraIssue> issuesParaTramitar, String versaoLancada, Boolean tagCreated) throws Exception {
+	private void indicaLancamentoVersaoIssues(List<JiraIssue> issuesParaTramitar, String versaoLancada, 
+			boolean tagCreated, boolean tagReleaseCandidate) throws Exception {
 		if(issuesParaTramitar != null && !issuesParaTramitar.isEmpty()) {
 			for (JiraIssue issue : issuesParaTramitar) {
 
@@ -111,35 +147,57 @@ public class Gitlab04TagPushHandler extends Handler<GitlabEventPushTag>{
 					JiraIssueTransition transition = findTransitionForProjectAndStatus(projectId, statusId);
 					if(transition == null) {
 						if(tagCreated) {
-							transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, TRANSITION_PROPERTY_KEY_FINALIZAR_VERSAO);
+							if(tagReleaseCandidate) {
+								transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, TRANSITION_PROPERTY_KEY_INICIAR_RELEASE_CANDIDATE);
+							}else {
+								transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, TRANSITION_PROPERTY_KEY_FINALIZAR_VERSAO);
+							}
 						}else {
-							transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, TRANSITION_PROPERTY_KEY_REABRIR_VERSAO);
+							if(tagReleaseCandidate) {
+								transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, TRANSITION_PROPERTY_KEY_CANCELAR_RELEASE_CANDIDATE);
+							}else {
+								transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, TRANSITION_PROPERTY_KEY_REABRIR_VERSAO);
+							}
 						}
 					}
 					if(transition == null) {
 						if(tagCreated) {
-							messages.info("Não foi identificada uma saída padrão desta issue para a finalização da versão.");
+							if(tagReleaseCandidate) {
+								messages.info("[" + issue.getKey() + "] Não foi identificada uma saída padrão desta issue para a indiação do início da release candidate.");
+							}else {
+								messages.info("[" + issue.getKey() + "] Não foi identificada uma saída padrão desta issue para a finalização da versão.");
+							}
 						}else {
-							messages.info("Não foi identificada uma saída padrão desta issue para a reabertura da versão.");
+							if(tagReleaseCandidate) {
+								messages.info("[" + issue.getKey() + "] Não foi identificada uma saída padrão desta issue para o cancelamento do início da release candidate.");
+							}else {
+								messages.info("[" + issue.getKey() + "] Não foi identificada uma saída padrão desta issue para a reabertura da versão.");
+							}
 						}
-						messages.info("Buscando transição '" + JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA + "'");
+						messages.info("[" + issue.getKey() + "] Buscando transição '" + JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA + "'");
 						transition = jiraService.findTransitionByIdOrNameOrPropertyKey(issue, JiraService.TRANSICTION_DEFAULT_EDICAO_AVANCADA);
 					}
 					if(transition == null) {
-						messages.info("Não foi identificada uma transição válida para registro da nova informação, os dados relacionados"
+						messages.info("[" + issue.getKey() + "] Não foi identificada uma transição válida para registro da nova informação, os dados relacionados"
 								+ " serão registrados na issue como comentário.");
 					}
 					JiraMarkdown jiraMarkdown = new JiraMarkdown();
 					StringBuilder textoComentario = new StringBuilder(messages.getMessagesToJira());
 					textoComentario.append(jiraMarkdown.newLine());
 					if(tagCreated) {
-						textoComentario.append(jiraMarkdown.block("A versão " + versaoLancada + " foi lançada e as alterações desta issue disponibilizadas na versão nacional."));
+						if(tagReleaseCandidate) {
+							textoComentario.append(jiraMarkdown.block("A versão " + versaoLancada + " está agora em fase de release candidate e deve ser homologada pelo seu tribunal, afim de disponibilizarmos as alterações na versão nacional."));
+						}else {
+							textoComentario.append(jiraMarkdown.block("A versão " + versaoLancada + " foi lançada e as alterações desta issue disponibilizadas na versão nacional."));
+						}
 					}else {
-						textoComentario.append(jiraMarkdown.block("A tag da versão " + versaoLancada + " foi cancelada e as alterações desta issue já não estão mais disponíveis em uma versão nacional."));
+						if(tagReleaseCandidate) {
+							textoComentario.append(jiraMarkdown.block("A versão release candidate da " + versaoLancada + " foi abortada e as alterações desta issue já não estão mais disponíveis para homologação em uma release candidate."));
+						}else {
+							textoComentario.append(jiraMarkdown.block("A tag da versão " + versaoLancada + " foi cancelada e as alterações desta issue já não estão mais disponíveis em uma versão nacional."));
+						}
 					}
-
 					jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
-
 					addIssueToIssueTransition(projectId, statusId, transition, updateFields, issue, textoComentario.toString());
 				}else {
 					messages.error("Não conseguiu identificar o projeto e/ou o status da issue: " + issue.getKey());

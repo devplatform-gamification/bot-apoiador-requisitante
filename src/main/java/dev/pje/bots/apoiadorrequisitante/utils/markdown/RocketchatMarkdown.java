@@ -1,16 +1,13 @@
 package dev.pje.bots.apoiadorrequisitante.utils.markdown;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 
-
-public class JiraMarkdown implements MarkdownInterface{
+public class RocketchatMarkdown implements MarkdownInterface{
 	
-	public static final String NAME = "JiraMarkdown";
+	public static final String NAME = "RocketchatMarkdown";
 
 	@Override
 	public String getName() {
@@ -24,27 +21,27 @@ public class JiraMarkdown implements MarkdownInterface{
 
 	@Override
 	public String head1(String text) {
-		return newLine() + "h1. " + text + newLine();
+		return newLine() + "# " + text + " #" + newLine();
 	}
 
 	@Override
 	public String head2(String text) {
-		return newLine() + "h2. " + text + newLine();
+		return newLine() + "## " + text + " ##" + newLine();
 	}
 
 	@Override
 	public String head3(String text) {
-		return newLine() + "h3. " + text + newLine();
+		return newLine() + "### " + text + " ###" + newLine();
 	}
 
 	@Override
 	public String head4(String text) {
-		return newLine() + "h4. " + text + newLine();
+		return newLine() + "#### " + text + " ####" + newLine();
 	}
 
 	@Override
 	public String bold(String text) {
-		return "*" + text + "*";
+		return "**" + text + "**";
 	}
 
 	@Override
@@ -54,69 +51,105 @@ public class JiraMarkdown implements MarkdownInterface{
 
 	@Override
 	public String code(String text) {
-		return "{code}" + text + "{code}" + newLine();
+		return code(text, null, null);
 	}
 
 	@Override
 	public String code(String text, String language) {
-		return "{code:language=" + language +"}" + text + "{code}" + newLine();
+		return code(text, language, null);
 	}
 
 	@Override
 	public String code(String text, String language, String title) {
-		return "{code:language=" + language +"|title=" + title + "}" + text + "{code}" + newLine();
+		StringBuilder sb = new StringBuilder();
+		if(StringUtils.isNotBlank(title)) {
+			sb.append(head1(title))
+				.append(newLine());
+		}
+		sb.append("```");
+		if(StringUtils.isNotBlank(language)) {
+			sb.append(language);
+		}
+		sb.append(text)
+			.append(newLine())
+			.append("```")
+			.append(newLine());
+		
+		return sb.toString();
 	}
-	
+
 	@Override
 	public String underline(String text) {
-		return "+" + text + "+";
+		return bold(text);
 	}
 
 	@Override
 	public String strike(String text) {
-		return "-" + text + "-";
+		return "~" + text + "~";
 	}
-	
+
 	@Override
 	public String citation(String text) {
-		return newParagraph() + italic(text) + newParagraph();
+		return "> " + text;
 	}
 
 	@Override
 	public String highlight(String text) {
-		return block(text);
+		StringBuilder sb = new StringBuilder();
+		sb.append(newLine())
+		.append("```")
+			.append(newLine())
+			.append(text)
+			.append(newLine())
+			.append("```")
+			.append(newLine());
+		return sb.toString();
 	}
 
 	@Override
 	public String quote(String text) {
-		return "{quote}" + text + "{quote}" + newLine();
+		return quote(text, null, null);
 	}
 
 	@Override
 	public String quote(String text, String author, String reference) {
-		return quote(text) + newLine() + citation(author) + newLine() + italic(reference) + newLine();
+		StringBuilder sb = new StringBuilder();
+		sb.append(newLine());
+		if(StringUtils.isNotBlank(author)) {
+			sb.append(bold(author));
+			if(StringUtils.isNotBlank(reference)) {
+				sb.append(", ").append(italic(reference));
+			}
+		}
+		sb.append(citation(text));
+		return sb.toString();
 	}
 
 	@Override
 	public String block(String text) {
-		return "{panel}" + text + "{panel}" + newLine();
+		return block(null, text);
 	}
 
 	@Override
 	public String block(String title, String text) {
-		return "{panel:title=" + title + "}" + text + "{panel}" + newLine();
+		StringBuilder sb = new StringBuilder();
+		if(StringUtils.isNotBlank(title)) {
+			sb.append(head1(title));
+		}
+		sb.append(highlight(text));
+		return null;
 	}
-	
+
 	@Override
 	public String color(String text, String color) {
-		return "{color:" + color + "}" + text + "{color}";
+		return "`" + (text) + "`";
 	}
 
 	@Override
 	public String newLine() {
 		return "\n";
 	}
-
+	
 	@Override
 	public String newParagraph() {
 		return newLine() + newLine();
@@ -124,12 +157,12 @@ public class JiraMarkdown implements MarkdownInterface{
 
 	@Override
 	public String ruler() {
-		return "----";
+		return "______" + newLine();
 	}
 	
 	@Override
 	public String listItem(String text) {
-		return newLine() + "- " + text;
+		return newLine() + "* " + text;
 	}
 	
 	@Override
@@ -137,9 +170,18 @@ public class JiraMarkdown implements MarkdownInterface{
 		if(StringUtils.isBlank(text)) {
 			text = url;
 		}
-		return "[" + text + "|" + url + "]";
+			
+		StringBuilder sb = new StringBuilder();
+		sb.append("[")
+			.append(text)
+			.append("]")
+			.append("(")
+			.append(url)
+			.append(")");
+
+		return sb.toString();
 	}
-	
+
 	@Override
 	public String link(String url) {
 		return link(url, url);
@@ -148,53 +190,55 @@ public class JiraMarkdown implements MarkdownInterface{
 	@Override
 	public String image(String path, String alternativeText, String height, String width, String title) {
 		Map<String, String> options = new HashMap<>();
-		options.put("height", height);
-		options.put("width", width);
-		options.put("title", title);
+		options.put("alt", alternativeText);
 		
 		return image(path, options);
 	}
 
 	@Override
 	public String image(String path, Map<String, String> options) {
-		List<String> imageOptionsList = new ArrayList<>();
-		for (String key : options.keySet()) {
-			String option = key;
-			if(!key.equalsIgnoreCase("thumbnail")) {
-				option += "=" + options.get(key);
+		StringBuilder sb = new StringBuilder();
+		
+		sb.append("[");
+		if(options != null) {
+			String text = null;
+			if(StringUtils.isNotBlank(options.get("alt"))) {
+				text = options.get("alt");
 			}
-			imageOptionsList.add(option);
-		}
-		String imageOptions = String.join("|", imageOptionsList);
-		if(StringUtils.isNotBlank(imageOptions)) {
-			imageOptions = "|" + imageOptions;
-		}
-		return "!" + path + imageOptions + "!";
+			if(StringUtils.isNotBlank(text)) {
+					sb.append(text);
+			}
+		}			
+			sb.append("]");
+			sb.append("(");
+			sb.append(path);
+			sb.append(")");
+		return sb.toString();
 	}
 
 	@Override
 	public String substitution(String text) {
-		return text;
+		return normal(text);
 	}
 
 	@Override
 	public String firstPlaceIco() {
-		return "(*y)";
+		return ":star2:";
 	}
 
 	@Override
 	public String secondPlaceIco() {
-		return "(*b)";
+		return ":star:";
 	}
 
 	@Override
 	public String thirdPlaceIco() {
-		return "(*g)";
+		return ":rocket:";
 	}
 
 	@Override
 	public String MVPIco() {
-		return " (y)";
+		return " :trophy:";
 	}
 
 	@Override

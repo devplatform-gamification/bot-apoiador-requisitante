@@ -34,12 +34,12 @@ import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
 public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue>{
 
 	private static final Logger logger = LoggerFactory.getLogger(Documentation02CreateSolutionHandler.class);
-	
+
 	@Override
 	protected Logger getLogger() {
 		return logger;
 	}
-	
+
 	@Override
 	public String getMessagePrefix() {
 		return "|DOCUMENTATION||02||CREATE-SOLUTION|";
@@ -55,8 +55,13 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 
 	/**
 	 * Criar documentacao relacionada à issue
+	 * 
 	 * ok 1. obtem os dados da estrutura de documentacao
 	 * ok 2. traduz os dados da estrutura de documentacao em paths: path principal + path de anexos (assets)
+	 * - verifia se a documentação será manual ou automatizada:
+	 * -- manual:: tipo: não é release notes e se tiver um branh e não tiver um documento .adoc como anexo
+	 * 
+	 * 
 	 * ok 3. identifica o nome do arquivo principal de documentacao com seu path
 	 * ok 4. cria o branch da issue atual - feature branch atual
 	 * ok 5. verifica se já existe um documento principal com o conteúdo atual
@@ -90,13 +95,13 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 				messages.setId(issue.getKey());
 				messages.debug(jiraEventIssue.getIssueEventTypeName().name());
 				issue = jiraService.recuperaIssueDetalhada(issue.getKey());
-				
+
 				if(issue.getFields() != null && issue.getFields().getProject() != null) {
 					// verifica se informou o caminho da documentacao corretamente
 					JiraEstruturaDocumentacaoVO estruturaDocumentacao = new JiraEstruturaDocumentacaoVO(
-								issue.getFields().getEstruturaDocumentacao(), 
-								issue.getFields().getNomeParaExibicaoDocumentacao(), issue.getFields().getPathDiretorioPrincipal());
-	
+							issue.getFields().getEstruturaDocumentacao(), 
+							issue.getFields().getNomeParaExibicaoDocumentacao(), issue.getFields().getPathDiretorioPrincipal());
+
 					if(JiraUtils.isIssueFromType(issue, JiraService.ISSUE_TYPE_RELEASE_NOTES) && estruturaDocumentacao.getEstruturaInformadaManualmente()) {
 						messages.error("Para demandas de documentação de release notes, deve-se selecionar as opções de estrutura de documentação atualmente existentes (e não 'Outros')");
 					}else {
@@ -108,17 +113,30 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 							}
 						}
 					}
-					
+
+					/**
+					 * verifica se há branch relacionado, se houver, não valida os anexos e utilizará o branch como referência
+					 */
+					String branchName = recuperarBranchRelacionado(issue);
+
+					/**
+					 * valida anexos:
+					 * - se foram indicados anexos, pelo menos 1 anexo com a extensao .adoc deve existir - caso contrário gera erro para o usuario
+					 */
 					JiraIssueAttachment anexoAdoc = recuperaAnexoDocumentoPrincipalAdoc(issue);
 					if (anexoAdoc == null){
-						messages.error("Deve haver um e apenas um arquivo anexo com a extensão: " + JiraService.FILENAME_SUFFIX_ADOC + " - ele será utilizado como documento principal da documentação criada.");
+						if(StringUtils.isBlank(branchName)) {
+							messages.error("Deve haver um e apenas um arquivo anexo com a extensão: " + JiraService.FILENAME_SUFFIX_ADOC 
+									+ " - ele será utilizado como documento principal da documentação criada.\n"
+									+ "Alternativamente pode-se indicar um branch com código da implementação manual.");
+						}
 					}
-					
+
 					String versaoASerLancada = issue.getFields().getVersaoSeraLancada();
-					if(StringUtils.isBlank(versaoASerLancada)){
+					if(JiraUtils.isIssueFromType(issue, JiraService.ISSUE_TYPE_RELEASE_NOTES) && StringUtils.isBlank(versaoASerLancada)){
 						messages.error("A indicação da versão a ser lançada é obrigatória, indique apenas uma versão.");
 					}
-					
+
 					String jiraProjectKey = issue.getFields().getProject().getKey();
 					if(StringUtils.isBlank(jiraProjectKey)) {
 						messages.error("Não foi possível identificar a chave do projeto atual");
@@ -127,20 +145,22 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 					if(StringUtils.isBlank(gitlabProjectId)) {
 						messages.error("Não foi possível identificar qual é o repositório no gitlab para este projeto do jira.");
 					}
+
+
+					GitlabBranchResponse branchResponse = null;
+					if(StringUtils.isNotBlank(branchName)) {
+						branchResponse = gitlabService.getSingleRepositoryBranch(gitlabProjectId, branchName);
+					}
+
 					String documentationURL = null;
 					String MRsAbertos = issue.getFields().getMrAbertos();
 					String MrsAbertosConfirmados = gitlabService.checkMRsOpened(MRsAbertos);
-					
-					String branchName = issue.getKey();
-					String branchesRelacionados = issue.getFields().getBranchesRelacionados();
-					if(StringUtils.isNotBlank(branchesRelacionados)) {
-						String[] branches = branchesRelacionados.split(",");
-						if(branches.length > 0 && StringUtils.isNotBlank(branches[0])) {
-							branchName = branches[0].trim();
-						}
-					}
 
-					if(!messages.hasSomeError()) {						
+					Boolean documentacaoManual = (
+							!JiraUtils.isIssueFromType(issue, JiraService.ISSUE_TYPE_RELEASE_NOTES) 
+							&& branchResponse != null && anexoAdoc == null);
+
+					if(!messages.hasSomeError()) {
 						// identifica o path e o nome de exibicao da categoria e da subcategoria
 						if(estruturaDocumentacao.getSubCategoriaValida() && !estruturaDocumentacao.getCategoriaIndicadaOutros()) {
 							String subCategoriaPath = translateSubCategoryToPathName(estruturaDocumentacao.getSubCategoriaValue(), gitlabProjectId);
@@ -152,161 +172,176 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 							estruturaDocumentacao.setCategoriaPathDiretorio(categoriaPath);
 							estruturaDocumentacao.setCategoriaNomeParaExibicao(estruturaDocumentacao.getCategoriaValue());
 						}
-	
-						// Para o tipo de documentacao release notes, o path referência será um subpath do projeto principal
-						String pathSrcPreffix = PATHNAME_SRC_DOCUMENTACAO;
-						String projectPath = null;
-						String documentoPrincipalNomeAdoc = null;
-						if(JiraUtils.isIssueFromType(issue, JiraService.ISSUE_TYPE_RELEASE_NOTES)) {
-							String fullPath = estruturaDocumentacao.getSubCategoriaPathDiretorio();
-							if(fullPath != null) {
-								projectPath = fullPath;
-								if(fullPath.contains("html")) {
-									projectPath = Utils.getPathFromFilePath(fullPath);
-								}
-								projectPath += "/" + RELEASE_NOTES_DIR + "/" + RELEASE_NOTES_INCLUDES_DIR;
-								documentoPrincipalNomeAdoc = anexoAdoc.getFilename();
-							}
-						}else {
-							// Para outros tipos de documentacao o path referência será exatamente o projeto principal
-							if(estruturaDocumentacao.getSubCategoriaValida()) {
-								projectPath = estruturaDocumentacao.getSubCategoriaPathDiretorio();
-							}else {
-								projectPath = estruturaDocumentacao.getCategoriaPathDiretorio();
-							}
-							if(projectPath.contains("html")) {
-								String fileNameHtml = Utils.getFileNameFromFilePath(projectPath);
-								documentoPrincipalNomeAdoc = fileNameHtml.replace(JiraService.FILENAME_SUFFIX_HTML, JiraService.FILENAME_SUFFIX_ADOC);
-								
-								projectPath = Utils.getPathFromFilePath(projectPath);
-							}else {
-								documentoPrincipalNomeAdoc = anexoAdoc.getFilename();
-							}
-						}
-						
-						messages.info("Identificado o path: " + projectPath + " e o arquivo principal: " + documentoPrincipalNomeAdoc);
 
-						// 4. cria o branch da issue atual - feature branch atual
-						GitlabBranchResponse branchResponse = gitlabService.createFeatureBranch(gitlabProjectId, branchName);
-						if(branchResponse != null && branchName.equals(branchResponse.getBranchName())) {
-							messages.info("Feature branch: " + branchName + " criado no projeto: " + gitlabProjectId);
-						}else {
-							messages.error("Erro ao tentar criar o feature branch: " + branchName + " no projeto: " + gitlabProjectId);
-						}
-
-						if(!messages.hasSomeError()) {
-							// 5. verifica se já existe um documento principal com o conteúdo atual
-							// recupera o documento atual
-							byte[] textFile = jiraService.getAttachmentContent(issue, documentoPrincipalNomeAdoc);
-							String texto = new String(textFile);
-							String adocFilePath = Utils.normalizePaths(pathSrcPreffix  + "/" + projectPath + "/" + documentoPrincipalNomeAdoc);
-							
-							// verifica se já existe o arquivo no destino e se o texto é diferente, caso contrário, mantem como está
-							String conteudoArquivo = gitlabService.getRawFile(gitlabProjectId, adocFilePath, branchName);
-							
-							if(StringUtils.isBlank(conteudoArquivo) || (!Utils.compareAsciiIgnoreCase(conteudoArquivo, texto))) {
-								String textoCommit = getCommitText(estruturaDocumentacao, JiraUtils.isIssueFromType(issue, JiraService.ISSUE_TYPE_RELEASE_NOTES), versaoASerLancada);
-								
-								if(!messages.hasSomeError()) {
-									String commitMessage = "[" + issue.getKey() + "] " + textoCommit;
-									// criar o arquivo principal da documentacao no branch
-									GitlabCommitResponse commitResponse = gitlabService.sendTextAsFileToBranch(gitlabProjectId, branchResponse, adocFilePath,
-											texto, commitMessage);
-									if(commitResponse != null) {
-										messages.info("Criado o arquivo: " + adocFilePath + " no branch: " + branchName + " do projeto: " + gitlabProjectId);
-										messages.debug(commitResponse.toString());
-									}else {
-										messages.error("Erro ao tentar criar o arquivo: " + adocFilePath + " no branch: " + branchName + " do projeto: " + gitlabProjectId);
+						if(!documentacaoManual) {
+							// Para o tipo de documentacao release notes, o path referência será um subpath do projeto principal
+							String pathSrcPreffix = PATHNAME_SRC_DOCUMENTACAO;
+							String projectPath = null;
+							String documentoPrincipalNomeAdoc = null;
+							if(JiraUtils.isIssueFromType(issue, JiraService.ISSUE_TYPE_RELEASE_NOTES)) {
+								String fullPath = estruturaDocumentacao.getSubCategoriaPathDiretorio();
+								if(fullPath != null) {
+									projectPath = fullPath;
+									if(fullPath.contains("html")) {
+										projectPath = Utils.getPathFromFilePath(fullPath);
 									}
+									projectPath += "/" + RELEASE_NOTES_DIR + "/" + RELEASE_NOTES_INCLUDES_DIR;
+									documentoPrincipalNomeAdoc = anexoAdoc.getFilename();
 								}
 							}else {
-								messages.info("Arquivo: " + adocFilePath + " já existe no branch: " + branchName + " do projeto: " + gitlabProjectId);
+								// Para outros tipos de documentacao o path referência será exatamente o projeto principal
+								if(estruturaDocumentacao.getSubCategoriaValida()) {
+									projectPath = estruturaDocumentacao.getSubCategoriaPathDiretorio();
+								}else {
+									projectPath = estruturaDocumentacao.getCategoriaPathDiretorio();
+								}
+								if(projectPath.contains("html")) {
+									String fileNameHtml = Utils.getFileNameFromFilePath(projectPath);
+									documentoPrincipalNomeAdoc = fileNameHtml.replace(JiraService.FILENAME_SUFFIX_HTML, JiraService.FILENAME_SUFFIX_ADOC);
+
+									projectPath = Utils.getPathFromFilePath(projectPath);
+								}else {
+									documentoPrincipalNomeAdoc = anexoAdoc.getFilename();
+								}
 							}
-							
+
+							messages.info("Identificado o path: " + projectPath + " e o arquivo principal: " + documentoPrincipalNomeAdoc);
+
+							// 4. cria o branch da issue atual - feature branch atual
+							if(branchResponse == null) {
+								if(StringUtils.isBlank(branchName)) {
+									branchName = issue.getKey();
+								}
+								branchResponse = gitlabService.createFeatureBranch(gitlabProjectId, branchName);
+								if(branchResponse != null && branchName.equals(branchResponse.getBranchName())) {
+									messages.info("Feature branch: " + branchName + " criado no projeto: " + gitlabProjectId);
+								}else {
+									messages.error("Erro ao tentar criar o feature branch: " + branchName + " no projeto: " + gitlabProjectId);
+								}
+							}else {
+								messages.info("Feature branch: " + branchName + " já existente no projeto: " + gitlabProjectId);
+							}
+
 							if(!messages.hasSomeError()) {
-								// 6. cria a pasta de anexos (assets) e adiciona todos os demais documentos da issue lá
-								List<JiraIssueAttachment> demaisAnexos = recuperaDemaisAnexosNaoAdoc(issue);
-								if(demaisAnexos != null && !demaisAnexos.isEmpty()) {
-									String assetsPath = pathSrcPreffix  + "/" + projectPath + "/" + JiraService.DOCUMENTATION_ASSETS_DIR;
-									List<GitlabCommitFileVO> files = new ArrayList<>();
-									for (JiraIssueAttachment anexo : demaisAnexos) {
-										String fileName = Utils.normalizePaths(assetsPath + "/" + anexo.getFilename());
-										byte[] content = jiraService.getAttachmentContent(issue, anexo.getFilename());
-										String contentBase64 = Utils.byteArrToBase64(content);
-										Boolean isBase64 = true;
-										GitlabCommitFileVO file = new GitlabCommitFileVO(fileName, contentBase64, isBase64);
-										files.add(file);
-									}
-									String commitMessage = "[" + issue.getKey() + "] Adicionando anexos relacionados";
-									GitlabCommitResponse commitResponse = gitlabService.sendFilesToBranch(gitlabProjectId, branchName, files, commitMessage);
-									if(commitResponse != null) {
-										messages.info("Enviados anexos ao branch: " + branchName + " do projeto: " + gitlabProjectId);
-										messages.debug(commitResponse.toString());
-									}else {
-										messages.error("Erro ao tentar enviar anexos ao branch: " + branchName + " do projeto: " + gitlabProjectId);
-									}
+								// 5. verifica se já existe um documento principal com o conteúdo atual
+								// recupera o documento atual
+								byte[] textFile = jiraService.getAttachmentContent(issue, documentoPrincipalNomeAdoc);
+								String texto = null;
+								if(textFile != null) {
+									texto = new String(textFile);
 								}
-							}
-							
-							if(!messages.hasSomeError()) {
-								if(JiraUtils.isIssueFromType(issue, JiraService.ISSUE_TYPE_RELEASE_NOTES)) {
-									// * 7.1 adiciona o release na lista de releases concatenadas
-									// * 7.2 adiciona o release na lista de releases com links separados									
-									String documentoPrincipalNomeHtml = documentoPrincipalNomeAdoc.replace(JiraService.FILENAME_SUFFIX_ADOC, JiraService.FILENAME_SUFFIX_HTML);
-									String projectPathSubdir = projectPath;
-									if(projectPathSubdir.endsWith(RELEASE_NOTES_INCLUDES_DIR)) {
-										projectPathSubdir = projectPathSubdir.replaceAll(RELEASE_NOTES_INCLUDES_DIR, "/");
-									}
-									if(!messages.hasSomeError()) {
-										String pathReleaseNotesCompleto = Utils.normalizePaths(pathSrcPreffix  + "/" + projectPathSubdir + "/" + RELEASE_NOTES_RELEASE_COMPLETO);
-										adicionaNovoArquivoReleaseNotesNoReleaseCompleto(issue, gitlabProjectId, branchName, documentoPrincipalNomeAdoc, pathReleaseNotesCompleto);
-									}
-									if(!messages.hasSomeError()) {
-										String pathReleaseNotesLista = Utils.normalizePaths(pathSrcPreffix  + "/" + projectPathSubdir + "/" + RELEASE_NOTES_RELEASE_LISTA);
-										
-										adicionaNovoArquivoReleaseNotesNaListaDeReleases(issue, gitlabProjectId, branchName, documentoPrincipalNomeHtml,
-												versaoASerLancada, pathReleaseNotesLista);
-									}
-									if(!messages.hasSomeError()) {
-										String serverAddressTemplate = DOCSURL;
-										documentationURL = createDocumentationLink(serverAddressTemplate, documentoPrincipalNomeHtml, Utils.getPathFromFilePath(adocFilePath));
-									}
-									if(!messages.hasSomeError()) {
-										String textoCommit = getCommitText(estruturaDocumentacao, JiraUtils.isIssueFromType(issue, JiraService.ISSUE_TYPE_RELEASE_NOTES), versaoASerLancada);
+								String adocFilePath = Utils.normalizePaths(pathSrcPreffix  + "/" + projectPath + "/" + documentoPrincipalNomeAdoc);
 
-										String mergeMessage = "[" + issue.getKey() + "] " + textoCommit;
-										GitlabMRResponse mrResponse = null;
-										String erro = null;
-										try {
-											mrResponse = gitlabService.openMergeRequestIntoBranchDefault(gitlabProjectId, branchName, mergeMessage);
-										} catch (Exception e) {
-											erro = e.getLocalizedMessage();
-											messages.error("Houve um problema ao abrir o merge do branch: " + branchName + " do projeto: " + gitlabProjectId);
-											if(StringUtils.isNotBlank(erro)) {
-												messages.error(erro);
-											}
+								// verifica se já existe o arquivo no destino e se o texto é diferente, caso contrário, mantem como está
+								String conteudoArquivo = gitlabService.getRawFile(gitlabProjectId, adocFilePath, branchName);
+
+								if(StringUtils.isBlank(conteudoArquivo) || (!Utils.compareAsciiIgnoreCase(conteudoArquivo, texto))) {
+									String textoCommit = getCommitText(estruturaDocumentacao, JiraUtils.isIssueFromType(issue, JiraService.ISSUE_TYPE_RELEASE_NOTES), versaoASerLancada);
+
+									if(!messages.hasSomeError()) {
+										String commitMessage = "[" + issue.getKey() + "] " + textoCommit;
+										// criar o arquivo principal da documentacao no branch
+										GitlabCommitResponse commitResponse = gitlabService.sendTextAsFileToBranch(gitlabProjectId, branchResponse, adocFilePath,
+												texto, commitMessage);
+										if(commitResponse != null) {
+											messages.info("Criado o arquivo: " + adocFilePath + " no branch: " + branchName + " do projeto: " + gitlabProjectId);
+											messages.debug(commitResponse.toString());
+										}else {
+											messages.error("Erro ao tentar criar o arquivo: " + adocFilePath + " no branch: " + branchName + " do projeto: " + gitlabProjectId);
 										}
-										if(mrResponse != null) {
-											messages.info("MR " + mrResponse.getIid() + " aberto para o branch: " + branchName + " no projeto: " + gitlabProjectId);
-											if(StringUtils.isBlank(MrsAbertosConfirmados)) {
-												MrsAbertosConfirmados = mrResponse.getWebUrl();
-											}else  if(!MrsAbertosConfirmados.contains(mrResponse.getWebUrl())) {
-												MrsAbertosConfirmados += ", " + mrResponse.getWebUrl();
-											}
-											messages.debug(mrResponse.toString());
+									}
+								}else {
+									messages.info("Arquivo: " + adocFilePath + " já existe no branch: " + branchName + " do projeto: " + gitlabProjectId);
+								}
+
+								if(!messages.hasSomeError()) {
+									// 6. cria a pasta de anexos (assets) e adiciona todos os demais documentos da issue lá
+									List<JiraIssueAttachment> demaisAnexos = recuperaDemaisAnexosNaoAdoc(issue);
+									if(demaisAnexos != null && !demaisAnexos.isEmpty()) {
+										String assetsPath = pathSrcPreffix  + "/" + projectPath + "/" + JiraService.DOCUMENTATION_ASSETS_DIR;
+										List<GitlabCommitFileVO> files = new ArrayList<>();
+										for (JiraIssueAttachment anexo : demaisAnexos) {
+											String fileName = Utils.normalizePaths(assetsPath + "/" + anexo.getFilename());
+											byte[] content = jiraService.getAttachmentContent(issue, anexo.getFilename());
+											String contentBase64 = Utils.byteArrToBase64(content);
+											Boolean isBase64 = true;
+											GitlabCommitFileVO file = new GitlabCommitFileVO(fileName, contentBase64, isBase64);
+											files.add(file);
+										}
+										String commitMessage = "[" + issue.getKey() + "] Adicionando anexos relacionados";
+										GitlabCommitResponse commitResponse = gitlabService.sendFilesToBranch(gitlabProjectId, branchName, files, commitMessage);
+										if(commitResponse != null) {
+											messages.info("Enviados anexos ao branch: " + branchName + " do projeto: " + gitlabProjectId);
+											messages.debug(commitResponse.toString());
+										}else {
+											messages.error("Erro ao tentar enviar anexos ao branch: " + branchName + " do projeto: " + gitlabProjectId);
+										}
+									}
+								}
+
+								if(!messages.hasSomeError()) {
+									if(JiraUtils.isIssueFromType(issue, JiraService.ISSUE_TYPE_RELEASE_NOTES)) {
+										// * 7.1 adiciona o release na lista de releases concatenadas
+										// * 7.2 adiciona o release na lista de releases com links separados									
+										String documentoPrincipalNomeHtml = documentoPrincipalNomeAdoc.replace(JiraService.FILENAME_SUFFIX_ADOC, JiraService.FILENAME_SUFFIX_HTML);
+										String projectPathSubdir = projectPath;
+										if(projectPathSubdir.endsWith(RELEASE_NOTES_INCLUDES_DIR)) {
+											projectPathSubdir = projectPathSubdir.replaceAll(RELEASE_NOTES_INCLUDES_DIR, "/");
+										}
+										if(!messages.hasSomeError()) {
+											String pathReleaseNotesCompleto = Utils.normalizePaths(pathSrcPreffix  + "/" + projectPathSubdir + "/" + RELEASE_NOTES_RELEASE_COMPLETO);
+											adicionaNovoArquivoReleaseNotesNoReleaseCompleto(issue, gitlabProjectId, branchName, documentoPrincipalNomeAdoc, pathReleaseNotesCompleto);
+										}
+										if(!messages.hasSomeError()) {
+											String pathReleaseNotesLista = Utils.normalizePaths(pathSrcPreffix  + "/" + projectPathSubdir + "/" + RELEASE_NOTES_RELEASE_LISTA);
+
+											adicionaNovoArquivoReleaseNotesNaListaDeReleases(issue, gitlabProjectId, branchName, documentoPrincipalNomeHtml,
+													versaoASerLancada, pathReleaseNotesLista);
+										}
+										if(!messages.hasSomeError()) {
+											String serverAddressTemplate = DOCSURL;
+											documentationURL = createDocumentationLink(serverAddressTemplate, documentoPrincipalNomeHtml, Utils.getPathFromFilePath(adocFilePath));
 										}
 									}
 								}
 							}
 						}
 					}
+
+					if(!messages.hasSomeError()) {
+						String textoCommit = getCommitText(estruturaDocumentacao, JiraUtils.isIssueFromType(issue, JiraService.ISSUE_TYPE_RELEASE_NOTES), versaoASerLancada);
+
+						String mergeMessage = "[" + issue.getKey() + "] " + textoCommit;
+						GitlabMRResponse mrResponse = null;
+						String erro = null;
+						try {
+							mrResponse = gitlabService.openMergeRequestIntoBranchDefault(gitlabProjectId, branchName, mergeMessage);
+						} catch (Exception e) {
+							erro = e.getLocalizedMessage();
+							messages.error("Houve um problema ao abrir o merge do branch: " + branchName + " do projeto: " + gitlabProjectId);
+							if(StringUtils.isNotBlank(erro)) {
+								messages.error(erro);
+							}
+						}
+						if(mrResponse != null) {
+							messages.info("MR " + mrResponse.getIid() + " aberto para o branch: " + branchName + " no projeto: " + gitlabProjectId);
+							if(StringUtils.isBlank(MrsAbertosConfirmados)) {
+								MrsAbertosConfirmados = mrResponse.getWebUrl();
+							}else  if(!MrsAbertosConfirmados.contains(mrResponse.getWebUrl())) {
+								MrsAbertosConfirmados += ", " + mrResponse.getWebUrl();
+							}
+							messages.debug(mrResponse.toString());
+						}
+					}
+
 					JiraMarkdown jiraMarkdown = new JiraMarkdown();
 					StringBuilder textoComentario = new StringBuilder(messages.getMessagesToJira());
-					textoComentario.append(jiraMarkdown.newLine());
-					textoComentario.append(jiraMarkdown.block("Caso se pretenda utilizar anexos (imagem ou outro formato) deve-se utilizar no arquivo principal de documentação .adoc, referências"
-							+ " à pasta '" + JiraService.DOCUMENTATION_ASSETS_DIR + "', pois todos os documentos anexados a esta issue que não sejam .adoc serão enviados ao reposiorio na pasta"
-							+ " '" + JiraService.DOCUMENTATION_ASSETS_DIR + "' no mesmo path do arquivo principal."));
-					
+					if(!documentacaoManual) {
+						textoComentario.append(jiraMarkdown.newLine());
+						textoComentario.append(jiraMarkdown.block("Caso se pretenda utilizar anexos (imagem ou outro formato) deve-se utilizar no arquivo principal de documentação .adoc, referências"
+								+ " à pasta '" + JiraService.DOCUMENTATION_ASSETS_DIR + "', pois todos os documentos anexados a esta issue que não sejam .adoc serão enviados ao reposiorio na pasta"
+								+ " '" + JiraService.DOCUMENTATION_ASSETS_DIR + "' no mesmo path do arquivo principal."));
+					}
 					if(messages.hasSomeError()) {
 						// indica que há pendências - encaminha ao demandante
 						Map<String, Object> updateFields = new HashMap<>();
@@ -321,17 +356,29 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 						jiraService.atualizarBranchRelacionado(issue, branchName, updateFields, false);
 						// adiciona o MR aberto
 						jiraService.atualizarMRsAbertos(issue, MrsAbertosConfirmados, updateFields, true);
-						
+
 						jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
-						
+
 						enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_SOLICITAR_HOMOLOGACAO, true, true);
 					}
 				}
-				
+
 			}
 		}
 	}
-	
+
+	private String recuperarBranchRelacionado(JiraIssue issue) {
+		String branchName = null;
+		String branchesRelacionados = issue.getFields().getBranchesRelacionados();
+		if(StringUtils.isNotBlank(branchesRelacionados)) {
+			String[] branches = branchesRelacionados.split(",");
+			if(branches.length > 0 && StringUtils.isNotBlank(branches[0])) {
+				branchName = branches[0].trim();
+			}
+		}
+		return branchName;
+	}
+
 	private JiraIssueAttachment recuperaAnexoDocumentoPrincipalAdoc(JiraIssue issue) {
 		JiraIssueAttachment documentoAdoc = null;
 		if(issue.getFields().getAttachment() != null && !issue.getFields().getAttachment().isEmpty()) {
@@ -342,10 +389,10 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 				}
 			}
 		}
-		
+
 		return documentoAdoc;
 	}
-	
+
 	private List<JiraIssueAttachment> recuperaDemaisAnexosNaoAdoc(JiraIssue issue) {
 		List<JiraIssueAttachment> outrosAnexos = new ArrayList<>();
 		if(issue.getFields().getAttachment() != null && !issue.getFields().getAttachment().isEmpty()) {
@@ -355,7 +402,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 				}
 			}
 		}
-		
+
 		return outrosAnexos;
 	}
 
@@ -369,12 +416,12 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 			textoCommit = "Gerando release notes para " + nomeExibicaoDocumentacao;
 			textoCommit = textoCommit + " da versão: "+ versao;
 		}
-		
+
 		return textoCommit;
 	}
 
-	
-	
+
+
 	private static final String PATHNAME_SRC_DOCUMENTACAO = "src/main/asciidoc/";
 	private static final String RELEASE_NOTES_DIR = "/release-notes/";
 	private static final String RELEASE_NOTES_INCLUDES_DIR = "/includes/";
@@ -416,7 +463,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 
 				// 5. identificar a ordem de armazenamento desses includes
 				releaseNotesCompletoContent = reordenarListaIncludesReleaseNotesCompleto(releaseNotesCompletoContent);
-				
+
 				String commitMessage = "[" + issue.getKey() + "] Incluindo novo release notes no arquivo de releases completas do projeto";
 				GitlabCommitResponse commitResponse = gitlabService.sendTextAsFileToBranch(
 						gitlabProjectId, branchName, pathReleaseNotesCompleto,
@@ -455,7 +502,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 
 		// 2. obter o arquivo completo
 		String listaReleaseNotesContent = gitlabService.getRawFile(gitlabProjectId, pathReleaseNotesLista, branchName);
-		
+
 		if (StringUtils.isNotBlank(listaReleaseNotesContent)) {
 			// 3. verificar se a versão já está lá
 			if (!listaReleaseNotesContent.contains(htmlFileName)) {
@@ -465,12 +512,12 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 					listaReleaseNotesContent += "\n" + linhaIncludeReleaseNotes + "\n";
 
 					listaReleaseNotesContent = reordenarListaIncludesReleaseNotesHtmls(listaReleaseNotesContent);
-					
+
 					String commitMessage = "[" + issue.getKey() + "] Incluindo novo release notes no arquivo de lista de releases do projeto";
 					GitlabCommitResponse commitResponse = gitlabService.sendTextAsFileToBranch(
 							gitlabProjectId, branchName, pathReleaseNotesLista, listaReleaseNotesContent,
 							commitMessage);
-					
+
 					if(commitResponse != null) {
 						messages.info("Atualizado o arquivo: " + pathReleaseNotesLista + 
 								" no branch: " + branchName + " do projeto: " + gitlabProjectId);
@@ -578,7 +625,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 	private String getVersionFromReleaseNotesInclude(String include, String prefix, String suffix) {
 		return include.replaceFirst(".*" + prefix, "").replaceFirst(suffix + ".*", "");
 	}
-	
+
 	private String translateCategoryToPathName(String categoryName) {
 		String pathName = null;
 		if(StringUtils.isNotBlank(categoryName)) {
@@ -586,9 +633,9 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 			pathName = catNameNormalized.replaceAll(" ", "-");
 		}
 
-	    return pathName;
+		return pathName;
 	}
-	
+
 	private String translateSubCategoryToPathName(String subCategoryName, String gitlabProjectId) {
 		String fullPath = null;
 		// recupera o arquivo index.adoc, localiza o nome da subcategoria e com isso identifica o pathname

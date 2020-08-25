@@ -9,44 +9,7 @@ import com.devplatform.model.gitlab.vo.GitlabMergeRequestVO;
 
 public class GitlabUtils {	
 	public static String changePomXMLVersion(String actualVersion, String newVersion, String pomxml, String tagPath) {
-		String tagName = getLastElementFromTagPath(tagPath);
-		String newContent = pomxml.replaceFirst("(<" + tagName + ">)" + actualVersion + "(</" + tagName + ">)", "$1"+ newVersion +"$2");
-		return newContent;
-	}
-	
-	public static String getFirstElementFromTagPath(String tagPath) {
-		String firstElement = null;
-		String[] tagPathArray = tagPath.split(":");
-		if(tagPathArray.length > 0) {
-			firstElement = tagPathArray[0];
-		}
-		return firstElement;
-	}
-
-	public static String getLastElementFromTagPath(String tagPath) {
-		String lastElement = null;
-		String[] tagPathArray = tagPath.split(":");
-		if(tagPathArray.length > 0) {
-			lastElement = tagPathArray[(tagPathArray.length - 1)];
-		}
-		return lastElement;
-	}
-
-	public static String getTagPathWithoutFirstElement(String tagPath) {
-		String subPath = null;
-		String[] tagPathArray = tagPath.split(":");
-		if(tagPathArray.length > 0) {
-			int i = 0;
-			List<String> subPathList = new ArrayList<>();
-			for (String tagPathElement : tagPathArray) {
-				if(i > 0) {
-					subPathList.add(tagPathElement);
-				}
-				i++;
-			}
-			subPath = String.join(":", subPathList);
-		}
-		return subPath;
+		return Utils.changeElementValueFromXML(pomxml, tagPath, actualVersion, newVersion);
 	}
 	
 	public static List<String> getMergeIIdListFromString(String merges){
@@ -125,5 +88,15 @@ public class GitlabUtils {
 		}
 		return projectNamespace;
 	}
-
+	
+	public static String getGitlabProjectReleasesUrl(String projectWebUrl) {
+		String releasesUrl = null;
+		if(StringUtils.isNotBlank(projectWebUrl)) {
+			if(!projectWebUrl.endsWith("/")) {
+				projectWebUrl += "/";
+			}
+			releasesUrl = projectWebUrl + "-/releases";
+		}
+		return releasesUrl;
+	}
 }

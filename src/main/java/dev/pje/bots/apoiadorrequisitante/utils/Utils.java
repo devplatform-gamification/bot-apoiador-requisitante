@@ -3,6 +3,7 @@ package dev.pje.bots.apoiadorrequisitante.utils;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +22,10 @@ import java.util.regex.Pattern;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
@@ -80,7 +85,14 @@ public class Utils {
 		return output.toString();
 	}
 
-	public static String calculateNextOrdinaryVersion(String currentVersion, int changeIndex) {
+	/**
+	 * 
+	 * @param currentVersion
+	 * @param changeIndex
+	 * @param versionNumDigits
+	 * @return
+	 */
+	public static String calculateNextOrdinaryVersion(String currentVersion, int changeIndex, int versionNumDigits) {
 		String[] currentVersionArr = currentVersion.split("\\.");
 		String nextVersion = "";
 		
@@ -96,28 +108,41 @@ public class Utils {
 		}
 		Integer changedItem = 0;
 		if(currentVersionArr.length >= changeIndex) {
-			String changedItemStr = currentVersionArr[changeIndex];
+			String changedItemStr = "0";
+			if(currentVersionArr.length > changeIndex) {
+				changedItemStr = currentVersionArr[changeIndex];
+			}
 			changedItem = Integer.valueOf(changedItemStr) + 1;
 		}
 		nextVersion += changedItem.toString();
-		
-		switch (changeIndex) {
-		case 0:
-			nextVersion += ".0.0.0";
-			break;
-		case 1:
-			nextVersion += ".0.0";
-			break;
-		case 2:
-			nextVersion += ".0";
-			break;
-		}
+		nextVersion = completeWithZeroDigits(nextVersion, versionNumDigits);
 		
 		return nextVersion;
 	}
 	
+	private static String completeWithZeroDigits(String versionDefinedDigits, int versionNumDigits) {
+		String versionCompleted = "";
+		int numDefinedDigits = 0;
+		if(StringUtils.isNotBlank(versionDefinedDigits)) {
+			String[] versionArr = versionDefinedDigits.split("\\.");
+			numDefinedDigits = versionArr.length;
+			versionCompleted = versionDefinedDigits;
+		}
+		if(numDefinedDigits < versionNumDigits) {
+			List<String> zeroList = new ArrayList<>();
+			for(int i=0; i < (numDefinedDigits - versionNumDigits); i++) {
+				zeroList.add("0");
+			}
+			if(numDefinedDigits > 0) {
+				versionCompleted += ".";
+			}
+			versionCompleted += String.join(".", zeroList);
+		}
+		return versionCompleted;
+	}
+	
 	public static String clearVersionNumber(String version) {
-		return version.replaceAll("\\-SNAPSHOT", "");
+		return version.replaceAll("\\-SNAPSHOT", "").replaceAll("\\-RELEASE-CANDIDATE", "");
 	}
 	
 	public static String convertObjectToJson(Object obj) {
@@ -145,7 +170,7 @@ public class Utils {
 	}
 
 	public static String clearSummary(String summary) {
-		String summaryCleaned = summary.replaceAll("\\[.*\\]", "").replaceAll("^[ ]*\\-", "").trim();
+		String summaryCleaned = summary.replaceAll("\\[[^\\]]*\\]", "").replaceAll("^[ ]*\\-", "").trim();
 		if(StringUtils.isNotBlank(summaryCleaned)) {
 			summaryCleaned = summaryCleaned.substring(0, 1).toUpperCase() + summaryCleaned.substring(1);
 		}
@@ -418,5 +443,51 @@ public class Utils {
 		}
 		return "?";
 	}
+	
+	public static String changeElementValueFromXML(String xml, String tagPath, String actualValue, String newValue) {
+		String xmlProcessed = xml;
+		if(StringUtils.isNotBlank(actualValue) && StringUtils.isNotBlank(newValue) && !actualValue.equals(newValue)) {
+			try {
+				DocumentBuilderFactory dbf =
+						DocumentBuilderFactory.newInstance();
+				DocumentBuilder db = dbf.newDocumentBuilder();
+				InputSource is = new InputSource();
+				is.setCharacterStream(new StringReader(xml));
+				
+				Document doc = db.parse(is);
+				
+				XPathFactory xpathFactory = XPathFactory.newInstance();
+				XPath xpath = xpathFactory.newXPath();
+				
+				if(StringUtils.isNotBlank(tagPath)) {
+					NodeList nodeList = (NodeList) xpath.evaluate(tagPath, doc,
+							XPathConstants.NODESET);
+					
+					for (int i=0; i < nodeList.getLength(); i++) {
+						Node node = (Node) nodeList.item(i);
+						if(node != null && node.getChildNodes() != null && node.getChildNodes().getLength() > 0 
+								&& actualValue.equals(node.getChildNodes().item(0).getTextContent())) {
+							node.setTextContent(newValue);
+							break;
+						}
+					}
+				}
+				
+		       TransformerFactory transformerFactory = TransformerFactory.newInstance();
+		       Transformer transformer = transformerFactory.newTransformer();
+		       DOMSource source = new DOMSource(doc);
+		       StringWriter sw = new StringWriter();
+		       StreamResult result = new StreamResult(sw);
+		       transformer.transform(source, result);
+		       xmlProcessed = sw.toString();
+			}
+			catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		
+		return xmlProcessed;
+	}
+
 }
 	

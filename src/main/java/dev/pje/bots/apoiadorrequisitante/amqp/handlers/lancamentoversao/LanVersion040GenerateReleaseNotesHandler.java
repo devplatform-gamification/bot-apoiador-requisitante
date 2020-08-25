@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import com.devplatform.model.bot.VersionReleaseNoteIssues;
 import com.devplatform.model.bot.VersionReleaseNotes;
 import com.devplatform.model.bot.VersionReleaseNotesIssueTypeEnum;
+import com.devplatform.model.gitlab.GitlabProjectExtended;
 import com.devplatform.model.gitlab.GitlabTag;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraIssuetype;
@@ -24,15 +25,21 @@ import com.devplatform.model.jira.event.JiraEventIssue;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
+import dev.pje.bots.apoiadorrequisitante.utils.GitlabUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
+import dev.pje.bots.apoiadorrequisitante.utils.NewVersionReleasedNewsTextModel;
+import dev.pje.bots.apoiadorrequisitante.utils.NewVersionReleasedSimpleCallTextModel;
 import dev.pje.bots.apoiadorrequisitante.utils.ReleaseNotesTextModel;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
+import dev.pje.bots.apoiadorrequisitante.utils.markdown.RocketchatMarkdown;
+import dev.pje.bots.apoiadorrequisitante.utils.markdown.SlackMarkdown;
+import dev.pje.bots.apoiadorrequisitante.utils.markdown.TelegramMarkdownHtml;
 
 @Component
-public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIssue>{
+public class LanVersion040GenerateReleaseNotesHandler extends Handler<JiraEventIssue>{
 
-	private static final Logger logger = LoggerFactory.getLogger(LanVersion04GenerateReleaseNotesHandler.class);
+	private static final Logger logger = LoggerFactory.getLogger(LanVersion040GenerateReleaseNotesHandler.class);
 
 	@Override
 	protected Logger getLogger() {
@@ -41,16 +48,23 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 	
 	@Override
 	public String getMessagePrefix() {
-		return "|VERSION-LAUNCH||04||GENERATE-RELEASE-NOTES|";
+		return "|VERSION-LAUNCH||040||GENERATE-RELEASE-NOTES|";
 	}
 
 	@Override
 	public int getLogLevel() {
 		return MessagesLogger.LOGLEVEL_INFO;
 	}
-	
+
 	@Autowired
 	private ReleaseNotesTextModel releaseNotesModel;
+
+	@Autowired
+	private NewVersionReleasedNewsTextModel newVersionReleasedNewsModel;
+
+	@Autowired
+	private NewVersionReleasedSimpleCallTextModel newVersionSimpleCallModel;
+
 
 	/**
 	 * :: Gerando release notes ::
@@ -91,6 +105,7 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 						if(StringUtils.isBlank(versaoASerLancada)){
 							versaoASerLancada = versaoAfetada;
 						}
+						GitlabProjectExtended gitlabProject = null;
 						// verifica se a tag da versão já existe
 						if(StringUtils.isNotBlank(gitlabProjectId)) {
 							GitlabTag tag = gitlabService.getVersionTag(gitlabProjectId, versaoASerLancada);
@@ -107,7 +122,9 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 							if(StringUtils.isBlank(proximaVersao)){
 								proximaVersao = jiraService.calulateNextVersionNumber(issue.getFields().getProject().getKey(), versaoASerLancada);
 							}
-
+							
+							// obter os dados do projeto do gitlab
+							gitlabProject = gitlabService.getProjectDetails(gitlabProjectId);
 						}
 						// busca as issues cujo "fixversion" = "versão afetada" e gera um release notes
 						String jql = jiraService.getJqlIssuesFromFixVersion(versaoAfetada, true, new ArrayList<>());
@@ -137,6 +154,9 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 							if(StringUtils.isNotBlank(issue.getFields().getUrlPublicacaoDocumentacao())) {
 								releaseNotes.setUrl(issue.getFields().getUrlPublicacaoDocumentacao());
 							}
+							if(gitlabProject != null && StringUtils.isNotBlank(gitlabProject.getWebUrl())) {
+								releaseNotes.setGitlabProjectUrl(GitlabUtils.getGitlabProjectReleasesUrl(gitlabProject.getWebUrl()));
+							}
 							List<VersionReleaseNoteIssues> newFeatures = new ArrayList<>();
 							List<VersionReleaseNoteIssues> improvements = new ArrayList<>();
 							List<VersionReleaseNoteIssues> bugsFixes = new ArrayList<>();
@@ -148,7 +168,11 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 								releaseItem.setIssueKey(issueItem.getKey());
 								releaseItem.setSummary(Utils.clearSummary(issueItem.getFields().getSummary()));
 								
-								releaseItem.setPriority(issueItem.getFields().getPriority().getId().intValue());
+								if(issueItem.getFields() != null && issueItem.getFields().getPriority() != null) {
+									releaseItem.setPriority(issueItem.getFields().getPriority().getId().intValue());
+								}else {
+									releaseItem.setPriority(99);
+								}
 								if(issueItem.getFields().getNotasRelease() != null){
 									releaseItem.setReleaseObservation(issueItem.getFields().getNotasRelease());
 								}
@@ -179,6 +203,14 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 							releaseNotesModel.setReleaseNotes(releaseNotes);
 							String jiraMarkdownRelease = releaseNotesModel.convert(jiraMarkdown);
 							jiraService.atualizarDescricao(issue, jiraMarkdownRelease, updateFields);
+
+							// adiciona a mensagem de lancamento de versão aos campos: lançamento telegram / lançamento slack / lançamento roketchat
+							String mensagemLancamentoRocket = obterMensagemRocketchat(releaseNotes);
+							jiraService.atualizarMensagemRocketchat(issue, mensagemLancamentoRocket, updateFields);
+							String mensagemLancamentoTelegram = obterMensagemTelegram(releaseNotes);
+							jiraService.atualizarMensagemTelegram(issue, mensagemLancamentoTelegram, updateFields);
+							String mensagemLancamentoSlack = obterMensagemSlack(releaseNotes);
+							jiraService.atualizarMensagemSlack(issue, mensagemLancamentoSlack, updateFields);
 
 							String dataTagStr = null;
 							if(releaseNotes.getReleaseDate() != null) {
@@ -212,6 +244,33 @@ public class LanVersion04GenerateReleaseNotesHandler extends Handler<JiraEventIs
 		}
 	}
 	
+	private String obterMensagemTelegram(VersionReleaseNotes releaseNotes) {
+		TelegramMarkdownHtml telegramMarkdown = new TelegramMarkdownHtml();
+
+		newVersionReleasedNewsModel.setReleaseNotes(releaseNotes);
+		String versionReleasedNews = newVersionReleasedNewsModel.convert(telegramMarkdown);
+
+		return versionReleasedNews;
+	}
+
+	private String obterMensagemRocketchat(VersionReleaseNotes releaseNotes) {
+		RocketchatMarkdown rocketchatMarkdown = new RocketchatMarkdown();
+
+		newVersionSimpleCallModel.setReleaseNotes(releaseNotes);
+		String versionReleasedSimpleCallRocket = newVersionSimpleCallModel.convert(rocketchatMarkdown);
+
+		return versionReleasedSimpleCallRocket;
+	}
+
+	private String obterMensagemSlack(VersionReleaseNotes releaseNotes) {
+		SlackMarkdown slackMarkdown = new SlackMarkdown();
+
+		newVersionSimpleCallModel.setReleaseNotes(releaseNotes);
+		String versionReleasedSimpleCallSlack = newVersionSimpleCallModel.convert(slackMarkdown);
+
+		return versionReleasedSimpleCallSlack;
+	}
+
 	public static final int ISSUE_TYPE_HOTFIX = 10202;
 	public static final int ISSUE_TYPE_BUGFIX = 10201;
 	public static final int ISSUE_TYPE_BUG = 1;

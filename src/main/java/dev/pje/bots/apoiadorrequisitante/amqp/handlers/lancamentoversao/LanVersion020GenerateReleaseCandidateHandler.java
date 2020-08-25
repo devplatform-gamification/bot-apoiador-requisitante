@@ -22,12 +22,14 @@ import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.ReleaseCandidateTextModel;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.GitlabMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
+import dev.pje.bots.apoiadorrequisitante.utils.markdown.RocketchatMarkdown;
+import dev.pje.bots.apoiadorrequisitante.utils.markdown.SlackMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.TelegramMarkdownHtml;
 
 @Component
-public class LanVersion02GenerateReleaseCandidateHandler extends Handler<JiraEventIssue>{
+public class LanVersion020GenerateReleaseCandidateHandler extends Handler<JiraEventIssue>{
 
-	private static final Logger logger = LoggerFactory.getLogger(LanVersion02GenerateReleaseCandidateHandler.class);
+	private static final Logger logger = LoggerFactory.getLogger(LanVersion020GenerateReleaseCandidateHandler.class);
 
 	@Override
 	protected Logger getLogger() {
@@ -36,7 +38,7 @@ public class LanVersion02GenerateReleaseCandidateHandler extends Handler<JiraEve
 	
 	@Override
 	public String getMessagePrefix() {
-		return "|VERSION-LAUNCH||02||RELEASE CANDIDATE|";
+		return "|VERSION-LAUNCH||020||RELEASE CANDIDATE|";
 	}
 
 	@Override
@@ -157,7 +159,15 @@ public class LanVersion02GenerateReleaseCandidateHandler extends Handler<JiraEve
 					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 				}else {
 					if(!tagReleaseJaExistente || !releaseBranchJaExistente) {
-						publicarMensagemLancamentoVersao(releaseCandidateModel);
+						Boolean comunicarLancamentoVersaoCanaisOficiais = false;
+						if(issue.getFields().getComunicarLancamentoVersao() != null 
+								&& !issue.getFields().getComunicarLancamentoVersao().isEmpty()) {
+							
+							if(issue.getFields().getComunicarLancamentoVersao().get(0).getValue().equalsIgnoreCase("Sim")) {
+								comunicarLancamentoVersaoCanaisOficiais = true;
+							}
+						}
+						comunicarLancamentoVersao(issue, comunicarLancamentoVersaoCanaisOficiais);
 
 						JiraMarkdown jiraMarkdown = new JiraMarkdown();
 						messages.info(releaseCandidateModel.convert(jiraMarkdown));
@@ -172,11 +182,67 @@ public class LanVersion02GenerateReleaseCandidateHandler extends Handler<JiraEve
 		}
 	}
 	
-	private void publicarMensagemLancamentoVersao(ReleaseCandidateTextModel modelo) {
-		TelegramMarkdownHtml telegramMarkdown = new TelegramMarkdownHtml();
-		telegramService.sendBotMessageHtml(modelo.convert(telegramMarkdown));// TODO - mandar também para o canal oficial
+	private void comunicarLancamentoVersao(JiraIssue issue, Boolean comunicarCanaisOficiais) {
+		String mensagemRoketchat = null;
+		String mensagemSlack = null;
+		String mensagemTelegram = null;
+		if(issue != null && issue.getFields() != null) {
+			mensagemRoketchat = issue.getFields().getMensagemRocketchat();
+			mensagemSlack = issue.getFields().getMensagemSlack();
+			mensagemTelegram = issue.getFields().getMensagemTelegram();
+		}
 		
-		GitlabMarkdown gitlabMarkdown = new GitlabMarkdown();
-		slackService.sendBotMessage(modelo.convert(gitlabMarkdown)); // TODO - criar markdown slack + rocketchat
+		if(StringUtils.isBlank(mensagemRoketchat)) {
+			mensagemRoketchat = gerarMensagemRocketchat();
+		}
+		if(StringUtils.isBlank(mensagemSlack)) {
+			mensagemSlack = gerarMensagemSlack();
+		}
+		if(StringUtils.isBlank(mensagemTelegram)) {
+			mensagemTelegram = gerarMensagemTelegram();
+		}
+
+		if(StringUtils.isNotBlank(mensagemRoketchat)) {
+			slackService.sendBotMessage(mensagemRoketchat); // TODO - criar service rocketchat
+			if(comunicarCanaisOficiais) {
+				slackService.sendBotMessageOfficialChannel(mensagemRoketchat); // TODO - criar service rocketchat
+			}
+		}
+		if(StringUtils.isNotBlank(mensagemSlack)) {
+			slackService.sendBotMessage(mensagemSlack);
+			if(comunicarCanaisOficiais) {
+				slackService.sendBotMessageOfficialChannel(mensagemSlack);
+			}
+		}
+		if(StringUtils.isNotBlank(mensagemTelegram)) {
+			telegramService.sendBotMessageHtml(mensagemTelegram);
+			if(comunicarCanaisOficiais) {
+				telegramService.sendOficialChannelMessageHtml(mensagemTelegram);
+			}
+		}
+	}
+	
+	private String gerarMensagemTelegram() {
+		TelegramMarkdownHtml telegramMarkdown = new TelegramMarkdownHtml();
+
+		String versionReleasedNews = releaseCandidateModel.convert(telegramMarkdown);
+
+		return versionReleasedNews;
+	}
+
+	private String gerarMensagemRocketchat() {
+		RocketchatMarkdown rocketchatMarkdown = new RocketchatMarkdown();
+
+		String versionReleasedSimpleCallRocket = releaseCandidateModel.convert(rocketchatMarkdown);
+
+		return versionReleasedSimpleCallRocket;
+	}
+
+	private String gerarMensagemSlack() {
+		SlackMarkdown slackMarkdown = new SlackMarkdown();
+
+		String versionReleasedSimpleCallSlack = releaseCandidateModel.convert(slackMarkdown);
+
+		return versionReleasedSimpleCallSlack;
 	}
 }

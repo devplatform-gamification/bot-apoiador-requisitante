@@ -33,12 +33,14 @@ import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.AsciiDocMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.GitlabMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
+import dev.pje.bots.apoiadorrequisitante.utils.markdown.RocketchatMarkdown;
+import dev.pje.bots.apoiadorrequisitante.utils.markdown.SlackMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.TelegramMarkdownHtml;
 
 @Component
-public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<JiraEventIssue>{
+public class LanVersion060FinishReleaseNotesProcessingHandler extends Handler<JiraEventIssue>{
 
-	private static final Logger logger = LoggerFactory.getLogger(LanVersion06FinishReleaseNotesProcessingHandler.class);
+	private static final Logger logger = LoggerFactory.getLogger(LanVersion060FinishReleaseNotesProcessingHandler.class);
 
 	@Override
 	protected Logger getLogger() {
@@ -47,7 +49,7 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 
 	@Override
 	public String getMessagePrefix() {
-		return "|VERSION-LAUNCH||06||PUBLISH-DOCS|";
+		return "|VERSION-LAUNCH||060||PUBLISH-DOCS|";
 	}
 
 	@Override
@@ -149,16 +151,9 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 								}
 							}
 
-					/* passar esta atividade para o projeto de documentacao */
-					/*******************/
 							// Gerar documento asciidoc e incluir no docs.pje.jus.br
 							String versaoAfetada = releaseNotes.getAffectedVersion();
 							releaseNotes.setAffectedVersion(releaseNotes.getVersion());
-//							String urlReleaseNotes = criarDocumentoReleaseNotesNoProjetoDocumentacao(issue, releaseNotes);
-//							if(StringUtils.isNotBlank(urlReleaseNotes)) {
-//								releaseNotes.setUrl(urlReleaseNotes);
-//							}
-					/*******************/
 							// lançar o texto do release do gitlab se não houver texto na release
 							if(!isTagReleaseCreated(releaseNotes.getGitlabProjectId(), releaseNotes.getVersion())) {
 								GitlabMarkdown gitlabMarkdown = new GitlabMarkdown();
@@ -166,22 +161,22 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 								String releaseText = releaseNotesModel.convert(gitlabMarkdown);
 								GitlabTagRelease tagReleaseResponse = gitlabService.createTagRelease(releaseNotes.getGitlabProjectId(), releaseNotes.getVersion(), releaseText);
 								if(tagReleaseResponse != null) {
-									messages.info("Criada o documento de release da tag do projeto: " + releaseNotes.getProject());
+									messages.info("Criado o documento de release da tag do projeto: " + releaseNotes.getProject());
 								}else {
 									messages.error("Erro ao criar o documento de release da tag do projeto: " + releaseNotes.getProject());
 								}
 							}
 							if(!messages.hasSomeError()) {
 								// comunicar o lançamento da versão
-								Boolean comunicarLancamentoVersao = false;
+								Boolean comunicarLancamentoVersaoCanaisOficiais = false;
 								if(issue.getFields().getComunicarLancamentoVersao() != null 
 										&& !issue.getFields().getComunicarLancamentoVersao().isEmpty()) {
 									
 									if(issue.getFields().getComunicarLancamentoVersao().get(0).getValue().equalsIgnoreCase("Sim")) {
-										comunicarLancamentoVersao = true;
+										comunicarLancamentoVersaoCanaisOficiais = true;
 									}
 								}
-								comunicarLancamentoVersao(releaseNotes, comunicarLancamentoVersao);
+								comunicarLancamentoVersao(issue, releaseNotes, comunicarLancamentoVersaoCanaisOficiais);
 								
 								// indica a data de lançamento da versão atual no jira, atualizando o número da versão também se necessário
 								jiraService.releaseVersionInRelatedProjects(
@@ -189,7 +184,7 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 											versaoAfetada, 
 											releaseNotes.getVersion(), 
 											dataReleaseNotesStr, "Alterações da versão: " + releaseNotes.getVersion());
-
+								
 								// verifia se foi solicitada a inicializacao da próxima versão indicada
 								Boolean iniciarProximaVersaoAutomaticamente = false;
 								if(issue.getFields().getIniciarProximaVersaoAutomaticamente() != null 
@@ -259,24 +254,73 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 		}
 	}
 	
-	private void comunicarLancamentoVersao(VersionReleaseNotes releaseNotes, Boolean comunicarCanaisOficiais) {
-		TelegramMarkdownHtml telegramMarkdown = new TelegramMarkdownHtml();
-		
-		newVersionReleasedNewsModel.setReleaseNotes(releaseNotes);
-		String versionReleasedNews = newVersionReleasedNewsModel.convert(telegramMarkdown);
-		telegramService.sendBotMessageHtml(versionReleasedNews);
-		
-		
-		newVersionSimpleCallModel.setReleaseNotes(releaseNotes);
-		String versionReleasedSimpleCall = newVersionSimpleCallModel.convert(telegramMarkdown); // FIXME - criar o markdown para rocketchat + slack
-		slackService.sendBotMessage(versionReleasedSimpleCall);
-		
-		if(comunicarCanaisOficiais) {
-			telegramService.sendOficialChannelMessageHtml(versionReleasedNews);
+	private void comunicarLancamentoVersao(JiraIssue issue, VersionReleaseNotes releaseNotes, Boolean comunicarCanaisOficiais) {
+		String mensagemRoketchat = null;
+		String mensagemSlack = null;
+		String mensagemTelegram = null;
+		if(issue != null && issue.getFields() != null) {
+			mensagemRoketchat = issue.getFields().getMensagemRocketchat();
+			mensagemSlack = issue.getFields().getMensagemSlack();
+			mensagemTelegram = issue.getFields().getMensagemTelegram();
 		}
 		
-		// TODO criar service e client para o rocketchat
+		if(StringUtils.isBlank(mensagemRoketchat)) {
+			mensagemRoketchat = gerarMensagemRocketchat(releaseNotes);
+		}
+		if(StringUtils.isBlank(mensagemSlack)) {
+			mensagemSlack = gerarMensagemSlack(releaseNotes);
+		}
+		if(StringUtils.isBlank(mensagemTelegram)) {
+			mensagemTelegram = gerarMensagemTelegram(releaseNotes);
+		}
+
+		if(StringUtils.isNotBlank(mensagemRoketchat)) {
+			slackService.sendBotMessage(mensagemRoketchat); // TODO - criar service rocketchat
+			if(comunicarCanaisOficiais) {
+				slackService.sendBotMessageOfficialChannel(mensagemRoketchat); // TODO - criar service rocketchat
+			}
+		}
+		if(StringUtils.isNotBlank(mensagemSlack)) {
+			slackService.sendBotMessage(mensagemSlack);
+			if(comunicarCanaisOficiais) {
+				slackService.sendBotMessageOfficialChannel(mensagemSlack);
+			}
+		}
+		if(StringUtils.isNotBlank(mensagemTelegram)) {
+			telegramService.sendBotMessageHtml(mensagemTelegram);
+			if(comunicarCanaisOficiais) {
+				telegramService.sendOficialChannelMessageHtml(mensagemTelegram);
+			}
+		}
 	}
+	
+	private String gerarMensagemTelegram(VersionReleaseNotes releaseNotes) {
+		TelegramMarkdownHtml telegramMarkdown = new TelegramMarkdownHtml();
+
+		newVersionReleasedNewsModel.setReleaseNotes(releaseNotes);
+		String versionReleasedNews = newVersionReleasedNewsModel.convert(telegramMarkdown);
+
+		return versionReleasedNews;
+	}
+
+	private String gerarMensagemRocketchat(VersionReleaseNotes releaseNotes) {
+		RocketchatMarkdown rocketchatMarkdown = new RocketchatMarkdown();
+
+		newVersionSimpleCallModel.setReleaseNotes(releaseNotes);
+		String versionReleasedSimpleCallRocket = newVersionSimpleCallModel.convert(rocketchatMarkdown);
+
+		return versionReleasedSimpleCallRocket;
+	}
+
+	private String gerarMensagemSlack(VersionReleaseNotes releaseNotes) {
+		SlackMarkdown slackMarkdown = new SlackMarkdown();
+
+		newVersionSimpleCallModel.setReleaseNotes(releaseNotes);
+		String versionReleasedSimpleCallSlack = newVersionSimpleCallModel.convert(slackMarkdown);
+
+		return versionReleasedSimpleCallSlack;
+	}
+
 	
 	/**
 	 * Cria uma nova issue:
@@ -424,7 +468,7 @@ public class LanVersion06FinishReleaseNotesProcessingHandler extends Handler<Jir
 		boolean tagReleaseCreated = false;
 
 		GitlabTag tag = gitlabService.getVersionTag(gitlabProjectId, tagName);
-		if (tag != null && tag.getCommit() != null && tag.getRelease() != null) {
+		if (tag != null && tag.getRelease() != null) {
 			tagReleaseCreated = StringUtils.isNotBlank(tag.getRelease().getDescription());
 		}
 		

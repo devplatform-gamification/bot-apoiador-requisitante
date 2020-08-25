@@ -68,10 +68,10 @@ public class ReleaseNotesTextModel extends AbstractTextModel{
 			if(StringUtils.isNotBlank(releaseNotes.getJql())) {
 				linkToVersion = markdown.link(getPathJql(releaseNotes.getJql()), releaseNotes.getVersion());
 			}
-			markdownText.append(markdown.head1("Versão " + linkToVersion));
+			markdownText.append(markdown.head2("Versão " + linkToVersion));
 			
 			if(StringUtils.isNotBlank(releaseNotes.getProject())) {
-				markdownText.append(markdown.head2(releaseNotes.getProject()));
+				markdownText.append(markdown.head3(releaseNotes.getProject()));
 			}
 
 			// autoria
@@ -181,7 +181,7 @@ public class ReleaseNotesTextModel extends AbstractTextModel{
 			// desenvolvedores
 			if(desenvs != null && !desenvs.isEmpty()) {
 				markdownText
-					.append(markdown.head3("Desenvolvedores"));
+					.append(markdown.head4("Desenvolvedores"));
 				
 				for (IssueAuthorPointsVO desenv : desenvs) {
 					markdownText
@@ -218,7 +218,7 @@ public class ReleaseNotesTextModel extends AbstractTextModel{
 			
 			// outras informações
 			markdownText
-				.append(markdown.head3("Outras informações"))
+				.append(markdown.head4("Outras informações"))
 				.append(markdown.listItem("Link desta versão no jira: " + linkToVersion))
 				.append(markdown.listItem("Veja outros release notes: " 
 						+ markdown.link(DOCSURL + "/servicos-negociais/pje-legacy/release-notes/index.html", "aqui")))
@@ -227,7 +227,7 @@ public class ReleaseNotesTextModel extends AbstractTextModel{
 				.append(markdown.highlight("TIP: Acompanhe as notícias do PJe em primeira-mão no canal (público) do telegram: " 
 						+ markdown.link(TELEGRAM_CHANNEL_URL, "@" + TELEGRAM_CHANNEL_NAME)));
 		}else {
-			markdownText.append(markdown.head1("Não foi possível gerar versão para o jira, não há informações obrigatórias como versão e tipo de versão."));
+			markdownText.append(markdown.head2("Não foi possível gerar versão para o jira, não há informações obrigatórias como versão e tipo de versão."));
 		}
 		
 		return markdownText.toString();
@@ -265,7 +265,7 @@ public class ReleaseNotesTextModel extends AbstractTextModel{
 	private String getIssuesAsList(String title, List<VersionReleaseNoteIssues> issuesList) {
 		StringBuilder issueList = new StringBuilder();
 		issueList
-			.append(markdown.head3(title));
+			.append(markdown.head4(title));
 		// TODO - ordenar a lista de issues pela prioridade
 		for (VersionReleaseNoteIssues issue : issuesList) {
 			String authorName = DESENVOLVEDOR_ANONIMO;

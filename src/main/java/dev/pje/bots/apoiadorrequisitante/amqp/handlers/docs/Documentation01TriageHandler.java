@@ -140,6 +140,7 @@ public class Documentation01TriageHandler extends Handler<JiraEventIssue>{
 					}
 					
 					boolean publicarDocumentacaoAutomaticamente = false;
+					String branchName = null;
 					if(!messages.hasSomeError()) {
 						 /* - se foi solicitado Publicar documentação automaticamente? e que no caso o usuário possui permissao para isso, caso nao tenha permissao, 
 						 * 		apenas ignora, sem gerar erro, lançando a informação como comentário e alterando o valor
@@ -155,34 +156,37 @@ public class Documentation01TriageHandler extends Handler<JiraEventIssue>{
 							publicarDocumentacaoAutomaticamente = false;
 							messages.info("Apesar da indicação, o usuário atual não tem permissão para publicar documentações automaticamente sem homologação prévia, removendo a seleção dessa opção.");
 						}
-						
+
+						/**
+						 * verifica se há branch relacionado, se houver, não valida os anexos e utilizará o branch como referência
+						 */
+						branchName = recuperarBranchRelacionado(issue);
+
 						/**
 						 * valida anexos:
 						 * - se foram indicados anexos, pelo menos 1 anexo com a extensao .adoc deve existir - caso contrário gera erro para o usuario
 						 */
-						boolean validacaoAnexos = false;
-						if(issue.getFields().getAttachment() != null && !issue.getFields().getAttachment().isEmpty()) {
-							int numAdocEncontrados = 0;
-							for (JiraIssueAttachment anexo : issue.getFields().getAttachment()) {
-								if(anexo.getFilename().endsWith(JiraService.FILENAME_SUFFIX_ADOC)) {
-									numAdocEncontrados++;
-								}
-							}
-							validacaoAnexos = (numAdocEncontrados == 1);
-						}
-						if (validacaoAnexos){
+						JiraIssueAttachment anexoAdoc = recuperaAnexoDocumentoPrincipalAdoc(issue);
+						if (anexoAdoc != null){
 							messages.info("Encontrado o anexo com a documentação no formato: "+ JiraService.FILENAME_SUFFIX_ADOC);
 						}else {
-							messages.error("Deve haver um e apenas um arquivo anexo com a extensão: " + JiraService.FILENAME_SUFFIX_ADOC + " - ele será utilizado como documento principal da documentação criada.");
+							if(StringUtils.isBlank(branchName)) {
+								messages.error("Deve haver um e apenas um arquivo anexo com a extensão: " + JiraService.FILENAME_SUFFIX_ADOC 
+										+ " - ele será utilizado como documento principal da documentação criada.\n"
+										+ "Alternativamente pode-se indicar um branch com código da implementação manual.");
+								
+							}
 						}
 					}
 
 					JiraMarkdown jiraMarkdown = new JiraMarkdown();
 					StringBuilder textoComentario = new StringBuilder(messages.getMessagesToJira());
-					textoComentario.append(jiraMarkdown.newLine());
-					textoComentario.append(jiraMarkdown.block("Caso se pretenda utilizar anexos (imagem ou outro formato) deve-se utilizar no arquivo principal de documentação .adoc, referências"
-							+ " à pasta '" + JiraService.DOCUMENTATION_ASSETS_DIR + "', pois todos os documentos anexados a esta issue que não sejam .adoc serão enviados ao repositório na pasta"
-							+ " '" + JiraService.DOCUMENTATION_ASSETS_DIR + "' no mesmo path do arquivo principal."));
+					if(StringUtils.isBlank(branchName)) {
+						textoComentario.append(jiraMarkdown.newLine());
+						textoComentario.append(jiraMarkdown.block("Caso se pretenda utilizar anexos (imagem ou outro formato) deve-se utilizar no arquivo principal de documentação .adoc, referências"
+								+ " à pasta '" + JiraService.DOCUMENTATION_ASSETS_DIR + "', pois todos os documentos anexados a esta issue que não sejam .adoc serão enviados ao repositório na pasta"
+								+ " '" + JiraService.DOCUMENTATION_ASSETS_DIR + "' no mesmo path do arquivo principal."));
+					}
 
 					if(messages.hasSomeError()) {
 						// indica que há pendências - encaminha ao demandante
@@ -202,5 +206,31 @@ public class Documentation01TriageHandler extends Handler<JiraEventIssue>{
 				}		
 			}
 		}
+	}
+		
+    private String recuperarBranchRelacionado(JiraIssue issue) {
+    	String branchName = null;
+		String branchesRelacionados = issue.getFields().getBranchesRelacionados();
+		if(StringUtils.isNotBlank(branchesRelacionados)) {
+			String[] branches = branchesRelacionados.split(",");
+			if(branches.length > 0 && StringUtils.isNotBlank(branches[0])) {
+				branchName = branches[0].trim();
+			}
+		}
+		return branchName;
+    }
+	
+	private JiraIssueAttachment recuperaAnexoDocumentoPrincipalAdoc(JiraIssue issue) {
+		JiraIssueAttachment documentoAdoc = null;
+		if(issue.getFields().getAttachment() != null && !issue.getFields().getAttachment().isEmpty()) {
+			for (JiraIssueAttachment anexo : issue.getFields().getAttachment()) {
+				if(anexo.getFilename().endsWith(JiraService.FILENAME_SUFFIX_ADOC)) {
+					documentoAdoc = anexo;
+					break;
+				}
+			}
+		}
+		
+		return documentoAdoc;
 	}
 }

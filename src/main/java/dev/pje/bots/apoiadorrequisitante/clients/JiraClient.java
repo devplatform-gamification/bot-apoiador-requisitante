@@ -90,7 +90,7 @@ public interface JiraClient {
 	public JiraCustomField addCustomFieldOptions(
 			@PathVariable("customFieldId") String customFieldId, @RequestBody JiraCustomFieldOptionsRequest customFieldOptionsRequest);
 
-	@PostMapping(value = "/rest/scriptrunner/latest/custom/customFields/{customFieldId}/option/{optionId}", consumes = MediaType.APPLICATION_JSON_VALUE)
+	@PutMapping(value = "/rest/scriptrunner/latest/custom/customFields/{customFieldId}/option/{optionId}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraCustomField updateCustomFieldOption(
 			@PathVariable("customFieldId") String customFieldId, 
 			@PathVariable("optionId") String optionId,

@@ -37,6 +37,11 @@ public class NewVersionReleasedNewsTextModel extends AbstractTextModel{
 		//		this.markdown = markdown;
 		StringBuilder markdownText = new StringBuilder();
 		if(releaseNotes != null && releaseNotes.getVersion() != null && releaseNotes.getVersionType() != null) {
+			if(releaseNotes.getProject().contains("legay") || Utils.compareAsciiIgnoreCase(releaseNotes.getProject(), "PJE")) {
+				markdownText.append(markdown.bold("Atualize o PJe-Legacy do seu tribunal!"))
+					.append(markdown.newLine());
+			}
+
 			markdownText.append(markdown.head1("Versão " + releaseNotes.getVersion() + " disponível"))
 			.append(markdown.newLine())
 			.append(markdown.normal(releaseNotes.getProject()))
@@ -61,6 +66,13 @@ public class NewVersionReleasedNewsTextModel extends AbstractTextModel{
 			}
 			markdownText.append(markdown.newLine())
 			.append(markdown.link(releaseUrl, "Acesse o release notes completo desta versão aqui"));
+			
+			// link gitlab
+			if(StringUtils.isNotBlank(releaseNotes.getGitlabProjectUrl())) {
+				markdownText.append(markdown.newLine())
+					.append(markdown.link(releaseNotes.getGitlabProjectUrl(), "Ou veja as releases deste serviço diretamente no gitlab."));
+				
+			}
 		}
 
 		return markdownText.toString();

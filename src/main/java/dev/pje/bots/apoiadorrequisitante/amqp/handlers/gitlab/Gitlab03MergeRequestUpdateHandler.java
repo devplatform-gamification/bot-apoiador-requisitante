@@ -175,7 +175,11 @@ public class Gitlab03MergeRequestUpdateHandler extends Handler<GitlabEventMergeR
 
 							jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
 
-							enviarAlteracaoJira(issue, updateFields, transitionID, true, true);
+							try {
+								enviarAlteracaoJira(issue, updateFields, transitionID, true, true);
+							}catch (Exception e) {
+								messages.error("Falhou ao tentar atualizar a issue: " + issue.getKey() + " - erro: " + e.getLocalizedMessage());
+							}
 						}else {
 							messages.info("Este consumer não atuará nas issues do PJe (por hora)");
 						}

@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.devplatform.model.jira.JiraIssue;
-import com.devplatform.model.jira.custom.JiraCustomField;
 import com.devplatform.model.jira.event.JiraEventIssue;
 import com.devplatform.model.jira.vo.JiraEstruturaDocumentacaoVO;
 
@@ -85,21 +84,20 @@ public class Documentation05FinishHomologationHandler extends Handler<JiraEventI
 								if(estruturaDocumentacao.getCategoriaIndicadaOutros()) {
 									// FIXME a informação faltante é a categoria
 									String nomeCategoria = estruturaDocumentacao.getCategoriaNomeParaExibicao();
-									JiraCustomField categoriaField = jiraService.createCategoriaEstruturaDocumentacao(nomeCategoria);
-									if(categoriaField != null) {
+									try {
+										jiraService.createCategoriaEstruturaDocumentacao(nomeCategoria);
 										messages.info("Criada a nova categoria de documentação: " + nomeCategoria);
-									}else {
+									}catch (Exception e) {
 										messages.error("Falhou ao tentar criar a nova categoria de documentação: " + nomeCategoria);
 									}
 								}else {
 									// FIXME a informação faltante é a subcategoria
 									issueCategoriaId = estruturaDocumentacao.getCategoriaId().toString();
 									String nomeSubCategoria = estruturaDocumentacao.getSubCategoriaNomeParaExibicao();
-									JiraCustomField categoriaPaiField = jiraService.createSubCategoriaEstruturaDocumentacao(nomeSubCategoria, issueCategoriaId);
-									if(categoriaPaiField != null) {
-										// TODO - identificar qual o id da subcategoria criada
+									try {
+										jiraService.createSubCategoriaEstruturaDocumentacao(nomeSubCategoria, issueCategoriaId);
 										messages.info("Criada a nova sub-categoria de documentação: " + nomeSubCategoria);
-									}else {
+									}catch (Exception e) {
 										messages.error("Falhou ao tentar criar a nova categoria de documentação: " + nomeSubCategoria);
 									}
 									// TODO - cadastrar a subcategoria como cascading

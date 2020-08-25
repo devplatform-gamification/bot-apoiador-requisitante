@@ -20,9 +20,9 @@ import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 
 @Component
-public class LanVersion01TriageHandler extends Handler<JiraEventIssue>{
+public class LanVersion010TriageHandler extends Handler<JiraEventIssue>{
 
-	private static final Logger logger = LoggerFactory.getLogger(LanVersion01TriageHandler.class);
+	private static final Logger logger = LoggerFactory.getLogger(LanVersion010TriageHandler.class);
 	
 	@Override
 	protected Logger getLogger() {
@@ -31,7 +31,7 @@ public class LanVersion01TriageHandler extends Handler<JiraEventIssue>{
 	
 	@Override
 	public String getMessagePrefix() {
-		return "|VERSION-LAUNCH||01||TRIAGE|";
+		return "|VERSION-LAUNCH||010||TRIAGE|";
 	}
 
 	@Override
@@ -42,7 +42,7 @@ public class LanVersion01TriageHandler extends Handler<JiraEventIssue>{
 	@Value("${project.documentation.url}")
 	private String DOCSURL;
 
-	private static final String TRANSITION_PROPERTY_KEY_GERAR_RELEASE_CANDIDATE = "GERAR_RELEASE_CANDIDATE";
+	private static final String TRANSITION_PROPERTY_KEY_PREPARAR_VERSAO_ATUAL = "PREPARAR_VERSAO_ATUAL";
 	private static final String TRANSITION_PROPERTY_KEY_GERAR_RELEASE_NOTES = "GERAR_RELEASE_NOTES";
 		
 	/**
@@ -53,9 +53,10 @@ public class LanVersion01TriageHandler extends Handler<JiraEventIssue>{
 	 * -- se não, fecha a issue
 	 * - se a versão já foi lançada
 	 * -- se não, não tramita a issue, apenas lança um comentário nela
-	 * - se a flag: "versao RC automatica" está marcada como true
-	 * -- se sim, tramita automaticamente para "gerando release candidate"
-	 * TODO - só permitir executar se o projeto do git implementar o gitflow
+	 * - se a flag: "preparar versão atual automaticamente" está marcada como true
+	 * -- verifica se há versão lançada:
+	 * --- se sim, tramita para geração do release notes
+	 * --- se não, tramita para: "preparar versão atual"
 	 */
 	@Override
 	public void handle(JiraEventIssue jiraEventIssue) throws Exception {
@@ -76,7 +77,7 @@ public class LanVersion01TriageHandler extends Handler<JiraEventIssue>{
 				if (jiraService.isLancadorVersao(jiraEventIssue.getUser())) {
 					// valida se foi indicada uma versão afetada - caso contrário fecha a issue
 					String versaoAfetada = JiraUtils.getVersaoAfetada(issue.getFields().getVersions());
-					if(StringUtils.isNotBlank(versaoAfetada)) {						
+					if(StringUtils.isNotBlank(versaoAfetada)) {
 						versaoASerLancada = issue.getFields().getVersaoSeraLancada();
 						if(StringUtils.isBlank(versaoASerLancada)){
 							versaoASerLancada = versaoAfetada;
@@ -97,7 +98,7 @@ public class LanVersion01TriageHandler extends Handler<JiraEventIssue>{
 								
 								if(issue.getFields().getGerarVersaoAutomaticamente().get(0).getValue().equalsIgnoreCase("Sim")) {
 									gerarAutomaticamente = true;
-									messages.info("Tramitando automaticamente para a geração da release candidate da versão: " + versaoASerLancada + " como solicitado.");
+									messages.info("Tramitando automaticamente para a geração da release candidate/preparação para a versão: " + versaoASerLancada + " como solicitado.");
 								}
 							}
 						}
@@ -125,7 +126,7 @@ public class LanVersion01TriageHandler extends Handler<JiraEventIssue>{
 					jiraService.atualizarURLPublicacao(issue, urlReleaseNotes, updateFields);
 					jiraService.atualizarVersaoASerLancada(issue, versaoASerLancada, updateFields);
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, TRANSITION_PROPERTY_KEY_GERAR_RELEASE_CANDIDATE, true, true);
+					enviarAlteracaoJira(issue, updateFields, TRANSITION_PROPERTY_KEY_PREPARAR_VERSAO_ATUAL, true, true);
 				}else if(versaoJaLancada) {
 					// nesta situação - encaminhar para geração do release notes
 					Map<String, Object> updateFields = new HashMap<>();

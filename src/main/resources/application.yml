@@ -42,35 +42,42 @@ spring:
         gitlab03-merge-request-updated:
           name: ${RABBIT_GITLAB03_MERGE_REQUEST_UPDATED_QUEUE:gitlab03-merge-request-updated-queue}
           auto-startup: ${RABBIT_GITLAB03_MERGE_REQUEST_UPDATED_QUEUE_AUTOSTARTUP:false}
-        gitlab04-tag-pushed:
-          name: ${RABBIT_GITLAB04_TAG_PUSHED_QUEUE:gitlab04-tag-pushed-queue}
-          auto-startup: ${RABBIT_GITLAB04_TAG_PUSHED_QUEUE_AUTOSTARTUP:false}
+        gitlab04-tag-pushed-end-version:
+          name: ${RABBIT_GITLAB04_TAG_PUSHED_END_VERSION_QUEUE:gitlab04-tag-pushed-end-version-queue}
+          auto-startup: ${RABBIT_GITLAB04_TAG_PUSHED_END_VERSION_QUEUE_AUTOSTARTUP:false}
+        gitlab05-tag-pushed-prepare-next-version:
+          name: ${RABBIT_GITLAB05_TAG_PUSHED_PREPARE_NEXT_VERSION_QUEUE:gitlab05-tag-pushed-prepare-next-version-queue}
+          auto-startup: ${RABBIT_GITLAB05_TAG_PUSHED_PREPARE_NEXT_VERSION_QUEUE_AUTOSTARTUP:false}
           
-        lanver01-triage-queue:
-          name: ${RABBIT_LANVER01_TRIAGE_QUEUE:lanver01-triage-queue}
-          auto-startup: ${RABBIT_LANVER01_TRIAGE_QUEUE_AUTOSTARTUP:false}
-          routing-key-created: ${RABBIT_LANVER01_TRIAGE_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_CREATED.*.10200.1.#}
-          routing-key-updated: ${RABBIT_LANVER01_TRIAGE_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.1.#}
-        lanver02-release-candidate-queue:
-          name: ${RABBIT_LANVER02_CREATE_RELEASE_CANDIDATE_QUEUE:lanver02-release-candidate-queue}
-          auto-startup: ${RABBIT_LANVER02_CREATE_RELEASE_CANDIDATE_QUEUE_AUTOSTARTUP:false}
-          routing-key-updated: ${RABBIT_LANVER02_CREATE_RELEASE_CANDIDATE_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.10671.#}
-        lanver03-next-version-queue:
-          name: ${RABBIT_LANVER03_PREPARE_NEXT_VERSION_QUEUE:lanver03-prepare-next-version-queue}
-          auto-startup: ${RABBIT_LANVER03_PREPARE_NEXT_VERSION_QUEUE_AUTOSTARTUP:false}
-          routing-key-updated: ${RABBIT_LANVER03_PREPARE_NEXT_VERSION_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.10672.#}
-        lanver04-release-notes-queue:
-          name: ${RABBIT_LANVER04_CREATE_RELEASE_NOTES_QUEUE:lanver04-release-notes-queue}
-          auto-startup: ${RABBIT_LANVER04_CREATE_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
-          routing-key-updated: ${RABBIT_LANVER04_CREATE_RELEASE_NOTES_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.10670.#}
-        lanver05-version-launch-queue:
-          name: ${RABBIT_LANVER05_PROCESS_RELEASE_NOTES_QUEUE:lanver05-version-launch-queue}
-          auto-startup: ${RABBIT_LANVER05_PROCESS_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
-          routing-key-updated: ${RABBIT_LANVER05_PROCESS_RELEASE_NOTES_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.10572.#}
-        lanver06-publish-release-notes-queue:
-          name: ${RABBIT_LANVER06_PUBLISH_RELEASE_NOTES_QUEUE:lanver06-publish-release-notes-queue}
-          auto-startup: ${RABBIT_LANVER06_PUBLISH_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
-          routing-key-updated: ${RABBIT_LANVER06_PUBLISH_RELEASE_NOTES_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.10673.#}
+        lanver010-triage-queue:
+          name: ${RABBIT_LANVER010_TRIAGE_QUEUE:lanver010-triage-queue}
+          auto-startup: ${RABBIT_LANVER010_TRIAGE_QUEUE_AUTOSTARTUP:false}
+          routing-key-created: ${RABBIT_LANVER010_TRIAGE_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_CREATED.*.10200.1.#}
+          routing-key-updated: ${RABBIT_LANVER010_TRIAGE_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.1.#}
+        lanver015-prepare-actual-version-queue:
+          name: ${RABBIT_LANVER015_PREPARE_ACTUAL_VERSION_QUEUE:lanver015-prepare-actual-version-queue}
+          auto-startup: ${RABBIT_LANVER015_PREPARE_ACTUAL_VERSION_QUEUE_AUTOSTARTUP:false}
+          routing-key-updated: ${RABBIT_LANVER015_PREPARE_ACTUAL_VERSION_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.10677.#}
+        lanver020-release-candidate-queue:
+          name: ${RABBIT_LANVER020_CREATE_RELEASE_CANDIDATE_QUEUE:lanver020-release-candidate-queue}
+          auto-startup: ${RABBIT_LANVER020_CREATE_RELEASE_CANDIDATE_QUEUE_AUTOSTARTUP:false}
+          routing-key-updated: ${RABBIT_LANVER020_CREATE_RELEASE_CANDIDATE_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.10671.#}
+        lanver030-next-version-queue:
+          name: ${RABBIT_LANVER030_PREPARE_NEXT_VERSION_QUEUE:lanver030-prepare-next-version-queue}
+          auto-startup: ${RABBIT_LANVER030_PREPARE_NEXT_VERSION_QUEUE_AUTOSTARTUP:false}
+          routing-key-updated: ${RABBIT_LANVER030_PREPARE_NEXT_VERSION_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.10672.#}
+        lanver040-release-notes-queue:
+          name: ${RABBIT_LANVER040_CREATE_RELEASE_NOTES_QUEUE:lanver040-release-notes-queue}
+          auto-startup: ${RABBIT_LANVER040_CREATE_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
+          routing-key-updated: ${RABBIT_LANVER040_CREATE_RELEASE_NOTES_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.10670.#}
+        lanver050-version-launch-queue:
+          name: ${RABBIT_LANVER050_PROCESS_RELEASE_NOTES_QUEUE:lanver050-version-launch-queue}
+          auto-startup: ${RABBIT_LANVER050_PROCESS_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
+          routing-key-updated: ${RABBIT_LANVER050_PROCESS_RELEASE_NOTES_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.10572.#}
+        lanver060-publish-release-notes-queue:
+          name: ${RABBIT_LANVER060_PUBLISH_RELEASE_NOTES_QUEUE:lanver060-publish-release-notes-queue}
+          auto-startup: ${RABBIT_LANVER060_PUBLISH_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
+          routing-key-updated: ${RABBIT_LANVER060_PUBLISH_RELEASE_NOTES_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.10673.#}
 
         documentation01-triage-queue:
           name: ${RABBIT_DOCUMENTATION01_TRIAGE_QUEUE:documentation01-triage-queue}

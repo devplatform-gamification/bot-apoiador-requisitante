@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import com.devplatform.model.bot.VersionTypeEnum;
 import com.devplatform.model.gitlab.GitlabCommit;
 import com.devplatform.model.gitlab.GitlabMergeRequestStateEnum;
 import com.devplatform.model.gitlab.GitlabPipeline;
@@ -42,6 +43,7 @@ import com.devplatform.model.gitlab.vo.GitlabCommitFileVO;
 import com.devplatform.model.gitlab.vo.GitlabMergeRequestVO;
 import com.devplatform.model.gitlab.vo.GitlabScriptVersaoVO;
 
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.clients.GitlabClient;
 import dev.pje.bots.apoiadorrequisitante.utils.GitlabUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
@@ -157,54 +159,72 @@ public class GitlabService {
 		return response;
 	}
 	
+	public String getScriptsMigrationBasePath(String projectId) {
+		String scriptsMigrationBasePath = null;
+		if(StringUtils.isNotBlank(projectId)) {
+			if(projectId.equals("7")) {
+				scriptsMigrationBasePath = GitlabService.SCRIPS_MIGRATION_BASE_PATH;
+			}
+		}
+		return scriptsMigrationBasePath;
+	}
+	
 	public GitlabCommitResponse createScriptsDir(String projectId, String branchName, String lastCommitId, String version, String commitMessage) {
 		GitlabCommitResponse response = null;
 		// monta o path dos scripts
-		String destinationPath = GitlabService.SCRIPS_MIGRATION_BASE_PATH + version;
-		List<GitlabRepositoryTree> currentScriptList = getFilesFromPath(projectId, branchName, destinationPath);
-		// verifica se a pasta ainda não existe
-		if(currentScriptList == null || currentScriptList.isEmpty()) {
-			// cria a pasta com o novo arquivo
-			GitlabCommitRequest commit = new GitlabCommitRequest();
-			commit.setBranch(branchName);
-			commit.commitMessage(commitMessage);
-			commit.setAuthorName(AUTHOR_NAME);
-			commit.setAuthorEmail(AUTHOR_EMAIL);
-			
-			List<GitlabCommitActionRequest> actions = new ArrayList<>();
-			
-			String firstScriptPath = destinationPath + "/" + FIRST_SCRIPT_PREFIX + version + FIRST_SCRIPT_SUFFIX;
-
-			GitlabCommitActionRequest action = new GitlabCommitActionRequest();
-			action.setAction(GitlabCommitActionsEnum.CREATE);
-			action.setFilePath(firstScriptPath);
-			action.setContent("-- Arquivo inicial dos scripts da versao " + version);
-			action.setLastCommitId(lastCommitId);
-			actions.add(action);
-
-			commit.setActions(actions);
-			
-			logger.info(commitMessage);
-			telegramService.sendBotMessage(commitMessage);
-
-			try {
-				response = gitlabClient.sendCommit(projectId, commit);
-				if(response != null && response.getId() != null) {
-					logger.info("ok");
+		String scriptsMigrationBasePath = getScriptsMigrationBasePath(projectId);
+		if(StringUtils.isNotBlank(scriptsMigrationBasePath)) {
+			String destinationPath = scriptsMigrationBasePath + version;
+			List<GitlabRepositoryTree> currentScriptList = getFilesFromPath(projectId, branchName, destinationPath);
+			// verifica se a pasta ainda não existe
+			if(currentScriptList == null || currentScriptList.isEmpty()) {
+				// cria a pasta com o novo arquivo
+				GitlabCommitRequest commit = new GitlabCommitRequest();
+				commit.setBranch(branchName);
+				commit.commitMessage(commitMessage);
+				commit.setAuthorName(AUTHOR_NAME);
+				commit.setAuthorEmail(AUTHOR_EMAIL);
+				
+				List<GitlabCommitActionRequest> actions = new ArrayList<>();
+				
+				String firstScriptPath = destinationPath + "/" + FIRST_SCRIPT_PREFIX + version + FIRST_SCRIPT_SUFFIX;
+				
+				GitlabCommitActionRequest action = new GitlabCommitActionRequest();
+				action.setAction(GitlabCommitActionsEnum.CREATE);
+				action.setFilePath(firstScriptPath);
+				action.setContent("-- Arquivo inicial dos scripts da versao " + version);
+				action.setLastCommitId(lastCommitId);
+				actions.add(action);
+				
+				commit.setActions(actions);
+				
+				logger.info(commitMessage);
+				telegramService.sendBotMessage(commitMessage);
+				
+				try {
+					response = gitlabClient.sendCommit(projectId, commit);
+					if(response != null && response.getId() != null) {
+						logger.info("ok");
+					}
+				}catch(Exception e) {
+					String errorMessage = "Não foi possível mover os arquivos do commit: " + lastCommitId + "\n"
+							+e.getMessage();
+					logger.error(errorMessage);
+					slackService.sendBotMessage(errorMessage);
+					telegramService.sendBotMessage(errorMessage);
 				}
-			}catch(Exception e) {
-				String errorMessage = "Não foi possível mover os arquivos do commit: " + lastCommitId + "\n"
-						+e.getMessage();
-				logger.error(errorMessage);
-				slackService.sendBotMessage(errorMessage);
-				telegramService.sendBotMessage(errorMessage);
+			}else {
+				String message = "Já existe a pasta de scripts da versão: " + version + "";
+				logger.info(message);
+				slackService.sendBotMessage(message);
+				telegramService.sendBotMessage(message);
+				
 			}
 		}else {
-			String message = "Já existe a pasta de scripts da versão: " + version + "";
+			String message = "Não há pasta de sciprts para o projeto: " + projectId + "";
 			logger.info(message);
 			slackService.sendBotMessage(message);
 			telegramService.sendBotMessage(message);
-			
 		}
 		return response;
 	}
@@ -439,7 +459,6 @@ public class GitlabService {
 		}
 	}
 	
-	@Cacheable(cacheNames = "project-tag")
 	public GitlabTag getVersionTag(String projectId, String version) {
 		GitlabTag tag = null;
 		if(StringUtils.isNotBlank(version) && StringUtils.isNotBlank(projectId)) {
@@ -517,7 +536,19 @@ public class GitlabService {
 		branch.setBranch(branchName);
 		branch.setRef(branchRef);
 		
-		return gitlabClient.createRepositoryBranch(projectId, branch);
+		GitlabBranchResponse response = null;
+		try {
+			response = gitlabClient.createRepositoryBranch(projectId, branch);
+		}catch (Exception e) {
+			String errorMessage = "Erro ao tentar criar o branch: " + branchName 
+					+ "no projeto: " + projectId+": \n"
+					+e.getMessage();
+			logger.error(errorMessage);
+			slackService.sendBotMessage(errorMessage);
+			telegramService.sendBotMessage(errorMessage);
+		}
+		
+		return response;
 	}
 	
 	public GitlabBranchResponse getSingleRepositoryBranch(String projectId, String branchName){
@@ -1001,5 +1032,42 @@ public class GitlabService {
 			telegramService.sendBotMessage(errorMessage);
 		}
 		return projectVariable;
+	}
+	
+	public String changePomVersion(String projectId, String branchRef, String versaoAtual, String nextVersion, VersionTypeEnum versionType, 
+			String commitMessage, MessagesLogger messages) throws Exception {
+		String lastCommitId = null;
+		// verifica se é necessário alterar o POM
+		if(StringUtils.isNotBlank(versaoAtual) && StringUtils.isNotBlank(nextVersion)) {
+			// é necessário alterar o POM
+			String nextVersionPom = nextVersion;
+			switch(versionType) {
+			case SNAPSHOT:
+				nextVersionPom += "-SNAPSHOT";
+				break;
+			case RELEASECANDIDATE:
+				nextVersionPom += "-RELEASE-CANDIDATE";
+				break;
+			default:
+				nextVersionPom = nextVersion;
+			}
+			if(!versaoAtual.equalsIgnoreCase(nextVersionPom)) {
+				GitlabCommitResponse response = atualizaVersaoPom(projectId, branchRef, 
+						nextVersionPom, versaoAtual, commitMessage);
+				if(response != null) {
+					logger.info("Atualizada a versão do POM.XML de: " + versaoAtual + " - para: " + nextVersionPom);
+					lastCommitId = response.getId();
+				}else {
+					String errorMessage = "Falhou ao tentar atualizar o POM.XML de: " + versaoAtual + " - para: " + nextVersionPom;
+					logger.error(errorMessage);
+					slackService.sendBotMessage(errorMessage);
+					telegramService.sendBotMessage(errorMessage);
+					throw new Exception(errorMessage);
+				}
+			}else {
+				logger.info("O POM.XML já está atualizado");
+			}
+		}
+		return lastCommitId;
 	}
 }

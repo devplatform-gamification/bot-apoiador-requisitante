@@ -23,7 +23,8 @@ public class SlackService {
 	@Autowired
 	private SlackClientDebug slackClientDebug;
 	
-	public static final String NOME_GRUPO_BOT_TRIAGEM = "C014HN6SSPR";
+	public static final String NOME_GRUPO_BOT_TRIAGEM = "C014HN6SSPR"; // FIXME - virar nome dada por variável de ambiente
+	public static final String NOME_GRUPO_OFICIAL = "C0120BW67BQ"; // FIXME - virar nome dada por variável de ambiente
 
 	public void whois(String userid) {
 		SlackUserInfo user = new SlackUserInfo(userid);
@@ -39,5 +40,9 @@ public class SlackService {
 	
 	public void sendBotMessage(String text) {
 		sendSimpleMessage(NOME_GRUPO_BOT_TRIAGEM, text);
+	}
+
+	public void sendBotMessageOfficialChannel(String text) {
+		sendSimpleMessage(NOME_GRUPO_OFICIAL, text);
 	}
 }
