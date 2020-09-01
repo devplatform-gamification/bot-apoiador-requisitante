@@ -26,12 +26,11 @@ public class TelegramService {
 	@Autowired
 	private TelegramClient telegramClient;
 
-	@Value("${project.telegram.channel.triage-bot-id}")
-	private String NOME_GRUPO_BOT_TRIAGEM;
+	@Value("${project.telegram.channel.triage-bot-id}") 
+	private String GRUPO_BOT_TRIAGEM;
 
-	@Value("${project.telegram.channel.oficial-id}")
-	private String NOME_GRUPO_OFICIAL;
-
+	@Value("${project.telegram.channel.geral}") 
+	private String GRUPO_GERAL;
 
 	public static Integer MAX_MESSAGE_SIZE = 4096;
 	public static Integer numMessagesSent = 0;
@@ -97,14 +96,18 @@ public class TelegramService {
 	}
 	
 	public void sendBotMessage(String text) {
-		sendSimpleMessage(NOME_GRUPO_BOT_TRIAGEM, text, true, TelegramMessageParseModeEnum.MARKDOWN_V2);
-	}
-	
-	public void sendBotMessageHtml(String text) {
-		sendSimpleMessage(NOME_GRUPO_BOT_TRIAGEM, text, true, TelegramMessageParseModeEnum.HTML);
+		sendSimpleMessage(GRUPO_BOT_TRIAGEM, text, true, TelegramMessageParseModeEnum.MARKDOWN_V2);
 	}
 
-	public void sendOficialChannelMessageHtml(String text) {
-		sendSimpleMessage(NOME_GRUPO_OFICIAL, text, true, TelegramMessageParseModeEnum.HTML);
+	public void sendMessageGeral(String text) {
+		sendSimpleMessage(GRUPO_GERAL, text, true, TelegramMessageParseModeEnum.MARKDOWN_V2);
+	}
+
+	public void sendBotMessageHtml(String text) {
+		sendSimpleMessage(GRUPO_BOT_TRIAGEM, text, true, TelegramMessageParseModeEnum.HTML);
+	}
+
+	public void sendMessageGeralHtml(String text) {
+		sendSimpleMessage(GRUPO_GERAL, text, true, TelegramMessageParseModeEnum.HTML);
 	}
 }

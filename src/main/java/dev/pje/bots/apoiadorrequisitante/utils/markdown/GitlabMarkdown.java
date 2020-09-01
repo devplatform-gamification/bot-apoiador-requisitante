@@ -81,6 +81,11 @@ public class GitlabMarkdown implements MarkdownInterface{
 	public String citation(String text) {
 		return block(text);
 	}
+	
+	@Override
+	public String referUser(String username) {
+		return "@" + username.trim();
+	}
 
 	@Override
 	public String highlight(String text) {

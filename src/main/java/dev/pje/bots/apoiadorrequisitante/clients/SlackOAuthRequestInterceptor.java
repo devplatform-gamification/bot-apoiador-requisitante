@@ -3,11 +3,11 @@ package dev.pje.bots.apoiadorrequisitante.clients;
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
 
-public class OAuthRequestInterceptor implements RequestInterceptor {
+public class SlackOAuthRequestInterceptor implements RequestInterceptor {
 
   private final String headerValue;
 
-  public OAuthRequestInterceptor(String token) {
+  public SlackOAuthRequestInterceptor(String token) {
 	    this.headerValue = "Bearer " + token;
   }
   

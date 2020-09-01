@@ -3,11 +3,11 @@ package dev.pje.bots.apoiadorrequisitante.clients;
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
 
-public class PathVariableRequestInterceptor implements RequestInterceptor {
+public class TelegramPathVariableRequestInterceptor implements RequestInterceptor {
 
   private final String token;
 
-  public PathVariableRequestInterceptor(String token) {
+  public TelegramPathVariableRequestInterceptor(String token) {
 	    this.token = token;
   }
   

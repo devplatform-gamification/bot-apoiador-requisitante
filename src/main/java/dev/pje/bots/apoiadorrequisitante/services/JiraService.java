@@ -1,6 +1,7 @@
 package dev.pje.bots.apoiadorrequisitante.services;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -25,6 +26,7 @@ import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraIssueAttachment;
 import com.devplatform.model.jira.JiraIssueComment;
 import com.devplatform.model.jira.JiraIssueFieldOption;
+import com.devplatform.model.jira.JiraIssueTipoVersaoEnum;
 import com.devplatform.model.jira.JiraIssueTransition;
 import com.devplatform.model.jira.JiraIssueTransitions;
 import com.devplatform.model.jira.JiraIssuetype;
@@ -46,10 +48,8 @@ import com.devplatform.model.jira.request.fields.JiraMultiselect;
 import com.devplatform.model.jira.request.fields.JiraTextArea;
 import com.devplatform.model.jira.response.JiraJQLSearchResponse;
 import com.devplatform.model.jira.response.JiraPropertyResponse;
-import com.fasterxml.jackson.core.JsonProcessingException;
 
 import dev.pje.bots.apoiadorrequisitante.clients.JiraClient;
-import dev.pje.bots.apoiadorrequisitante.clients.JiraClientDebug;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 
@@ -62,10 +62,10 @@ public class JiraService {
 	private JiraClient jiraClient;
 
 	@Autowired
-	private JiraClientDebug jiraClientDebug;
+	private SlackService slackService;
 
 	@Autowired
-	private SlackService slackService;
+	private RocketchatService rocketchatService;
 
 	@Autowired
 	private TelegramService telegramService;
@@ -76,6 +76,7 @@ public class JiraService {
 	public static final String ISSUE_TYPE_NEW_VERSION = "10200";
 	public static final String ISSUE_TYPE_DOCUMENTATION = "10301";
 	public static final String ISSUE_TYPE_RELEASE_NOTES = "10302";
+	public static final String ISSUE_TYPE_HOTFIX = "10202";
 
 	public static final String PROJECTKEY_PJEDOC = "PJEDOC";
 
@@ -106,13 +107,20 @@ public class JiraService {
 	public static final String ISSUELINKTYPE_DUPLICATES_OUTWARDNAME = "is duplicated by";
 
 	public static final String GRUPO_LANCADORES_VERSAO = "PJE_LancadoresDeVersao";
+	public static final String GRUPO_SERVICOS = "PJE_Servicos";
+	public static final String GRUPO_FABRICA_DESENVOLVIMENTO = "PJE_FabricasDesenvolvimento";
+	public static final String GRUPO_DESENVOLVEDORES = "PJE_Desenvolvedores";
+	public static final String GRUPO_TESTES = "PJE_Testes";
 	public static final String PREFIXO_GRUPO_TRIBUNAL = "PJE_TRIBUNAL_";
+	public static final String PREFIXO_GRUPO_DESENVOLVEDORES_FABRICA = "PJE_GRUPO_Desenvolvedores_";
+	public static final String PREFIXO_USUARIO_FABRICA_DESENVOLVIMENTO = "desenvolvimento.";
+	
 	public static final String TRANSICTION_DEFAULT_EDICAO_AVANCADA = "Edição avançada";
-
 	public static final String TRANSITION_PROPERTY_KEY_EDICAO_AVANCADA = "EDICAO_AVANCADA";
 	public static final String TRANSITION_PROPERTY_KEY_FINALIZAR_DEMANDA = "FECHAR";
 	public static final String TRANSITION_PROPERTY_KEY_TRIAGEM_CONFIRMADA = "TRIAGEM_CONFIRMADA";
 	public static final String TRANSITION_PROPERTY_KEY_DEMANDANTE = "SOLICITAR_DEMANDANTE";
+	public static final String TRANSITION_PROPERTY_KEY_FABRICA_DESENVOLVIMENTO = "FABRICA_DESENVOLVIMENTO";
 	public static final String TRANSITION_PROPERTY_KEY_RESPONDIDO = "RESPONDIDO";
 	public static final String TRANSITION_PROPERTY_KEY_IMPEDIMENTO = "IMPEDIMENTO";
 	public static final String TRANSITION_PROPERTY_KEY_SOLICITAR_HOMOLOGACAO = "SOLICITAR_HOMOLOGACAO";
@@ -121,7 +129,35 @@ public class JiraService {
 	public static final String TRANSITION_PROPERTY_KEY_SAIDA_PADRAO = "SAIDA_PADRAO";
 
 	public static final String STATUS_PROPERTY_KEY_DEMANDANTE = "DEMANDANTE";
+	public static final String STATUS_PROPERTY_KEY_FLUXO_RAIA_ID = "FLUXO_RAIA_ID";
 
+	public static final String FLUXO_RAIA_ID_DEMANDANTE = "14597";
+	public static final String FLUXO_RAIA_ID_TRIAGEM = "14598";
+	public static final String FLUXO_RAIA_ID_EQUIPE_NEGOCIAL = "14599";
+	public static final String FLUXO_RAIA_ID_ANALISE_DESIGN = "14608";
+	public static final String FLUXO_RAIA_ID_FABRICA_DESENVOLVIMENTO = "14600";
+	public static final String FLUXO_RAIA_ID_DESENVOLVEDOR = "14601";
+	public static final String FLUXO_RAIA_ID_GRUPO_REVISOR_TECNICO = "14602";
+	public static final String FLUXO_RAIA_ID_TESTES = "14603";
+	public static final String FLUXO_RAIA_ID_AUTOMATIZACAO = "14604";
+	public static final String FLUXO_RAIA_ID_DOCUMENTACAO = "14605";
+	public static final String FLUXO_RAIA_ID_INFRA_SEGURANCA = "14607";
+	public static final String FLUXO_RAIA_ID_FINALIZADA = "14606";
+	
+	public static final String USUARIO_DESENVOLVEDOR_ANONIMO = "desenvolvedor.anonimo";
+	public static final String FLUXO_RAIA_RESPONSAVEL_DEFAULT = "suporte.pje";
+	public static final String FLUXO_RAIA_RESPONSAVEL_TRIAGEM = "triagem.pje";
+//	public static final String FLUXO_RAIA_RESPONSAVEL_DEMANDANTE = ""; // usuário dependerá dos outros dados da issue
+//	public static final String FLUXO_RAIA_RESPONSAVEL_FABRICA_DESENVOLVIMENTO = ""; // usuário dependerá dos outros dados da issue
+//	public static final String FLUXO_RAIA_RESPONSAVEL_DESENVOLVEDOR = ""; // usuário dependerá dos outros dados da issue
+	public static final String FLUXO_RAIA_RESPONSAVEL_EQUIPE_NEGOCIAL = "negocios.pje";
+	public static final String FLUXO_RAIA_RESPONSAVEL_ANALISE_DESIGN = "analise.design.pje";
+	public static final String FLUXO_RAIA_RESPONSAVEL_GRUPO_REVISOR_TECNICO = "revisao.tecnia.pje";
+	public static final String FLUXO_RAIA_RESPONSAVEL_TESTES = "testes.pje";
+	public static final String FLUXO_RAIA_RESPONSAVEL_DOCUMENTACAO = "documentacao.pje";
+	public static final String FLUXO_RAIA_RESPONSAVEL_AUTOMATIZACAO = "bot-fluxo-pje";
+	public static final String FLUXO_RAIA_RESPONSAVEL_INFRA_SEGURANCA = "infra.seguranca.pje";
+	
 	public static final String RELEASE_NOTES_JSON_FILENAME = "release-notes.json";
 	public static final String RELEASE_NOTES_FILENAME_PREFIX = "release-notes_";
 	public static final String FILENAME_SUFFIX_ADOC = ".adoc";
@@ -149,10 +185,15 @@ public class JiraService {
 	public static final String FIELD_VERSAO_SER_LANCADA = "customfield_13913";
 	public static final String FIELD_PROXIMA_VERSAO = "customfield_13917";
 	public static final String FIELD_SPRINT_DO_GRUPO = "customfield_11401";
+	public static final String FIELD_GRUPO_RESPONSAVEL_ATRIBUICAO = "customfield_12800";
+	public static final String FIELD_FABRICA_DESENVOLVIMENTO = "customfield_11900";
+	public static final String FIELD_FABRICA_TESTES = "customfield_11901";
 	public static final String FIELD_GERAR_RC_AUTOMATICAMENTE = "customfield_14002";
 	public static final String FIELD_PUBLICAR_DOCUMENTACAO_AUTOMATICAMENTE = "customfield_14009";
 	public static final String FIELD_VERSION_TYPE = "customfield_13906";
 	public static final String FIELD_ESTRUTURA_DOCUMENTACAO = "customfield_14004";
+	
+	public static final String FIELD_RAIA_FLUXO = "customfield_14014";
 	
 	public static final String FIELD_MENSAGEM_SLACK = "customfield_14013";
 	public static final String FIELD_MENSAGEM_ROCKETCHAT = "customfield_13908";
@@ -164,6 +205,7 @@ public class JiraService {
 	public static final String FIELD_MRS_ACEITOS = "customfield_12505";
 
 	public static final String FIELD_RESPONSAVEL_REVISAO = "customfield_12200";
+	public static final String FIELD_RESPONSAVEL_CODIFICACAO = "customfield_12303";
 	public static final String FIELD_RESPONSAVEL_ISSUE = "assignee";
 
 	public static final Integer TEXT_FIELD_CHARACTER_LIMIT = 327670;
@@ -184,11 +226,7 @@ public class JiraService {
 	public JiraGroups getGruposUsuario(JiraUser user) {
 		JiraGroups groups = user.getGroups();
 		if (groups == null) {
-			String username = user.getName();
-			Map<String, String> options = new HashMap<>();
-			options.put("expand", "groups");
-
-			JiraUser userDetailed = getUser(username, options);
+			JiraUser userDetailed = getUserWithGroups(user.getName());
 			if(userDetailed != null) {
 				groups = userDetailed.getGroups();
 			}
@@ -197,12 +235,29 @@ public class JiraService {
 	}
 
 	public boolean isLancadorVersao(JiraUser user) {
-		boolean isLancadorVersao = false;
+		return isUsuarioGrupo(user, GRUPO_LANCADORES_VERSAO, false);
+	}
+
+	public boolean isServico(JiraUser user) {
+		return isUsuarioGrupo(user, GRUPO_SERVICOS, false);
+	}
+	
+	public boolean isFabricaDesenvolvimento(JiraUser user) {
+		return isUsuarioGrupo(user, GRUPO_FABRICA_DESENVOLVIMENTO, false);
+	}
+	
+	public boolean isDesenvolvedor(JiraUser user) {
+		return isUsuarioGrupo(user, GRUPO_DESENVOLVEDORES, true);
+	}
+
+	public boolean isUsuarioGrupo(JiraUser user, String nomeGrupo, Boolean checkPrefix) {
+		boolean isUsuarioGrupo = false;
 		try {
 			JiraGroups grupos = getGruposUsuario(user);
 			for (JiraGroup grupoUsuario : grupos.getItems()) {
-				if (grupoUsuario.getName().equals(GRUPO_LANCADORES_VERSAO)) {
-					isLancadorVersao = true;
+				if ((!checkPrefix && grupoUsuario.getName().equalsIgnoreCase(nomeGrupo))
+						|| (checkPrefix && grupoUsuario.getName().startsWith(nomeGrupo))) {
+					isUsuarioGrupo = true;
 					break;
 				}
 			}
@@ -210,7 +265,7 @@ public class JiraService {
 			// ignore
 		}
 
-		return isLancadorVersao;
+		return isUsuarioGrupo;
 	}
 
 	public JiraGroup getGrupoTribunalUsuario(JiraUser user) {
@@ -230,6 +285,23 @@ public class JiraService {
 		return tribunal;
 	}
 
+	public JiraGroup getGrupoDesenvolvimentoDeUsuario(JiraUser user) {
+		JiraGroup grupoDesenvolvimento = null;
+		try {
+			JiraGroups grupos = getGruposUsuario(user);
+			for (JiraGroup grupoUsuario : grupos.getItems()) {
+				if (grupoUsuario.getName().startsWith(PREFIXO_GRUPO_DESENVOLVEDORES_FABRICA)) {
+					grupoDesenvolvimento = grupoUsuario;
+					break;
+				}
+			}
+		} catch (Exception e) {
+			// ignore
+		}
+
+		return grupoDesenvolvimento;
+	}
+
 	public String getTribunalUsuario(JiraUser user) {
 		String tribunal = null;
 		JiraGroup grupoTribunal = getGrupoTribunalUsuario(user);
@@ -241,6 +313,69 @@ public class JiraService {
 		}
 		return tribunal;
 	}
+	
+	public JiraCustomFieldOption getFabricaDesenvolvimentoDeSiglaTribunal(String siglaTribunal) {
+		JiraCustomFieldOption option = null;
+		if(StringUtils.isNotBlank(siglaTribunal)) {
+			JiraCustomField customFieldDetails = getCustomFieldDetailed(FIELD_FABRICA_DESENVOLVIMENTO, siglaTribunal, true);
+			option = getCustomFieldOption(siglaTribunal, null, customFieldDetails);
+		}
+		
+		return option;
+	}
+	
+	public JiraCustomFieldOption getRaiaFluxo(String raiaId) {
+		JiraCustomFieldOption option = null;
+		if(StringUtils.isNotBlank(raiaId)) {
+			JiraCustomField customFieldDetails = getCustomFieldDetailed(FIELD_RAIA_FLUXO, null, true);
+			option = getCustomFieldOption(raiaId, null, customFieldDetails);
+		}		
+		return option;
+	}
+	
+	public JiraUser getUsuarioFabricaDesenvolvimentoDeSiglaTribunal(String siglaTribunal) {
+		JiraUser usuarioFabricaTribunal = null;
+		if(StringUtils.isNotBlank(siglaTribunal)) {
+			siglaTribunal = JiraUtils.getSiglaTribunal(siglaTribunal);
+			String nomeProvavelFabricaDesenvolvimento = PREFIXO_USUARIO_FABRICA_DESENVOLVIMENTO + siglaTribunal;
+			usuarioFabricaTribunal = getUserWithGroups(nomeProvavelFabricaDesenvolvimento);
+			if(usuarioFabricaTribunal == null) {
+				String nomeProvavelUsuarioGeralTribunal = siglaTribunal;
+				JiraUser usuarioGeralTribunal = getUserWithGroups(nomeProvavelUsuarioGeralTribunal);
+				if(isFabricaDesenvolvimento(usuarioGeralTribunal)) {
+					usuarioFabricaTribunal = usuarioGeralTribunal;
+				}
+			}
+		}
+		
+		return usuarioFabricaTribunal;
+	}
+	
+	public String getGrupoDesenvolvimentoDeUsuario(String username) {
+		String nomeGrupoDesenvolvimento = null;
+		if(StringUtils.isNotBlank(username)) {
+			JiraUser usuarioDesenvolvimento = getUserWithGroups(username);
+			JiraGroup grupoDesenvolvimento = getGrupoDesenvolvimentoDeUsuario(usuarioDesenvolvimento);
+			if(grupoDesenvolvimento != null && StringUtils.isNotBlank(grupoDesenvolvimento.getName())) {
+				nomeGrupoDesenvolvimento = grupoDesenvolvimento.getName();
+			}
+		}
+				
+		return nomeGrupoDesenvolvimento;
+	}
+	
+	public String getNomeFabricaDesenvolvimentoDeUsuario(String username) {
+		String nomeFabricaDesenvolvimento = null;
+		String nomeGrupoDesenvolvimento = getGrupoDesenvolvimentoDeUsuario(username);
+		if(StringUtils.isNotBlank(nomeGrupoDesenvolvimento)) {
+			nomeFabricaDesenvolvimento = "";
+			nomeFabricaDesenvolvimento = nomeGrupoDesenvolvimento.replaceAll(PREFIXO_GRUPO_DESENVOLVEDORES_FABRICA, "");
+			if(StringUtils.isNotBlank(nomeFabricaDesenvolvimento) && nomeFabricaDesenvolvimento.equalsIgnoreCase("CNJ_Basis")) {
+				nomeFabricaDesenvolvimento = "CNJ-Terceiros";
+			}
+		}
+		return nomeFabricaDesenvolvimento;
+	}
 
 	public String getJqlIssuesFromFixVersion(String version, boolean onlyClosed, String projectKey) {
 		List<String> projectKeys = new ArrayList<String>();
@@ -251,6 +386,10 @@ public class JiraService {
 	}
 
 	public String getJqlIssuesFromFixVersion(String version, boolean onlyClosed, List<String> projectKeys) {
+		return getJqlIssuesFromFixVersionWithIssueTypes(version, onlyClosed, projectKeys, null, null);
+	}
+	
+	public String getJqlIssuesFromFixVersionWithIssueTypes(String version, boolean onlyClosed, List<String> projectKeys, List<String> issueTypesIds, Boolean includeIssueTypes) {
 		String jql = "category in (PJE, PJE-CLOUD) AND fixVersion in (" + version + ")";
 		if(onlyClosed) {
 			jql += " AND status in (Fechado, Resolvido, 'Aguardando Fechamento da Versão')";
@@ -258,20 +397,29 @@ public class JiraService {
 		if(projectKeys != null && !projectKeys.isEmpty()) {
 			jql += " AND project IN (" + String.join(", ", projectKeys) + ") ";
 		}
+		if(issueTypesIds != null && !issueTypesIds.isEmpty()) {
+			jql += " AND issueType ";
+			if(includeIssueTypes != null && !includeIssueTypes) {
+				jql += " NOT ";
+			}
+			jql += " IN (" + String.join(", ", issueTypesIds) + ")";
+		}
 		jql += " ORDER BY project ASC, status ASC, priority DESC, key ASC";
 
 		return jql;
 	}
 
-	public String getJqlIssuesLancamentoVersao(String version, String projectKey) {
+	public String getJqlIssuesLancamentoVersao(String version, String projectKeys, boolean onlyOpen) {
 		StringBuilder jqlsb = new StringBuilder("");
-		jqlsb.append(" status not in (Fechado, Resolvido) ")
-		.append(" AND issueType IN (").append(ISSUE_TYPE_NEW_VERSION).append(") ")
-		.append(" AND ").append(FIELD_AFFECTED_VERSION_TO_JQL).append(" IN (").append(version).append(") ");
-		if(StringUtils.isNotBlank(projectKey)) {
-			jqlsb.append(" AND project in (").append(projectKey).append(") ");
+		jqlsb.append(" issueType IN (").append(ISSUE_TYPE_NEW_VERSION).append(") ");
+		if(onlyOpen) {
+			jqlsb.append(" AND status NOT IN (Fechado, Resolvido) ");
+		}
+		jqlsb.append(" AND ").append(FIELD_AFFECTED_VERSION_TO_JQL).append(" IN (").append(version).append(") ");
+		if(StringUtils.isNotBlank(projectKeys)) {
+			jqlsb.append(" AND project IN (").append(projectKeys).append(") ");
 		}else {
-			jqlsb.append(" AND category in (PJE, PJE-CLOUD) ");
+			jqlsb.append(" AND category IN (PJE, PJE-CLOUD) ");
 		}
 
 		return jqlsb.toString();
@@ -298,11 +446,11 @@ public class JiraService {
 			boolean finalizado = false;
 			while(!finalizado) {
 				options.put("startAt", startAt.toString());
-				JiraJQLSearchResponse response = jiraClient.searchIssuesWithJQL(options);
+				JiraJQLSearchResponse response = searchIssuesWithJQL(options);
 				if(response != null && response.getIssues().size() > 0) {
 					issues.addAll(response.getIssues());
+					startAt += response.getMaxResults();
 				}
-				startAt += response.getMaxResults();
 				if(response == null || response.getIssues().size() == 0 || startAt >= response.getTotal()) {
 					finalizado = true;
 					break;
@@ -311,6 +459,21 @@ public class JiraService {
 		}
 
 		return issues;
+	}
+	
+	public JiraJQLSearchResponse searchIssuesWithJQL(Map<String, String> options) {
+		JiraJQLSearchResponse response = null;
+		try {
+			response = jiraClient.searchIssuesWithJQL(options);
+		}catch (Exception e) {
+			String errorMesasge = "Erro ao buscar issues do JQL: "+ options.toString() + " - erro: " + e.getLocalizedMessage();
+			logger.error(errorMesasge);
+			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
+			telegramService.sendBotMessage(errorMesasge);
+		}
+		
+		return response;
 	}
 
 	/**
@@ -346,7 +509,7 @@ public class JiraService {
 
 	public void atualizarAreasConhecimento(JiraIssue issue, List<String> novasAreasConhecimento, Map<String, Object> updateFields) throws Exception {
 		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
-		if(issueDetalhada != null && issueDetalhada.getFields() != null && issueDetalhada.getFields().getAreasConhecimento() != null) {
+		if(issueDetalhada != null && issueDetalhada.getFields() != null) {
 			List<JiraIssueFieldOption> areasConhecimentoAtual = issueDetalhada.getFields().getAreasConhecimento();
 
 			boolean houveAlteracao = false;
@@ -498,6 +661,84 @@ public class JiraService {
 				}
 			}
 		}		
+	}
+
+	public void atualizarResponsavelCodificacao(JiraIssue issue,  JiraUser usuario, Map<String, Object> updateFields) throws Exception {
+		if (usuario != null) {
+			JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+			boolean houveAlteracao = false;
+			if(issueDetalhada.getFields().getResponsavelCodificacao() == null || !issueDetalhada.getFields().getResponsavelCodificacao().getKey().equals(usuario.getKey())) {
+				houveAlteracao = true;
+			}
+
+			if(houveAlteracao) {
+				Map<String, Object> updateField = createUpdateObject(FIELD_RESPONSAVEL_CODIFICACAO, usuario, "UPDATE");
+				if(updateField != null && updateField.get(FIELD_RESPONSAVEL_CODIFICACAO) != null) {
+					updateFields.put(FIELD_RESPONSAVEL_CODIFICACAO, updateField.get(FIELD_RESPONSAVEL_CODIFICACAO));
+				}
+			}
+		}		
+	}
+
+	public void atualizarFabricaDesenvolvimento(JiraIssue issue,  String nomeFabrica, Map<String, Object> updateFields) throws Exception {
+		JiraCustomFieldOption fabricaDesenvolvimento = getFabricaDesenvolvimentoDeSiglaTribunal(nomeFabrica);
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if((issueDetalhada.getFields().getFabricaDesenvolvimento() == null && fabricaDesenvolvimento != null)
+				|| (issueDetalhada.getFields().getFabricaDesenvolvimento() != null && fabricaDesenvolvimento == null)
+				|| ((issueDetalhada.getFields().getFabricaDesenvolvimento() != null && fabricaDesenvolvimento != null)
+						&& !issueDetalhada.getFields().getFabricaDesenvolvimento().getId().equals(fabricaDesenvolvimento.getId()))) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_FABRICA_DESENVOLVIMENTO, fabricaDesenvolvimento, "UPDATE");
+			if(updateField != null) {
+				updateFields.put(FIELD_FABRICA_DESENVOLVIMENTO, updateField.get(FIELD_FABRICA_DESENVOLVIMENTO));
+			}
+		}
+	}
+	
+	public void atualizarRaiaFluxo(JiraIssue issue,  String raiaId, Map<String, Object> updateFields) throws Exception {
+		JiraCustomFieldOption raiaFluxo = getRaiaFluxo(raiaId);
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if((issueDetalhada.getFields().getRaiaDoFluxo() == null && raiaFluxo != null)
+				|| (issueDetalhada.getFields().getRaiaDoFluxo() != null && raiaFluxo == null)
+				|| ((issueDetalhada.getFields().getRaiaDoFluxo() != null && raiaFluxo != null)
+						&& !issueDetalhada.getFields().getRaiaDoFluxo().getId().equals(raiaFluxo.getId()))) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_RAIA_FLUXO, raiaFluxo, "UPDATE");
+			if(updateField != null) {
+				updateFields.put(FIELD_RAIA_FLUXO, updateField.get(FIELD_RAIA_FLUXO));
+			}
+		}
+	}
+	
+	public void atualizarGrupoResponsavelAtribuicao(JiraIssue issue,  String nomeGrupo, Map<String, Object> updateFields) throws Exception {
+		JiraGroup grupo = getGroup(nomeGrupo, null);
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if((issueDetalhada.getFields().getGrupoAtribuicao() == null && grupo != null)
+				|| (issueDetalhada.getFields().getGrupoAtribuicao() != null && grupo == null)
+				|| ((issueDetalhada.getFields().getGrupoAtribuicao() != null && grupo != null)
+						&& !issueDetalhada.getFields().getGrupoAtribuicao().getName().equals(grupo.getName()))) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_GRUPO_RESPONSAVEL_ATRIBUICAO, grupo, "UPDATE");
+			if(updateField != null) {
+				updateFields.put(FIELD_GRUPO_RESPONSAVEL_ATRIBUICAO, updateField.get(FIELD_GRUPO_RESPONSAVEL_ATRIBUICAO));
+			}
+		}
 	}
 
 	public void atualizarDataReleaseNotes(JiraIssue issue,  String dataReleaseNotes, Map<String, Object> updateFields) throws Exception {
@@ -854,7 +1095,7 @@ public class JiraService {
 		}		
 	}
 
-	public void novaIssueCriarIndicacaoGeracaoReleaseCandidateAutomaticamente(Map<String, Object> issueFields) throws Exception {
+	public void novaIssueCriarIndicacaoPrepararVersaoAutomaticamente(Map<String, Object> issueFields) throws Exception {
 		String textoGeracaoAutomatica = "Sim";
 		Map<String, String> opcaoGeracaoAutomatica = new HashMap<>();
 		opcaoGeracaoAutomatica.put("value", textoGeracaoAutomatica);
@@ -910,14 +1151,16 @@ public class JiraService {
 		}		
 	}
 
-	public void novaIssueCriarTipoVersao(String tipoVersao, Map<String, Object> issueFields) throws Exception {
-		Map<String, String> opcaoTipoVersao = new HashMap<>();
-		opcaoTipoVersao.put("value", tipoVersao);
-
-		Map<String, Map<String, String>> issueField = new HashMap<>();
-		issueField.put(FIELD_VERSION_TYPE, opcaoTipoVersao);
-		if(issueField != null && issueField.get(FIELD_VERSION_TYPE) != null) {
-			issueFields.put(FIELD_VERSION_TYPE, issueField.get(FIELD_VERSION_TYPE));
+	public void novaIssueCriarTipoVersao(JiraIssueTipoVersaoEnum tipoVersao, Map<String, Object> issueFields) throws Exception {
+		if(tipoVersao != null) {
+			Map<String, String> opcaoTipoVersao = new HashMap<>();
+			opcaoTipoVersao.put("value", tipoVersao.toString());
+			
+			Map<String, Map<String, String>> issueField = new HashMap<>();
+			issueField.put(FIELD_VERSION_TYPE, opcaoTipoVersao);
+			if(issueField != null && issueField.get(FIELD_VERSION_TYPE) != null) {
+				issueFields.put(FIELD_VERSION_TYPE, issueField.get(FIELD_VERSION_TYPE));
+			}
 		}
 	}
 
@@ -1068,34 +1311,97 @@ public class JiraService {
 			if(!identificouCampo) {
 				throw new Exception("Valor para update fora do padrão - deveria ser List<JiraVersion>, recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
-		}else if(valueToUpdate != null &&
-				(
-						FIELD_RESPONSAVEL_REVISAO.equals(fieldName)
-						)) {
+		}else if(
+				FIELD_RESPONSAVEL_REVISAO.equals(fieldName)
+				|| FIELD_RESPONSAVEL_CODIFICACAO.equals(fieldName)
+				|| FIELD_RESPONSAVEL_ISSUE.equals(fieldName)
+						) {
 			boolean identificouCampo = false;
-			if(valueToUpdate instanceof JiraUser) {
+			identificouCampo = (valueToUpdate == null || valueToUpdate instanceof JiraUser);
+			Map<String, Object> userObj = new HashMap<>();
+			if(valueToUpdate != null && valueToUpdate instanceof JiraUser) {
 				JiraUser user = (JiraUser)valueToUpdate;
-				Map<String, Object> userObj = new HashMap<>();
 				userObj.put("key", user.getKey());
 				userObj.put("name", user.getName());
-
-				Map<String, Object> newJiraUser = new HashMap<>();
-				newJiraUser.put("set", userObj);
-
-				List<Map<String, Object>> jiraUserArray = new ArrayList<>();
-				jiraUserArray.add(newJiraUser);
-
-				objectToUpdate.put(fieldName, jiraUserArray);
-				identificouCampo = true;
 			}
+			Map<String, Object> newJiraUser = new HashMap<>();
+			newJiraUser.put("set", userObj);
+
+			List<Map<String, Object>> jiraUserArray = new ArrayList<>();
+			jiraUserArray.add(newJiraUser);
+
+			objectToUpdate.put(fieldName, jiraUserArray);
 			if(!identificouCampo) {
 				throw new Exception("Valor para update fora do padrão - deveria ser JiraUser, recebeu: " +  valueToUpdate.getClass().getTypeName());
+			}
+		}else if((
+						FIELD_GRUPO_RESPONSAVEL_ATRIBUICAO.equals(fieldName)
+				)) {
+			boolean identificouCampo = false;
+			identificouCampo = (valueToUpdate == null || valueToUpdate instanceof JiraGroup);
+			Map<String, Object> groupObj = new HashMap<>();
+			if(valueToUpdate != null && valueToUpdate instanceof JiraGroup) {
+				JiraGroup group = (JiraGroup)valueToUpdate;
+				groupObj.put("name", group.getName());
+			}
+
+			Map<String, Object> newJiraGroup = new HashMap<>();
+			newJiraGroup.put("set", groupObj);
+
+			List<Map<String, Object>> jiraGroupArray = new ArrayList<>();
+			jiraGroupArray.add(newJiraGroup);
+
+			objectToUpdate.put(fieldName, jiraGroupArray);
+
+			if(!identificouCampo) {
+				throw new Exception("Valor para update fora do padrão - deveria ser JiraGroup, recebeu: " +  valueToUpdate.getClass().getTypeName());
+			}
+		}else if(
+						FIELD_FABRICA_DESENVOLVIMENTO.equals(fieldName)
+						|| FIELD_RAIA_FLUXO.equals(fieldName)) {
+			boolean identificouCampo = false;
+			identificouCampo = (valueToUpdate == null || valueToUpdate instanceof JiraCustomFieldOption);
+			Map<String, String> optionObj = new HashMap<>();
+			if(valueToUpdate != null && valueToUpdate instanceof JiraCustomFieldOption) {
+				JiraCustomFieldOption customFieldOption = (JiraCustomFieldOption)valueToUpdate;
+				optionObj.put("id", customFieldOption.getId().toString());
+			}
+
+			Map<String, Object> newOption = new HashMap<>();
+			newOption.put("set", optionObj);
+
+			List<Map<String, Object>> jiraOptionArray = new ArrayList<>();
+			jiraOptionArray.add(newOption);
+			objectToUpdate.put(fieldName, jiraOptionArray);
+			
+			if(!identificouCampo) {
+				throw new Exception("Valor para update fora do padrão - deveria ser JiraCustomFieldOption, recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
 		}
 
 		return objectToUpdate;
 	}
 
+	@Cacheable(cacheNames = "issue-type")
+	public JiraIssuetype getIssueType(String issueTypeId) { 
+		JiraIssuetype issueType = null;
+		try {
+			issueType = jiraClient.getIssueType(issueTypeId);
+		}catch (Exception e) {
+			String errorMesasge = "Erro ao buscar issue-type: "+ issueTypeId + " - erro: " + e.getLocalizedMessage();
+			logger.error(errorMesasge);
+			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
+			telegramService.sendBotMessage(errorMesasge);
+		}
+
+		return issueType;
+	}
+	
+	public JiraIssuetype getIssueTypeLancamentoVersao() {
+		return getIssueType(ISSUE_TYPE_NEW_VERSION);
+	}
+	
 	@Cacheable(cacheNames = "custom-field-detail")
 	public JiraCustomField getCustomFieldDetailed (String customFieldName, String searchItems, Boolean onlyEnabled) { 
 		Map<String, String> options = new HashMap<>();
@@ -1105,7 +1411,9 @@ public class JiraService {
 		if(onlyEnabled == null) {
 			onlyEnabled = Boolean.FALSE;
 		}
-		options.put("onlyEnabled", onlyEnabled.toString());
+		if(onlyEnabled) {
+			options.put("onlyEnabled", onlyEnabled.toString());
+		}
 
 		JiraCustomField customFieldOptions = null;
 		try {
@@ -1114,6 +1422,7 @@ public class JiraService {
 			String errorMesasge = "Erro ao buscar customfield: "+ customFieldName + " - erro: " + e.getLocalizedMessage();
 			logger.error(errorMesasge);
 			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
 			telegramService.sendBotMessage(errorMesasge);
 		}
 
@@ -1121,8 +1430,11 @@ public class JiraService {
 	}
 
 	public JiraCustomFieldOption findSprintDoGrupo(String sprintDoGrupo, boolean onlyEnabled) {
-		JiraCustomField customFieldDetails = getCustomFieldDetailed(FIELD_SPRINT_DO_GRUPO, sprintDoGrupo, onlyEnabled);
-		JiraCustomFieldOption option = getCustomFieldOption(sprintDoGrupo, null, customFieldDetails);
+		JiraCustomFieldOption option = null;
+		if(StringUtils.isNotBlank(sprintDoGrupo)) {
+			JiraCustomField customFieldDetails = getCustomFieldDetailed(FIELD_SPRINT_DO_GRUPO, sprintDoGrupo, onlyEnabled);
+			option = getCustomFieldOption(sprintDoGrupo, null, customFieldDetails);
+		}
 		
 		return option;
 	}
@@ -1156,6 +1468,7 @@ public class JiraService {
 						String errorMesasge = "Não foi possível encontrar um super Epic/Theme para o Epic/Theme: [" + epicThemeSearched + "]";
 						logger.error(errorMesasge);
 						slackService.sendBotMessage(errorMesasge);
+						rocketchatService.sendBotMessage(errorMesasge);
 						telegramService.sendBotMessage(errorMesasge);
 					}
 				}				
@@ -1173,6 +1486,7 @@ public class JiraService {
 			String errorMesasge = "Erro ao recuperar o workflow da issue: " + issueKey + "erro: " + e.getLocalizedMessage();
 			logger.error(errorMesasge);
 			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
 			telegramService.sendBotMessage(errorMesasge);
 		}
 
@@ -1188,6 +1502,7 @@ public class JiraService {
 			String errorMesasge = "Erro ao recuperar as propriedades da transição: " + transitionId + " da issue: " + issueKey + " - erro: " + e.getLocalizedMessage();
 			logger.error(errorMesasge);
 			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
 			telegramService.sendBotMessage(errorMesasge);
 		}
 		return properties;
@@ -1224,6 +1539,7 @@ public class JiraService {
 			String errorMesasge = "Erro ao recuperar as propriedades do status atual da issue: " + issueKey + " - erro: " + e.getLocalizedMessage();
 			logger.error(errorMesasge);
 			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
 			telegramService.sendBotMessage(errorMesasge);
 		}
 		return properties;
@@ -1315,6 +1631,7 @@ public class JiraService {
 			+ "\nValores utilizados" + Utils.convertObjectToJson(newIssue);
 			logger.error(errorMesasge);
 			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
 			telegramService.sendBotMessage(errorMesasge);
 
 			throw new Exception(errorMesasge);
@@ -1337,15 +1654,11 @@ public class JiraService {
 			+ "\nValores utilizados" + Utils.convertObjectToJson(issueUpdate);
 			logger.error(errorMesasge);
 			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
 			telegramService.sendBotMessage(errorMesasge);
 
 			throw new Exception(errorMesasge);
 		}
-	}
-
-	public void updateIssueDebug(JiraIssue issue, JiraIssueCreateAndUpdate issueUpdate) throws JsonProcessingException {
-		String issueKey = issue.getKey();
-		jiraClientDebug.changeIssueWithTransition(issueKey, issueUpdate);
 	}
 
 	private void removeAttachmentsWithFileName(JiraIssue issue, String filename) {
@@ -1368,6 +1681,7 @@ public class JiraService {
 				String errorMesasge = "Erro ao tentar enviar o comentário: [" + text + "] - erro: " + e.getLocalizedMessage();
 				logger.error(errorMesasge);
 				slackService.sendBotMessage(errorMesasge);
+				rocketchatService.sendBotMessage(errorMesasge);
 				telegramService.sendBotMessage(errorMesasge);
 			}
 		}
@@ -1384,6 +1698,7 @@ public class JiraService {
 			String errorMesasge = "Erro ao tentar enviar o anexo: [" + filename + "] - erro: " + e.getLocalizedMessage();
 			logger.error(errorMesasge);
 			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
 			telegramService.sendBotMessage(errorMesasge);
 		}
 	}
@@ -1419,6 +1734,7 @@ public class JiraService {
 			String errorMesasge = "Erro ao recuperar as transições da issue: " + issueKey + "erro: " + e.getLocalizedMessage();
 			logger.error(errorMesasge);
 			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
 			telegramService.sendBotMessage(errorMesasge);
 		}
 		return transitions;
@@ -1508,6 +1824,7 @@ public class JiraService {
 			String errorMesasge = "Erro ao recuperar os detalhes da issue: " + issueKey + "erro: " + e.getLocalizedMessage();
 			logger.error(errorMesasge);
 			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
 			telegramService.sendBotMessage(errorMesasge);
 		}
 		return issueDetails;
@@ -1564,6 +1881,13 @@ public class JiraService {
 		return jiraUser;
 	}
 
+	public JiraUser getUserWithGroups(String username) {
+		Map<String, String> options = new HashMap<>();
+		options.put("expand", "groups");
+		return getUser(username, options);
+	}
+	
+	@Cacheable(cacheNames = "jira-user-details")
 	public JiraUser getUser(String username, Map<String, String> options) {
 		JiraUser user = null;
 		try {
@@ -1576,10 +1900,33 @@ public class JiraService {
 			String errorMesasge = "Erro ao tentar recuperar o usuário: |" + username + "| - erro: " + e.getLocalizedMessage();
 			logger.error(errorMesasge);
 			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
 			telegramService.sendBotMessage(errorMesasge);
 		}
 
 		return user;
+	}
+
+	@Cacheable(cacheNames = "jira-group-details")
+	public JiraGroup getGroup(String groupName, Map<String, String> options) {
+		JiraGroup group = null;
+		if(StringUtils.isNotBlank(groupName)) {
+			try {
+				if(options == null) {
+					options = new HashMap<>();
+				}
+				options.put("groupname", groupName);
+				group = jiraClient.getGroupDetails(options);
+			}catch (Exception e) {
+				String errorMesasge = "Erro ao tentar recuperar o grupo: |" + groupName + "| - erro: " + e.getLocalizedMessage();
+				logger.error(errorMesasge);
+				slackService.sendBotMessage(errorMesasge);
+				rocketchatService.sendBotMessage(errorMesasge);
+				telegramService.sendBotMessage(errorMesasge);
+			}
+		}
+
+		return group;
 	}
 
 	public JiraUser getIssueReporter(JiraIssue issue) {
@@ -1683,6 +2030,7 @@ public class JiraService {
 					String errorMesasge = "Erro ao tentar atualizar versao: |" + newVersion + "| - erro: " + e.getLocalizedMessage();
 					logger.error(errorMesasge);
 					slackService.sendBotMessage(errorMesasge);
+					rocketchatService.sendBotMessage(errorMesasge);
 					telegramService.sendBotMessage(errorMesasge);
 				}
 			}
@@ -1923,8 +2271,7 @@ public class JiraService {
 					childrenOptions.add(newOption);
 					parentOption.setCascadingOptions(childrenOptions);
 
-					JiraCustomFieldOptionsRequest optionsRequest = new JiraCustomFieldOptionsRequest(parentOption);
-					jiraClient.updateCustomFieldOption(customField.getId().toString(), parentOption.getId().toString(), optionsRequest);
+					updateCustomFieldOption(customField.getId().toString(), parentOption.getId().toString(), parentOption);
 
 				}else {
 					JiraCustomFieldOptionsRequest optionsRequest = new JiraCustomFieldOptionsRequest(newOption);
@@ -1934,8 +2281,17 @@ public class JiraService {
 		}
 	}
 
-	public JiraCustomFieldOption getCustomFieldOption(String optionName, String parentOptionId, JiraCustomField customField) {
+	public JiraCustomFieldOption getCustomFieldOption(String optionNameOrId, String parentOptionId, JiraCustomField customField) {
 		JiraCustomFieldOption option = null;
+		String optionName = null;
+		BigDecimal optionId = null;
+		if(StringUtils.isNotBlank(optionNameOrId)) {
+			if(StringUtils.isNumeric(optionNameOrId)) {
+				optionId = new BigDecimal(optionNameOrId);
+			}else {
+				optionName = optionNameOrId;
+			}
+		}
 
 		if(customField != null) {
 			if(!customField.getOptions().isEmpty()) {
@@ -1943,7 +2299,8 @@ public class JiraService {
 					if(StringUtils.isNotBlank(parentOptionId)) {
 						if(parentOptionId.equals(opt.getId().toString()) && opt.getCascadingOptions() != null) {
 							for (JiraCustomFieldOption childOption : opt.getCascadingOptions()) {
-								if(Utils.compareAsciiIgnoreCase(childOption.getValue(), optionName)) {
+								if((StringUtils.isNotBlank(optionName) && Utils.compareAsciiIgnoreCase(childOption.getValue(), optionName))
+									|| (optionId != null && childOption.getId().equals(optionId))) {
 									option = childOption;
 									break;
 								}
@@ -1953,7 +2310,8 @@ public class JiraService {
 							}
 						}
 					}else {
-						if(Utils.compareAsciiIgnoreCase(opt.getValue(), optionName)) {
+						if((StringUtils.isNotBlank(optionName) && Utils.compareAsciiIgnoreCase(opt.getValue(), optionName))
+								|| (optionId != null && opt.getId().equals(optionId))) {
 							option = opt;
 							break;
 						}
@@ -1970,8 +2328,21 @@ public class JiraService {
 			String customFieldId = customField.getId().toString();
 			String optionId = option.getId().toString();
 			option.setEnabled(status);
-			JiraCustomFieldOptionsRequest optionsRequest = new JiraCustomFieldOptionsRequest(option);
-			jiraClient.updateCustomFieldOption(customFieldId, optionId, optionsRequest);
+			updateCustomFieldOption(customFieldId, optionId, option);
+		}
+	}
+	
+	public void updateCustomFieldOption(String customFieldId, String optionId, JiraCustomFieldOption optionRequest) {
+		try {
+			optionRequest.setSelf(null);
+			jiraClient.updateCustomFieldOption(customFieldId, optionId, optionRequest);			
+		}catch (Exception e) {
+			String errorMesasge = "Erro ao atualizar a opção " + optionId +" do campo customizado: "+ customFieldId 
+					+ " com as opções: " + optionRequest + " - erro: " + e.getLocalizedMessage();
+			logger.error(errorMesasge);
+			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
+			telegramService.sendBotMessage(errorMesasge);
 		}
 	}
 
@@ -1987,6 +2358,5 @@ public class JiraService {
 		}
 		proximaVersao = Utils.calculateNextOrdinaryVersion(versaoAtual, index, numDigits);
 		return proximaVersao;
-	}
-	
+	}	
 }

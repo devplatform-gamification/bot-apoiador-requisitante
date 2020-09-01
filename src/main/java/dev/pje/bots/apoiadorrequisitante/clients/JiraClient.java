@@ -14,15 +14,18 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.devplatform.model.jira.JiraGroup;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraIssueAttachment;
 import com.devplatform.model.jira.JiraIssueComment;
-import com.devplatform.model.jira.JiraProperty;
 import com.devplatform.model.jira.JiraIssueTransitions;
+import com.devplatform.model.jira.JiraIssuetype;
 import com.devplatform.model.jira.JiraProject;
+import com.devplatform.model.jira.JiraProperty;
 import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.jira.JiraVersion;
 import com.devplatform.model.jira.custom.JiraCustomField;
+import com.devplatform.model.jira.custom.JiraCustomFieldOption;
 import com.devplatform.model.jira.custom.JiraWorkflow;
 import com.devplatform.model.jira.request.JiraCustomFieldOptionsRequest;
 import com.devplatform.model.jira.request.JiraIssueCreateAndUpdate;
@@ -37,6 +40,10 @@ public interface JiraClient {
 	
 	@GetMapping(value = "/rest/api/latest/user?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraUser getUserDetails(
+			@SpringQueryMap Map<String, String> options);
+
+	@GetMapping(value = "/rest/api/latest/group?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public JiraGroup getGroupDetails(
 			@SpringQueryMap Map<String, String> options);
 
 	@GetMapping(value = "/rest/api/2/project/{projectKey}?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -94,7 +101,7 @@ public interface JiraClient {
 	public JiraCustomField updateCustomFieldOption(
 			@PathVariable("customFieldId") String customFieldId, 
 			@PathVariable("optionId") String optionId,
-			@RequestBody JiraCustomFieldOptionsRequest customFieldOptionsRequest);
+			@RequestBody JiraCustomFieldOption customFieldOptionsRequest);
 
 	@GetMapping(value = "/rest/api/latest/search?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraJQLSearchResponse searchIssuesWithJQL(@SpringQueryMap Map<String, String> options);
@@ -156,5 +163,10 @@ public interface JiraClient {
 	public JiraVersion updateVersion(
 			@PathVariable("versionId") String versionId,
 			@RequestBody JiraVersion version);
-	
+
+	@GetMapping(value = "/rest/api/2/issuetype/{issueTypeId}", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public JiraIssuetype getIssueType(
+			@PathVariable("issueTypeId") String issueTypeId);
+
+
 }

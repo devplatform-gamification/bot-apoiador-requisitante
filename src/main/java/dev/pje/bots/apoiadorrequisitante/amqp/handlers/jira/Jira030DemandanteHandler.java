@@ -22,8 +22,8 @@ import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 
 @Component
-public class Jira03DemandanteHandler extends Handler<JiraEventIssue>{
-	private static final Logger logger = LoggerFactory.getLogger(Jira03DemandanteHandler.class);
+public class Jira030DemandanteHandler extends Handler<JiraEventIssue>{
+	private static final Logger logger = LoggerFactory.getLogger(Jira030DemandanteHandler.class);
 	
 	@Value("${clients.gitlab.url}")
 	private String gitlabUrl;
@@ -38,7 +38,7 @@ public class Jira03DemandanteHandler extends Handler<JiraEventIssue>{
 	
 	@Override
 	public String getMessagePrefix() {
-		return "|JIRA||03||DEMANDANTE|";
+		return "|JIRA||030||DEMANDANTE|";
 	}
 	@Override
 	public int getLogLevel() {
@@ -99,7 +99,7 @@ public class Jira03DemandanteHandler extends Handler<JiraEventIssue>{
 						jiraService.atualizarResponsavelIssue(issue, liderProjeto, updateFields);
 					}
 					
-					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_RESPONDIDO, false, false);
+					enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_RESPONDIDO, false, false);
 				}
 			}
 		}

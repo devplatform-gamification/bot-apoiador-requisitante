@@ -27,14 +27,14 @@ import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.GitlabUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
-import dev.pje.bots.apoiadorrequisitante.utils.NewVersionReleasedNewsTextModel;
-import dev.pje.bots.apoiadorrequisitante.utils.NewVersionReleasedSimpleCallTextModel;
-import dev.pje.bots.apoiadorrequisitante.utils.ReleaseNotesTextModel;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.RocketchatMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.SlackMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.TelegramMarkdownHtml;
+import dev.pje.bots.apoiadorrequisitante.utils.textModels.NewVersionReleasedNewsTextModel;
+import dev.pje.bots.apoiadorrequisitante.utils.textModels.NewVersionReleasedSimpleCallTextModel;
+import dev.pje.bots.apoiadorrequisitante.utils.textModels.ReleaseNotesTextModel;
 
 @Component
 public class LanVersion040GenerateReleaseNotesHandler extends Handler<JiraEventIssue>{
@@ -126,8 +126,12 @@ public class LanVersion040GenerateReleaseNotesHandler extends Handler<JiraEventI
 							// obter os dados do projeto do gitlab
 							gitlabProject = gitlabService.getProjectDetails(gitlabProjectId);
 						}
+						// identifica a lista de projetos relacionados
+						String jiraProjectKey = issue.getFields().getProject().getKey();
+						List<String> jiraRelatedProjectKeys = jiraService.getJiraRelatedProjects(jiraProjectKey);
+
 						// busca as issues cujo "fixversion" = "versão afetada" e gera um release notes
-						String jql = jiraService.getJqlIssuesFromFixVersion(versaoAfetada, true, new ArrayList<>());
+						String jql = jiraService.getJqlIssuesFromFixVersion(versaoAfetada, true, jiraRelatedProjectKeys);
 						List<JiraIssue> issues = jiraService.getIssuesFromJql(jql);
 						if(issues != null && issues.size() > 0){
 							VersionReleaseNotes releaseNotes = new VersionReleaseNotes();
@@ -232,13 +236,13 @@ public class LanVersion040GenerateReleaseNotesHandler extends Handler<JiraEventI
 					// tramita para o impedmento, enviando as mensagens nos comentários
 					Map<String, Object> updateFieldsErrors = new HashMap<>();
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFieldsErrors);
-					enviarAlteracaoJira(issue, updateFieldsErrors, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
+					enviarAlteracaoJira(issue, updateFieldsErrors, null, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 				}else {
 					// tramita automaticamente, enviando as mensagens nos comentários
 					jiraService.atualizarVersaoASerLancada(issue, versaoASerLancada, updateFields);
 					jiraService.atualizarProximaVersao(issue, proximaVersao, updateFields);
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_SOLICITAR_HOMOLOGACAO, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_SOLICITAR_HOMOLOGACAO, true, true);
 				}
 			}
 		}

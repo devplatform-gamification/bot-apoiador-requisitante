@@ -82,10 +82,11 @@ public class Gitlab04TagPushFinishVersionHandler extends Handler<GitlabEventPush
 		if (gitlabEventTag != null && gitlabEventTag.getProjectId() != null) {
 
 			String gitlabProjectId = gitlabEventTag.getProjectId().toString();
+			Boolean implementsGitflow = gitlabService.isProjectImplementsGitflow(gitlabProjectId);
 			Boolean isTagReleaseCandidate = false;
 			if(StringUtils.isNotBlank(gitlabEventTag.getRef()) && gitlabEventTag.getRef().endsWith(GitlabService.TAG_RELEASE_CANDIDATE_SUFFIX)) {
 				// para confirmar, verifica se o projeto implementa o gitflow
-				isTagReleaseCandidate = gitlabService.isProjectImplementsGitflow(gitlabProjectId);
+				isTagReleaseCandidate = implementsGitflow;
 			}
 			Boolean tagCreated = true;
 			String referenceCommit = gitlabEventTag.getAfter();
@@ -114,19 +115,21 @@ public class Gitlab04TagPushFinishVersionHandler extends Handler<GitlabEventPush
 					List<JiraIssue> issues = jiraService.getIssuesFromJql(jql);
 					indicaLancamentoVersaoIssues(issues, actualVersion, tagCreated, isTagReleaseCandidate);
 					
-					// verifica se existe a sprint do grupo com o nome da versão atual
-					String sprintDoGrupoName = JiraUtils.getSprintDoGrupoName(actualVersion);
-					// na criacao da tag, inativa o capmo, no cancelamento da tag, reativa o campo (se houver campo, cria)
-					boolean apenasSprintDoGrupoAtivos = tagCreated;
-					JiraCustomFieldOption sprintDoGrupo = jiraService.findSprintDoGrupo(sprintDoGrupoName, apenasSprintDoGrupoAtivos);
-					if(sprintDoGrupo != null) {
-						if(tagCreated) {
-							jiraService.disableSprintDoGrupoOption(sprintDoGrupoName);
-						}else {
-							jiraService.enableSprintDoGrupoOption(sprintDoGrupoName);
+					if(implementsGitflow) {
+						// verifica se existe a sprint do grupo com o nome da versão atual
+						String sprintDoGrupoName = JiraUtils.getSprintDoGrupoName(actualVersion);
+						// na criacao da tag, inativa o capmo, no cancelamento da tag, reativa o campo (se houver campo, cria)
+						boolean apenasSprintDoGrupoAtivos = (tagCreated && !isTagReleaseCandidate);
+						JiraCustomFieldOption sprintDoGrupo = jiraService.findSprintDoGrupo(sprintDoGrupoName, apenasSprintDoGrupoAtivos);
+						if(sprintDoGrupo != null) {
+							if(tagCreated && !isTagReleaseCandidate) {
+								jiraService.disableSprintDoGrupoOption(sprintDoGrupoName);
+							}else {
+								jiraService.enableSprintDoGrupoOption(sprintDoGrupoName);
+							}
+						}else if(!tagCreated || isTagReleaseCandidate) {
+							jiraService.createSprintDoGrupoOption(sprintDoGrupoName);
 						}
-					}else if(!tagCreated) {
-						jiraService.createSprintDoGrupoOption(sprintDoGrupoName);
 					}
 				}else {
 					messages.error("Falhou ao tentar identificar a versão do projeto: " + gitlabProjectId + " no commit: "+ referenceCommit);
@@ -203,8 +206,8 @@ public class Gitlab04TagPushFinishVersionHandler extends Handler<GitlabEventPush
 					messages.error("Não conseguiu identificar o projeto e/ou o status da issue: " + issue.getKey());
 				}
 			}
+			executeInBulkIssueTransitions();
 		}
-		executeInBulkIssueTransitions();
 	}
 	
 	private JiraIssueTransition findTransitionForProjectAndStatus(String projectId, String statusId) {
@@ -261,7 +264,7 @@ public class Gitlab04TagPushFinishVersionHandler extends Handler<GitlabEventPush
 					if(transition != null) {
 						String transitionID = transition.getId();
 						try {
-							enviarAlteracaoJira(issue, updateFields, transitionID, false, false);
+							enviarAlteracaoJira(issue, updateFields, null, transitionID, false, false);
 						}catch (Exception e) {
 							messages.error("Falhou ao tentar transitar a issue: " + issue.getKey() + " para a transição: " + transition.getName() + " (" + transition.getId() + ") - erro: " + e.getLocalizedMessage());
 							throw new Exception(e);

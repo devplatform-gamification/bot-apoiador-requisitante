@@ -63,6 +63,9 @@ public class GitlabService {
 	@Autowired
 	private SlackService slackService;
 
+	@Autowired
+	private RocketchatService rocketchatService;
+
 	@Value("${clients.gitlab.url}")
 	private String gitlabUrl;
 	
@@ -153,6 +156,7 @@ public class GitlabService {
 						+e.getMessage();
 				logger.error(errorMessage);
 				slackService.sendBotMessage(errorMessage);
+				rocketchatService.sendBotMessage(errorMessage);
 				telegramService.sendBotMessage(errorMessage);
 			}
 		}
@@ -211,12 +215,14 @@ public class GitlabService {
 							+e.getMessage();
 					logger.error(errorMessage);
 					slackService.sendBotMessage(errorMessage);
+					rocketchatService.sendBotMessage(errorMessage);
 					telegramService.sendBotMessage(errorMessage);
 				}
 			}else {
 				String message = "Já existe a pasta de scripts da versão: " + version + "";
 				logger.info(message);
 				slackService.sendBotMessage(message);
+				rocketchatService.sendBotMessage(message);
 				telegramService.sendBotMessage(message);
 				
 			}
@@ -224,6 +230,7 @@ public class GitlabService {
 			String message = "Não há pasta de sciprts para o projeto: " + projectId + "";
 			logger.info(message);
 			slackService.sendBotMessage(message);
+			rocketchatService.sendBotMessage(message);
 			telegramService.sendBotMessage(message);
 		}
 		return response;
@@ -275,6 +282,7 @@ public class GitlabService {
 							+e.getMessage();
 					logger.error(errorMessage);
 					slackService.sendBotMessage(errorMessage);
+					rocketchatService.sendBotMessage(errorMessage);
 					telegramService.sendBotMessage(errorMessage);
 				}
 			}
@@ -373,6 +381,7 @@ public class GitlabService {
 					+e.getMessage();
 			logger.error(errorMessage);
 			slackService.sendBotMessage(errorMessage);
+			rocketchatService.sendBotMessage(errorMessage);
 			telegramService.sendBotMessage(errorMessage);
 		}
 		
@@ -453,6 +462,7 @@ public class GitlabService {
 							+e.getMessage();
 					logger.error(errorMessage);
 					slackService.sendBotMessage(errorMessage);
+					rocketchatService.sendBotMessage(errorMessage);
 					telegramService.sendBotMessage(errorMessage);
 				}
 			}
@@ -538,13 +548,17 @@ public class GitlabService {
 		
 		GitlabBranchResponse response = null;
 		try {
-			response = gitlabClient.createRepositoryBranch(projectId, branch);
+			response = getSingleRepositoryBranch(projectId, branchName);
+			if(response == null) {
+				response = gitlabClient.createRepositoryBranch(projectId, branch);
+			}
 		}catch (Exception e) {
 			String errorMessage = "Erro ao tentar criar o branch: " + branchName 
 					+ "no projeto: " + projectId+": \n"
 					+e.getMessage();
 			logger.error(errorMessage);
 			slackService.sendBotMessage(errorMessage);
+			rocketchatService.sendBotMessage(errorMessage);
 			telegramService.sendBotMessage(errorMessage);
 		}
 		
@@ -1029,6 +1043,7 @@ public class GitlabService {
 					+ e.getMessage();
 			logger.error(errorMessage);
 			slackService.sendBotMessage(errorMessage);
+			rocketchatService.sendBotMessage(errorMessage);
 			telegramService.sendBotMessage(errorMessage);
 		}
 		return projectVariable;
@@ -1061,6 +1076,7 @@ public class GitlabService {
 					String errorMessage = "Falhou ao tentar atualizar o POM.XML de: " + versaoAtual + " - para: " + nextVersionPom;
 					logger.error(errorMessage);
 					slackService.sendBotMessage(errorMessage);
+					rocketchatService.sendBotMessage(errorMessage);
 					telegramService.sendBotMessage(errorMessage);
 					throw new Exception(errorMessage);
 				}

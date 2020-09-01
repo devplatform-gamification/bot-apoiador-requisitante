@@ -34,6 +34,8 @@ public interface MarkdownInterface {
 	public String strike(String text);
 	
 	public String citation(String text);
+	
+	public String referUser(String username);
 
 	public String highlight(String text);
 	

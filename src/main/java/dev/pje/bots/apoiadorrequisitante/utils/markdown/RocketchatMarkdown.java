@@ -1,9 +1,12 @@
 package dev.pje.bots.apoiadorrequisitante.utils.markdown;
 
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
+
+import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 
 public class RocketchatMarkdown implements MarkdownInterface{
 	
@@ -21,22 +24,22 @@ public class RocketchatMarkdown implements MarkdownInterface{
 
 	@Override
 	public String head1(String text) {
-		return newLine() + "# " + text + " #" + newLine();
+		return newLine() + "# " + text + newLine();
 	}
 
 	@Override
 	public String head2(String text) {
-		return newLine() + "## " + text + " ##" + newLine();
+		return newLine() + "## " + text + newLine();
 	}
 
 	@Override
 	public String head3(String text) {
-		return newLine() + "### " + text + " ###" + newLine();
+		return newLine() + "### " + text + newLine();
 	}
 
 	@Override
 	public String head4(String text) {
-		return newLine() + "#### " + text + " ####" + newLine();
+		return newLine() + "#### " + text + newLine();
 	}
 
 	@Override
@@ -91,6 +94,11 @@ public class RocketchatMarkdown implements MarkdownInterface{
 	@Override
 	public String citation(String text) {
 		return "> " + text;
+	}
+	
+	@Override
+	public String referUser(String username) {
+		return "@" + username.trim();
 	}
 
 	@Override
@@ -170,13 +178,20 @@ public class RocketchatMarkdown implements MarkdownInterface{
 		if(StringUtils.isBlank(text)) {
 			text = url;
 		}
-			
+
+		String urlEncoded = url;
+		try {
+			urlEncoded = Utils.escapeGitlabMarkup(url);
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+
 		StringBuilder sb = new StringBuilder();
 		sb.append("[")
 			.append(text)
 			.append("]")
 			.append("(")
-			.append(url)
+			.append(urlEncoded)
 			.append(")");
 
 		return sb.toString();

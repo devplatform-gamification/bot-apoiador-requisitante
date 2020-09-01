@@ -103,4 +103,19 @@ public class JiraUtils {
 		}
 		return sprintDoGrupoName;
 	}
+	
+	public static String getSiglaTribunal(String provavelSigla) {
+		String siglaTribunal = provavelSigla;
+		if(StringUtils.isNotBlank(provavelSigla) && provavelSigla.split(" ").length > 1) {
+			String[] partesSigla = provavelSigla.split(" ");
+			int lengthParte = 0;
+			for (String parte : partesSigla) {
+				if(parte.length() > lengthParte) {
+					siglaTribunal = parte;
+					lengthParte = parte.length();
+				}
+			}
+		}
+		return siglaTribunal;
+	}
 }

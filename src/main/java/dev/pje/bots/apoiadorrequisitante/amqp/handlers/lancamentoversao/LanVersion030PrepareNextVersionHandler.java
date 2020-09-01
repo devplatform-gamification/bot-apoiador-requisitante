@@ -86,13 +86,15 @@ public class LanVersion030PrepareNextVersionHandler extends Handler<JiraEventIss
 						// Inicializar os metadados da próxima versão no jira
 						// identificar quais os projetos relacionados ao da issue, ex.: PJE: PJEII / PJEVII / PJELEG / para os demais usar o próprio projeto da issue
 						jiraService.createVersionInRelatedProjects(issue.getFields().getProject().getKey(), proximaVersao);
-						// cria o "sprint do grupo" para a próxima versao
-						String novaSprintDoGrupo = JiraUtils.getSprintDoGrupoName(proximaVersao);
-						try {
-							jiraService.createSprintDoGrupoOption(novaSprintDoGrupo);
-							messages.info("Criada a sprint do grupo: " + novaSprintDoGrupo);
-						}catch (Exception e) {
-							messages.error("Não foi possível criar a sprint do grupo: " + novaSprintDoGrupo);
+						if(implementsGitflow) {
+							// cria o "sprint do grupo" para a próxima versao
+							String novaSprintDoGrupo = JiraUtils.getSprintDoGrupoName(proximaVersao);
+							try {
+								jiraService.createSprintDoGrupoOption(novaSprintDoGrupo);
+								messages.info("Criada a sprint do grupo: " + novaSprintDoGrupo);
+							}catch (Exception e) {
+								messages.error("Não foi possível criar a sprint do grupo: " + novaSprintDoGrupo);
+							}
 						}
 					}else {
 						messages.error("Não foi possível identificar a próxima versão: (" + proximaVersao + ")");
@@ -105,13 +107,13 @@ public class LanVersion030PrepareNextVersionHandler extends Handler<JiraEventIss
 					// tramita para o impedmento, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 				}else {
 					// tramita automaticamente, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.atualizarProximaVersao(issue, proximaVersao, updateFields);
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_SAIDA_PADRAO, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_SAIDA_PADRAO, true, true);
 				}
 			}
 		}

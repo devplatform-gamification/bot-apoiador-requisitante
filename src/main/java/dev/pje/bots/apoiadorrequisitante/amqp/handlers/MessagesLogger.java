@@ -10,9 +10,11 @@ import org.springframework.stereotype.Component;
 import com.devplatform.model.bot.ProcessingMessage;
 import com.devplatform.model.bot.ProcessingTypeEnum;
 
-import dev.pje.bots.apoiadorrequisitante.utils.MessagesTextModel;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
+import dev.pje.bots.apoiadorrequisitante.utils.markdown.RocketchatMarkdown;
+import dev.pje.bots.apoiadorrequisitante.utils.markdown.SlackMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.TelegramMarkdownHtml;
+import dev.pje.bots.apoiadorrequisitante.utils.textModels.MessagesTextModel;
 
 @Component
 public class MessagesLogger {
@@ -28,7 +30,7 @@ public class MessagesLogger {
 	public MessagesLogger() {
 		super();
 	}
-	
+
 	public String getId() {
 		return id;
 	}
@@ -40,7 +42,7 @@ public class MessagesLogger {
 	public void setMessagePrefix(String messagePrefix) {
 		this.messagePrefix = messagePrefix;
 	}
-	
+
 	public void setLogger(Logger logger) {
 		this.logger = logger;
 	}
@@ -52,30 +54,30 @@ public class MessagesLogger {
 	public List<ProcessingMessage> messages = new ArrayList<>();
 	public boolean someError = false;
 	public int logLevel = 3;
-	
+
 	public void clean() {
 		id = null;
 		messages = new ArrayList<>();
 		someError = false;
 	}
-	
+
 	private String createMessage(String text) {
 		StringBuilder messageSb = new StringBuilder(messagePrefix);
 		if(StringUtils.isNotBlank(getId())) {
 			messageSb.append("|")
-				.append(getId())
-				.append("|");
+			.append(getId())
+			.append("|");
 		}
 		messageSb.append(" - ").append(text);
 		return messageSb.toString();
 	}
-	
+
 	public void debug(String text) {
 		String message = createMessage(text);
 		messages.add(new ProcessingMessage(message, ProcessingTypeEnum.DEBUG));
 		logger.debug(message);
 	}
-	
+
 	public void info(String text) {
 		String message = createMessage(text);
 		messages.add(new ProcessingMessage(message, ProcessingTypeEnum.INFO));
@@ -87,18 +89,18 @@ public class MessagesLogger {
 		messages.add(new ProcessingMessage(message, ProcessingTypeEnum.WARNING));
 		logger.warn(message);
 	}
-	
+
 	public void error(String text) {
 		String message = createMessage(text);
 		messages.add(new ProcessingMessage(message, ProcessingTypeEnum.ERROR));
 		logger.error(message);
 		someError = true;
 	}
-	
+
 	public boolean hasSomeError() {
 		return someError;
 	}
-	
+
 	private List<ProcessingMessage> getMesssagesWithLogLevel() {
 		List<ProcessingMessage> messageWitLogLevel = new ArrayList<>();
 		for (ProcessingMessage msg : messages) {
@@ -140,15 +142,15 @@ public class MessagesLogger {
 		return messagesTextModel.convert(telegramMarkdown);
 	}
 
-//	protected String getMessagesToSlack() {
-//		Slackm telegramMarkdown = new TelegramMarkdownHtml();
-//		MessagesTextModel messagesTextModel = new MessagesTextModel(getMesssagesWithLogLevel());
-//		return messagesTextModel.convert(telegramMarkdown);
-//	}
+	protected String getMessagesToSlack() {
+		SlackMarkdown slackMarkdown = new SlackMarkdown();
+		MessagesTextModel messagesTextModel = new MessagesTextModel(getMesssagesWithLogLevel());
+		return messagesTextModel.convert(slackMarkdown);
+	}
 
-//	protected String getMessagesToRocketChat() {
-//	Slackm telegramMarkdown = new TelegramMarkdownHtml();
-//	MessagesTextModel messagesTextModel = new MessagesTextModel(getMesssagesWithLogLevel());
-//	return messagesTextModel.convert(telegramMarkdown);
-//}
+	protected String getMessagesToRocketChat() {
+		RocketchatMarkdown rocketchatMarkdown = new RocketchatMarkdown();
+		MessagesTextModel messagesTextModel = new MessagesTextModel(getMesssagesWithLogLevel());
+		return messagesTextModel.convert(rocketchatMarkdown);
+	}
 }

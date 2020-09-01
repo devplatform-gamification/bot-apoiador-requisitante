@@ -44,12 +44,12 @@ public class JiraMarkdown implements MarkdownInterface{
 
 	@Override
 	public String bold(String text) {
-		return "*" + text + "*";
+		return " *" + text.trim() + "* ";
 	}
 
 	@Override
 	public String italic(String text) {
-		return "_" + text + "_";
+		return " _" + text.trim() + "_ ";
 	}
 
 	@Override
@@ -82,6 +82,11 @@ public class JiraMarkdown implements MarkdownInterface{
 		return newParagraph() + italic(text) + newParagraph();
 	}
 
+	@Override
+	public String referUser(String username) {
+		return "[~" + username.trim() + "]";
+	}
+	
 	@Override
 	public String highlight(String text) {
 		return block(text);

@@ -22,16 +22,19 @@ spring:
         concurrency: ${RABBIT_CONCURRENCY:3}
         max-concurrency: ${RABBIT_MAX_CONCURRENCY:10}
     template:
-      default-receive-queue: ${RABBIT_JIRA02_APOIADOR_REQUISITANTE_QUEUE:jira02-apoiador-requisitante.queue}
+      default-receive-queue: ${RABBIT_JIRA01_APOIADOR_REQUISITANTE_QUEUE:jira010-apoiador-requisitante.queue}
       exchange: ${RABBIT_EXCHANGE:dev-platform.exchange}
       custom:
         # TODO - migrar esta queue para um novo servico separado deste daqui - pre-requisito: o clientejira deve estar separado em um servico fora deste aqui
-        jira02-classification-queue: 
-          name: ${RABBIT_JIRA01_SUPEREPICTHEME_QUEUE:jira01-super-epic-theme.queue}
-          auto-startup: ${RABBIT_JIRA01_SUPEREPICTHEME_QUEUE_AUTOSTARTUP:false}
-        jira03-resposta-demandante:
-          name: ${RABBIT_JIRA03_RESPOSTA_DEMANDANTE_QUEUE:jira03-resposta-demandante.queue}
+        jira020-classification-queue: 
+          name: ${RABBIT_JIRA02_SUPEREPICTHEME_QUEUE:jira020-super-epic-theme.queue}
+          auto-startup: ${RABBIT_JIRA02_SUPEREPICTHEME_QUEUE_AUTOSTARTUP:false}
+        jira030-resposta-demandante:
+          name: ${RABBIT_JIRA03_RESPOSTA_DEMANDANTE_QUEUE:jira030-resposta-demandante.queue}
           auto-startup: ${RABBIT_JIRA03_RESPOSTA_DEMANDANTE_QUEUE_AUTOSTARTUP:false}
+        jira040-raia-fluxo:
+          name: ${RABBIT_JIRA04_RAIA_FLUXO_QUEUE:jira040-raia-fluxo.queue}
+          auto-startup: ${RABBIT_JIRA04_RAIA_FLUXO_AUTOSTARTUP:false}
 
         commit-script-queue:
           name: ${RABBIT_GITLAB01_COMMIT_SCRIPT_QUEUE:gitlab01-commit-script.queue}
@@ -78,6 +81,9 @@ spring:
           name: ${RABBIT_LANVER060_PUBLISH_RELEASE_NOTES_QUEUE:lanver060-publish-release-notes-queue}
           auto-startup: ${RABBIT_LANVER060_PUBLISH_RELEASE_NOTES_QUEUE_AUTOSTARTUP:false}
           routing-key-updated: ${RABBIT_LANVER060_PUBLISH_RELEASE_NOTES_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.10200.10673.#}
+        lanver070-tag-pushed-queue:
+          name: ${RABBIT_LANVER070_TAG_PUSHED_QUEUE:lanver070-tag-pushed-queue}
+          auto-startup: ${RABBIT_LANVER070_PUBLISH_TAG_PUSHED_QUEUE_AUTOSTARTUP:false}
 
         documentation01-triage-queue:
           name: ${RABBIT_DOCUMENTATION01_TRIAGE_QUEUE:documentation01-triage-queue}
@@ -141,11 +147,29 @@ clients:
   telegram:
     url: https://api.telegram.org/
     token: ${SERVICE_TELEGRAM_TOKEN:my-telegram-bot-token}
+  rocketchat:
+    url: ${SERVICE_ROCKETCHAT_URL:my-roccket-url}
+    userid: ${SERVICE_ROCKETCHAT_USERID:my-user-id}
+    token: ${SERVICE_ROCKETCHAT_TOKEN:my-token}
 
 project:
   documentation.url: ${PROJECT_DOCUMENTATION_URL:my-documentation-url}
   telegram.channel:
     name: ${PROJECT_TELEGRAM_CHANNEL_NAME:my-telegram-channel-name}
     url: ${PROJECT_TELEGRAM_CHANNEL_URL:my-telegram-channel-url}
-    triage-bot-id: ${PROJECT_TELEGRAM_TRIAGE_BOT_CHANNEL_ID:my-telegram-triage-bot-channel-id}
-    oficial-id: ${PROJECT_TELEGRAM_OFICIAL_CHANNEL_ID:my-telegram-oficial-channel-id}
+    triage-bot-id: ${PROJECT_TELEGRAM_CHANNEL_BOT_TRIAGEM:my-telegram-triage-bot-channel-id}
+    geral: ${PROJECT_TELEGRAM_CHANNEL_GENERAL:my-telegram-general-channel-id}
+  rocketchat:
+    channel:
+      triage-bot-id: ${PROJECT_ROCKETCHAT_CHANNEL_BOT_TRIAGEM:my-triage-bot-channel}
+      grupo-revisor-id: ${PROJECT_ROCKETCHAT_CHANNEL_GRUPO_REVISOR:my-grupo-revisor-channel}
+      grupo-negocial-id: ${PROJECT_ROCKETCHAT_CHANNEL_GRUPO_NEOGIAL:my-grupo-neogical-channel}
+      pje-news-id: ${PROJECT_ROCKETCHAT_CHANNEL_PJENEWS:my-pjenews-channel}
+      geral: ${PROJECT_ROCKETCHAT_CHANNEL_GENERAL:general}
+  slack:
+    channel:
+      triage-bot-id: ${PROJECT_SLACK_CHANNEL_BOT_TRIAGEM:my-triage-bot-channel}
+      grupo-revisor-id: ${PROJECT_SLACK_CHANNEL_GRUPO_REVISOR:my-grupo-revisor-channel}
+      grupo-negocial-id: ${PROJECT_SLACK_CHANNEL_GRUPO_NEOGIAL:my-grupo-neogical-channel}
+      pje-news-id: ${PROJECT_SLACK_CHANNEL_PJENEWS:my-pjenews-channel}
+      geral: ${PROJECT_SLACK_CHANNEL_GENERAL:general}

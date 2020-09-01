@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.utils;
+package dev.pje.bots.apoiadorrequisitante.utils.textModels;
 
 
 import java.util.ArrayList;
@@ -16,6 +16,7 @@ import com.devplatform.model.bot.VersionReleaseNotesIssueTypeEnum;
 import com.devplatform.model.jira.JiraIssueTipoVersaoEnum;
 import com.devplatform.model.jira.JiraUser;
 
+import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component
@@ -42,7 +43,7 @@ public class NewVersionReleasedNewsTextModel extends AbstractTextModel{
 					.append(markdown.newLine());
 			}
 
-			markdownText.append(markdown.head1("Versão " + releaseNotes.getVersion() + " disponível"))
+			markdownText.append(markdown.head3("Versão " + releaseNotes.getVersion() + " disponível"))
 			.append(markdown.newLine())
 			.append(markdown.normal(releaseNotes.getProject()))
 			.append(markdown.newLine());

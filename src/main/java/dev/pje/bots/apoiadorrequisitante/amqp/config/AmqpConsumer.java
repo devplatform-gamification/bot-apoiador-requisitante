@@ -26,11 +26,11 @@ import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation05Finis
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.gitlab.CheckingNewScriptMigrationsInCommitHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.gitlab.Gitlab03MergeRequestUpdateHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.gitlab.Gitlab04TagPushFinishVersionHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.gitlab.Gitlab05TagPushPrepareNextVersionHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.gitlab.GitlabEventHandlerGitflow;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira.Jira01ClassificationHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira.Jira02ApoiadorRequisitanteHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira.Jira03DemandanteHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira.Jira020ClassificationHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira.Jira010ApoiadorRequisitanteHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira.Jira030DemandanteHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira.Jira040RaiaFluxoHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion010TriageHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion015PrepareActualVersionHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion020GenerateReleaseCandidateHandler;
@@ -38,6 +38,7 @@ import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersi
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion040GenerateReleaseNotesHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion050ProcessReleaseNotesHandler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion060FinishReleaseNotesProcessingHandler;
+import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion070TagPushedEventHandler;
 
 @Component
 public class AmqpConsumer {
@@ -48,13 +49,16 @@ public class AmqpConsumer {
     private ObjectMapper objectMapper;
 	
 	@Autowired
-	private Jira01ClassificationHandler jira01ClassificationHandler;
+	private Jira010ApoiadorRequisitanteHandler jira010ApoiadorRequisitanteHandler;
 
 	@Autowired
-	private Jira02ApoiadorRequisitanteHandler jira02ApoiadorRequisitanteHandler;
+	private Jira020ClassificationHandler jira020ClassificationHandler;
 	
 	@Autowired
-	private Jira03DemandanteHandler jira03DemandanteHandler;
+	private Jira030DemandanteHandler jira030DemandanteHandler;
+
+	@Autowired
+	private Jira040RaiaFluxoHandler jira040RaiaFluxoHandler;
 
 	/**************/
 	@Autowired
@@ -68,9 +72,6 @@ public class AmqpConsumer {
 
 	@Autowired
 	private Gitlab04TagPushFinishVersionHandler gitlab04TagPushFinishVersion;
-
-	@Autowired
-	private Gitlab05TagPushPrepareNextVersionHandler gitlab05TagPushPrepareNextVersion;
 
 	/**************/
 	@Autowired
@@ -94,6 +95,9 @@ public class AmqpConsumer {
 	@Autowired
 	private LanVersion060FinishReleaseNotesProcessingHandler lanversion060;
 	
+	@Autowired
+	private LanVersion070TagPushedEventHandler lanversion070;
+
 	/**************/
 	@Autowired
 	private Documentation01TriageHandler documentation01;
@@ -110,35 +114,13 @@ public class AmqpConsumer {
 	@Autowired
 	private Documentation05FinishHomologationHandler documentation05;
 	
-
-	@RabbitListener(
-			autoStartup = "${spring.rabbitmq.template.custom.jira02-classification-queue.auto-startup}",
-			bindings = @QueueBinding(
-				value = @Queue(value = "${spring.rabbitmq.template.custom.jira02-classification-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
-				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
-				key = {"${spring.rabbitmq.template.custom.jira.issue-created.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
-		)
-	public void jira01Classification(Message msg) throws Exception {
-		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
-			String body = new String(msg.getBody());
-			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
-			String issueKey = jiraEventIssue.getIssue().getKey();
-			if(jiraEventIssue.getIssueEventTypeName() == null) {
-				logger.error("[CLASSIFICACAO][JIRA] - " + issueKey + "Falha na identificação do tipo de evento");
-			}else {
-				logger.info("[CLASSIFICACAO][JIRA] - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
-				jira01ClassificationHandler.handle(jiraEventIssue);
-			}
-		}
-	}
-
 	@RabbitListener(
 			bindings = @QueueBinding(
 				value = @Queue(value = "${spring.rabbitmq.template.default-receive-queue}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
 				key = {"${spring.rabbitmq.template.custom.jira.issue-created.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
 		)
-	public void jira02Requisitante(Message msg) throws Exception {
+	public void jira010Requisitante(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
 			String body = new String(msg.getBody());
 			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
@@ -147,29 +129,74 @@ public class AmqpConsumer {
 				logger.error("[REQUISITANTE][JIRA] - " + issueKey + "Falha na identificação do tipo de evento");
 			}else {
 				logger.info("[REQUISITANTE][JIRA] - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
-				jira02ApoiadorRequisitanteHandler.handle(jiraEventIssue);
+				jira010ApoiadorRequisitanteHandler.handle(jiraEventIssue);
 			}
 		}
 	}	
 
 	@RabbitListener(
-			autoStartup = "${spring.rabbitmq.template.custom.jira03-resposta-demandante.auto-startup}",
+			autoStartup = "${spring.rabbitmq.template.custom.jira020-classification-queue.auto-startup}",
 			bindings = @QueueBinding(
-				value = @Queue(value = "${spring.rabbitmq.template.custom.jira03-resposta-demandante.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				value = @Queue(value = "${spring.rabbitmq.template.custom.jira020-classification-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
-				key = {"${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-generic.routing-key}"})
+				key = {"${spring.rabbitmq.template.custom.jira.issue-created.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}"})
 		)
-	public void jira03RespostaDemandante(Message msg) throws Exception {
+	public void jira020Classification(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
 			String body = new String(msg.getBody());
 			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
 			String issueKey = jiraEventIssue.getIssue().getKey();
-			logger.info(jira03DemandanteHandler.getMessagePrefix() + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
-			jira03DemandanteHandler.handle(jiraEventIssue);
+			if(jiraEventIssue.getIssueEventTypeName() == null) {
+				logger.error("[CLASSIFICACAO][JIRA] - " + issueKey + "Falha na identificação do tipo de evento");
+			}else {
+				logger.info("[CLASSIFICACAO][JIRA] - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+				jira020ClassificationHandler.handle(jiraEventIssue);
+			}
 		}
 	}
 
-
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.jira030-resposta-demandante.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.jira030-resposta-demandante.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-generic.routing-key}"})
+		)
+	public void jira030RespostaDemandante(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
+			if(jiraEventIssue != null && jiraEventIssue.getIssueEventTypeName() != null) {
+				String issueKey = jiraEventIssue.getIssue().getKey();
+				logger.info(jira030DemandanteHandler.getMessagePrefix() + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+				jira030DemandanteHandler.handle(jiraEventIssue);
+			}else {
+				logger.error(jira030DemandanteHandler.getMessagePrefix() + " - ERRO ao tentar identifiar o evento da mensagem.");
+			}
+		}
+	}
+	
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.jira040-raia-fluxo.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.jira040-raia-fluxo.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-generic.routing-key}"})
+		)
+	public void jira040RaiaFluxo(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
+			if(jiraEventIssue != null && jiraEventIssue.getIssueEventTypeName() != null) {
+				String issueKey = jiraEventIssue.getIssue().getKey();
+				logger.info(jira040RaiaFluxoHandler.getMessagePrefix() + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+				jira040RaiaFluxoHandler.handle(jiraEventIssue);
+			}else {
+				logger.error(jira040RaiaFluxoHandler.getMessagePrefix() + " - ERRO ao tentar identifiar o evento da mensagem.");
+			}
+		}
+	}
+	
 	/************************/
 	// Consumers de gitlab
 	/************************/
@@ -259,32 +286,6 @@ public class AmqpConsumer {
 			}
 		}
 	}
-
-	@RabbitListener(
-			autoStartup = "${spring.rabbitmq.template.custom.gitlab05-tag-pushed-prepare-next-version.auto-startup}",
-			bindings = @QueueBinding(
-				value = @Queue(value = "${spring.rabbitmq.template.custom.gitlab05-tag-pushed-prepare-next-version.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
-				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
-				key = {"${spring.rabbitmq.template.custom.gitlab.tag-push.routing-key}"})
-		)
-	public void gitlab05TagPushPrepareNextVersion(Message msg) throws Exception {
-		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
-			String body = new String(msg.getBody());
-			GitlabEventPushTag gitEventTag = objectMapper.readValue(body, GitlabEventPushTag.class);
-			if(gitEventTag != null) {
-				String projectName = gitEventTag.getProject().getName();
-				String tagName = "Título não identificado";
-				if(StringUtils.isNotBlank(gitEventTag.getRef())) {
-					tagName = gitEventTag.getRef();
-				}
-				logger.info(gitlab05TagPushPrepareNextVersion.getMessagePrefix() + " - " + "project: " + projectName + " - TAG: " + tagName);
-				gitlab05TagPushPrepareNextVersion.handle(gitEventTag);
-			}else {
-				logger.error(gitlab05TagPushPrepareNextVersion.getMessagePrefix() + " Objeto não parece ser de um evento de MR");
-			}
-		}
-	}
-	
 
 	/************************/
 	// Consumers de lancamento de versao
@@ -402,10 +403,39 @@ public class AmqpConsumer {
 	public void lanVer060FinishReleaseNotesProcessing(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
 			String body = new String(msg.getBody());
-			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
-			String issueKey = jiraEventIssue.getIssue().getKey();
-			logger.info(lanversion060.getMessagePrefix() + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
-			lanversion060.handle(jiraEventIssue);
+			if((Object) body instanceof JiraEventIssue) {
+				JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
+				String issueKey = jiraEventIssue.getIssue().getKey();
+				logger.info(lanversion060.getMessagePrefix() + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+				lanversion060.handle(jiraEventIssue);
+			}else {
+				logger.error(lanversion060.getMessagePrefix() + " A mensagem recebida não é compatível com o tipo esperado: " + body);
+			}
+		}
+	}
+	
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.lanver070-tag-pushed-queue.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.lanver070-tag-pushed-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC),
+				key = {"${spring.rabbitmq.template.custom.gitlab.tag-push.routing-key}"})
+		)
+	public void lanver070TagPushed(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			GitlabEventPushTag gitEventTag = objectMapper.readValue(body, GitlabEventPushTag.class);
+			if(gitEventTag != null) {
+				String projectName = gitEventTag.getProject().getName();
+				String tagName = "Título não identificado";
+				if(StringUtils.isNotBlank(gitEventTag.getRef())) {
+					tagName = gitEventTag.getRef();
+				}
+				logger.info(lanversion070.getMessagePrefix() + " - " + "project: " + projectName + " - TAG: " + tagName);
+				lanversion070.handle(gitEventTag);
+			}else {
+				logger.error(lanversion070.getMessagePrefix() + " Objeto não parece ser de um evento de MR");
+			}
 		}
 	}
 

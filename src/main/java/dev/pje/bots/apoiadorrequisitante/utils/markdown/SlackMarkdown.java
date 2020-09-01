@@ -79,6 +79,11 @@ public class SlackMarkdown implements MarkdownInterface{
 	public String citation(String text) {
 		return newParagraph() + italic(text) + newParagraph();
 	}
+	
+	@Override
+	public String referUser(String username) {
+		return "@" + username.trim();
+	}
 
 	@Override
 	public String highlight(String text) {

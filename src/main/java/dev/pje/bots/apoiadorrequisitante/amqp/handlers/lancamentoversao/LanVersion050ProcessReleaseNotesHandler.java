@@ -23,10 +23,10 @@ import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
-import dev.pje.bots.apoiadorrequisitante.utils.ReleaseNotesTextModel;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.GitlabMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
+import dev.pje.bots.apoiadorrequisitante.utils.textModels.ReleaseNotesTextModel;
 
 @Component
 public class LanVersion050ProcessReleaseNotesHandler extends Handler<JiraEventIssue>{
@@ -134,7 +134,7 @@ public class LanVersion050ProcessReleaseNotesHandler extends Handler<JiraEventIs
 					// tramita para o impedmento, enviando as mensagens nos comentários
 					Map<String, Object> updateFieldsErrors = new HashMap<>();
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFieldsErrors);
-					enviarAlteracaoJira(issue, updateFieldsErrors, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
+					enviarAlteracaoJira(issue, updateFieldsErrors, null, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 				}else {
 					// tramita automaticamente, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
@@ -157,7 +157,7 @@ public class LanVersion050ProcessReleaseNotesHandler extends Handler<JiraEventIs
 					jiraService.atualizarDataGeracaoTag(issue, dataTagStr, updateFields);
 
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_SAIDA_PADRAO, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_SAIDA_PADRAO, true, true);
 				}
 			}
 		}

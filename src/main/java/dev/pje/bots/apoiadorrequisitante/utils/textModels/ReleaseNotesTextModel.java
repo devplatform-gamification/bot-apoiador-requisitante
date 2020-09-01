@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.utils;
+package dev.pje.bots.apoiadorrequisitante.utils.textModels;
 
 
 import java.util.ArrayList;
@@ -19,6 +19,7 @@ import com.devplatform.model.bot.VersionReleaseNotesIssueTypeEnum;
 import com.devplatform.model.jira.JiraIssueTipoVersaoEnum;
 import com.devplatform.model.jira.JiraUser;
 
+import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component

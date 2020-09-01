@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
 
+
 public class AsciiDocMarkdown implements MarkdownInterface{
 	
 	public static final String NAME = "AsciiDocMarkdown";
@@ -96,6 +97,11 @@ public class AsciiDocMarkdown implements MarkdownInterface{
 	@Override
 	public String citation(String text) {
 		return "--" + text;
+	}
+	
+	@Override
+	public String referUser(String username) {
+		return username;
 	}
 
 	@Override

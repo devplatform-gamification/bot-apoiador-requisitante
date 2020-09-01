@@ -119,20 +119,20 @@ public class LanVersion010TriageHandler extends Handler<JiraEventIssue>{
 					// tramita para o encerramento, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_FINALIZAR_DEMANDA, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_FINALIZAR_DEMANDA, true, true);
 				}else if(gerarAutomaticamente) {
 					// tramita automaticamente, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.atualizarURLPublicacao(issue, urlReleaseNotes, updateFields);
 					jiraService.atualizarVersaoASerLancada(issue, versaoASerLancada, updateFields);
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, TRANSITION_PROPERTY_KEY_PREPARAR_VERSAO_ATUAL, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, TRANSITION_PROPERTY_KEY_PREPARAR_VERSAO_ATUAL, true, true);
 				}else if(versaoJaLancada) {
 					// nesta situação - encaminhar para geração do release notes
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
 					jiraService.atualizarURLPublicacao(issue, urlReleaseNotes, updateFields);
-					enviarAlteracaoJira(issue, updateFields, TRANSITION_PROPERTY_KEY_GERAR_RELEASE_NOTES, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, TRANSITION_PROPERTY_KEY_GERAR_RELEASE_NOTES, true, true);
 				}
 			}
 		}

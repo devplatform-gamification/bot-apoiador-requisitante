@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.utils;
+package dev.pje.bots.apoiadorrequisitante.utils.textModels;
 
 
 import java.util.List;

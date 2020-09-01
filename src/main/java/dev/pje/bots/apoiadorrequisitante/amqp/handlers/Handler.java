@@ -15,6 +15,7 @@ import com.devplatform.model.jira.request.JiraIssueCreateAndUpdate;
 
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
+import dev.pje.bots.apoiadorrequisitante.services.RocketchatService;
 import dev.pje.bots.apoiadorrequisitante.services.SlackService;
 import dev.pje.bots.apoiadorrequisitante.services.TelegramService;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
@@ -40,6 +41,9 @@ public abstract class Handler<E> {
 	@Autowired
 	protected SlackService slackService;
 
+	@Autowired
+	protected RocketchatService rocketchatService;
+
 	protected MessagesLogger messages;
 
 	@PostConstruct
@@ -61,12 +65,15 @@ public abstract class Handler<E> {
 	 * @param enviarComentario - se não enontrar nenhuma transição, envia as informações como um comentário
 	 * @throws Exception
 	 */
-	protected void enviarAlteracaoJira(JiraIssue issue, Map<String, Object> updateFields, String transictionIdOrNameOrPropertyKey, 
+	protected void enviarAlteracaoJira(JiraIssue issue, Map<String, Object> updateFields, Map<String, Object> createFields, String transictionIdOrNameOrPropertyKey, 
 			boolean usarEdicaoAvancada, boolean enviarComentario) throws Exception{
 
 		JiraIssueTransition transition = null;
 		JiraIssueCreateAndUpdate jiraIssueCreateAndUpdate = new JiraIssueCreateAndUpdate();
-		if(!updateFields.isEmpty()) {
+		if(createFields != null && !createFields.isEmpty()) {
+			jiraIssueCreateAndUpdate.setFields(createFields);
+		}
+		if(updateFields != null && !updateFields.isEmpty()) {
 			jiraIssueCreateAndUpdate.setUpdate(updateFields);
 		}
 

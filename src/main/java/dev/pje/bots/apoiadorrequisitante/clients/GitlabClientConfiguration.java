@@ -39,8 +39,8 @@ public class GitlabClientConfiguration {
 
 	@Bean
 	@ConditionalOnProperty(name = { "clients.gitlab.token" })
-	public OAuthPrivateTokenRequestInterceptor oauth2FeignRequestInterceptor(
+	public GitlabOAuthPrivateTokenRequestInterceptor oauth2FeignRequestInterceptor(
 			@Value("${clients.gitlab.token}") String token) {
-		return new OAuthPrivateTokenRequestInterceptor(token);
+		return new GitlabOAuthPrivateTokenRequestInterceptor(token);
 	}
 }

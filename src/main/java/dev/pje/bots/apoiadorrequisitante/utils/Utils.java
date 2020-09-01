@@ -51,6 +51,11 @@ public class Utils {
 	public static final String DATE_SIMPLE_PATTERN = "yyyy-MM-dd";
 	
 	public static boolean compareAsciiIgnoreCase(String valueA, String valueB) {
+		if((valueA != null && valueB == null) || (valueA == null && valueB != null)) {
+			return false;
+		}else if(valueA == null && valueB == null) {
+			return true;
+		}
 	    String valueAprepared = StringUtils.stripAccents(valueA);
 	    String valueBprepared = StringUtils.stripAccents(valueB);
 	    
@@ -268,7 +273,11 @@ public class Utils {
 	}
 	
 	public static String escapeGitlabMarkup(String text) throws UnsupportedEncodingException {
-		return text.replaceAll(" ", urlEncode(" "));
+		String transformedText = text;
+		if(StringUtils.isNotBlank(text)) {
+			transformedText = text.replaceAll(" ", urlEncode(" "));
+		}
+		return transformedText;
 	}
 	
 	public static int compareVersionsDesc(List<Integer> versionNumbersA, List<Integer> versionNumbersB) {

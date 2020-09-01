@@ -77,6 +77,11 @@ public class TelegramMarkdownHtml implements MarkdownInterface{
 	public String citation(String text) {
 		return newLine() + "---" + newLine() + italic(text);
 	}
+	
+	@Override
+	public String referUser(String username) {
+		return "@" + username.trim();
+	}
 
 	@Override
 	public String highlight(String text) {

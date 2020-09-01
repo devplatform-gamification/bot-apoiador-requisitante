@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.utils;
+package dev.pje.bots.apoiadorrequisitante.utils.textModels;
 
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 

@@ -20,7 +20,7 @@ public class TelegramClientConfiguration {
 
 	@Bean
 	@ConditionalOnProperty(name = { "clients.telegram.token" })
-	public PathVariableRequestInterceptor pathVariableAuthFeignRequestInterceptor(@Value("${clients.telegram.token}") String token) {
-		return new PathVariableRequestInterceptor(token);
+	public TelegramPathVariableRequestInterceptor pathVariableAuthFeignRequestInterceptor(@Value("${clients.telegram.token}") String token) {
+		return new TelegramPathVariableRequestInterceptor(token);
 	}
 }

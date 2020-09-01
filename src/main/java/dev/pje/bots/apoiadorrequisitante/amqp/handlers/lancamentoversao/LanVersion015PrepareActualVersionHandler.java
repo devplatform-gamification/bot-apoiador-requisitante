@@ -101,13 +101,15 @@ public class LanVersion015PrepareActualVersionHandler extends Handler<JiraEventI
 						}
 
 						if(!versaoJaLancada) {
-							// verifica se a sprint do grupo da 'versão a ser lançada' já existe - se não, cria
-							String sprintDoGrupoVersaoAtual = JiraUtils.getSprintDoGrupoName(versaoASerLancada);
-							try {
-								jiraService.createSprintDoGrupoOption(sprintDoGrupoVersaoAtual);
-								messages.info("Criada a sprint do grupo: " + sprintDoGrupoVersaoAtual);
-							}catch (Exception e) {
-								messages.error("Não foi possível criar a sprint do grupo: " + sprintDoGrupoVersaoAtual);
+							if(implementsGitflow) {
+								// verifica se a sprint do grupo da 'versão a ser lançada' já existe - se não, cria
+								String sprintDoGrupoVersaoAtual = JiraUtils.getSprintDoGrupoName(versaoASerLancada);
+								try {
+									jiraService.createSprintDoGrupoOption(sprintDoGrupoVersaoAtual);
+									messages.info("Criada a sprint do grupo: " + sprintDoGrupoVersaoAtual);
+								}catch (Exception e) {
+									messages.error("Não foi possível criar a sprint do grupo: " + sprintDoGrupoVersaoAtual);
+								}
 							}
 							// valida as versões do jira para os projetos associados
 							jiraService.createVersionInRelatedProjects(issue.getFields().getProject().getKey(), versaoASerLancada);
@@ -137,12 +139,12 @@ public class LanVersion015PrepareActualVersionHandler extends Handler<JiraEventI
 					// tramita para o impedmento, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 				}else {
 					// tramita automaticamente, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, propriedadeTransicao, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, propriedadeTransicao, true, true);
 				}
 			}
 		}

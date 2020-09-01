@@ -26,9 +26,6 @@ import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
 import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
-import dev.pje.bots.apoiadorrequisitante.utils.NewVersionReleasedNewsTextModel;
-import dev.pje.bots.apoiadorrequisitante.utils.NewVersionReleasedSimpleCallTextModel;
-import dev.pje.bots.apoiadorrequisitante.utils.ReleaseNotesTextModel;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.AsciiDocMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.GitlabMarkdown;
@@ -36,6 +33,9 @@ import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.RocketchatMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.SlackMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.TelegramMarkdownHtml;
+import dev.pje.bots.apoiadorrequisitante.utils.textModels.NewVersionReleasedNewsTextModel;
+import dev.pje.bots.apoiadorrequisitante.utils.textModels.NewVersionReleasedSimpleCallTextModel;
+import dev.pje.bots.apoiadorrequisitante.utils.textModels.ReleaseNotesTextModel;
 
 @Component
 public class LanVersion060FinishReleaseNotesProcessingHandler extends Handler<JiraEventIssue>{
@@ -147,7 +147,7 @@ public class LanVersion060FinishReleaseNotesProcessingHandler extends Handler<Ji
 								jiraService.criarNovoLink(issue, issueDocumentacao.getKey(), 
 										JiraService.ISSUELINKTYPE_DOCUMENTATION_ID.toString(), JiraService.ISSUELINKTYPE_DOCUMENTATION_OUTWARDNAME, false, updateFields);
 								if(updateFields != null && !updateFields.isEmpty()) {
-									enviarAlteracaoJira(issue, updateFields, null, false, false);
+									enviarAlteracaoJira(issue, updateFields, null, null, false, false);
 								}
 							}
 
@@ -211,7 +211,7 @@ public class LanVersion060FinishReleaseNotesProcessingHandler extends Handler<Ji
 												JiraService.ISSUELINKTYPE_RELATES_ID.toString(), JiraService.ISSUELINKTYPE_RELATES_OUTWARDNAME, false, updateFields);
 										
 										if(updateFields != null && !updateFields.isEmpty()) {
-											enviarAlteracaoJira(issue, updateFields, null, false, false);
+											enviarAlteracaoJira(issue, updateFields, null, null, false, false);
 										}
 									}
 								}
@@ -229,7 +229,7 @@ public class LanVersion060FinishReleaseNotesProcessingHandler extends Handler<Ji
 				if(messages.hasSomeError()) {
 					// tramita para o impedmento, enviando as mensagens nos comentários
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 				}else {
 					// tramita automaticamente, enviando as mensagens nos comentários
 					// atualiza o anexo com o backup do relase em json
@@ -248,7 +248,7 @@ public class LanVersion060FinishReleaseNotesProcessingHandler extends Handler<Ji
 					jiraService.atualizarURLPublicacao(issue, releaseNotes.getUrl(), updateFields);
 					
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_FINALIZAR_DEMANDA, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_FINALIZAR_DEMANDA, true, true);
 				}
 			}
 		}
@@ -275,21 +275,25 @@ public class LanVersion060FinishReleaseNotesProcessingHandler extends Handler<Ji
 		}
 
 		if(StringUtils.isNotBlank(mensagemRoketchat)) {
-			slackService.sendBotMessage(mensagemRoketchat); // TODO - criar service rocketchat
+			rocketchatService.sendBotMessage(mensagemRoketchat);
 			if(comunicarCanaisOficiais) {
-				slackService.sendBotMessageOfficialChannel(mensagemRoketchat); // TODO - criar service rocketchat
+				rocketchatService.sendMessageGeral(mensagemRoketchat);
+				rocketchatService.sendMessageGrupoRevisorTecnico(mensagemRoketchat);
+				rocketchatService.sendMessageGrupoNegocial(mensagemRoketchat);
 			}
 		}
 		if(StringUtils.isNotBlank(mensagemSlack)) {
 			slackService.sendBotMessage(mensagemSlack);
 			if(comunicarCanaisOficiais) {
-				slackService.sendBotMessageOfficialChannel(mensagemSlack);
+				slackService.sendMessageGeral(mensagemSlack);
+				slackService.sendMessageGrupoRevisorTecnico(mensagemSlack);
+				slackService.sendMessageGrupoNegocial(mensagemSlack);
 			}
 		}
 		if(StringUtils.isNotBlank(mensagemTelegram)) {
 			telegramService.sendBotMessageHtml(mensagemTelegram);
 			if(comunicarCanaisOficiais) {
-				telegramService.sendOficialChannelMessageHtml(mensagemTelegram);
+				telegramService.sendMessageGeralHtml(mensagemTelegram);
 			}
 		}
 	}
@@ -337,7 +341,7 @@ public class LanVersion060FinishReleaseNotesProcessingHandler extends Handler<Ji
 	private JiraIssue criarIssueLancamentoVersao(String projectKey, JiraIssuetype issueType, VersionReleaseNotes releaseNotes) throws Exception {
 		JiraIssue issueRelacionada = null;
 		// verifica se já existe uma issue com estas características
-		String jql = jiraService.getJqlIssuesLancamentoVersao(releaseNotes.getNextVersion(), projectKey);
+		String jql = jiraService.getJqlIssuesLancamentoVersao(releaseNotes.getNextVersion(), projectKey, false);
 		
 		List<JiraIssue> issues = jiraService.getIssuesFromJql(jql);
 		if(issues == null || issues.isEmpty()) {
@@ -350,21 +354,13 @@ public class LanVersion060FinishReleaseNotesProcessingHandler extends Handler<Ji
 			jiraService.novaIssueCriarIssueType(issueType, issueFields);
 			// add summary
 			jiraService.novaIssueCriarSummary("Lançamento da versão " + releaseNotes.getNextVersion(), issueFields);
-			// add Gerar versão RC automaticamente? - apenas se o projeto possuir gitflow
-			Boolean implementsGitflow = false;
-			if (StringUtils.isNotBlank(releaseNotes.getGitlabProjectId())) {
-				implementsGitflow = gitlabService
-						.isProjectImplementsGitflow(releaseNotes.getGitlabProjectId());
-			}
-			if(implementsGitflow) {
-				jiraService.novaIssueCriarIndicacaoGeracaoReleaseCandidateAutomaticamente(issueFields);
-			}
+			jiraService.novaIssueCriarIndicacaoPrepararVersaoAutomaticamente(issueFields);
 			// add versao afetada (version)
 			JiraVersion versao = new JiraVersion();
 			versao.setName(releaseNotes.getNextVersion());
 			jiraService.novaIssueCriarAffectedVersion(versao, issueFields);
 			// add tipo de versao (ordinaria)
-			jiraService.novaIssueCriarTipoVersao(JiraIssueTipoVersaoEnum.ORDINARIA.toString(), issueFields);
+			jiraService.novaIssueCriarTipoVersao(JiraIssueTipoVersaoEnum.ORDINARIA, issueFields);
 			// add link issue anterior
 			jiraService.criarNovoLink(null, releaseNotes.getIssueKey(), 
 					JiraService.ISSUELINKTYPE_RELATES_ID.toString(), JiraService.ISSUELINKTYPE_RELATES_INWARDNAME, true, issueUpdateFields);

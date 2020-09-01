@@ -19,12 +19,12 @@ import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
-import dev.pje.bots.apoiadorrequisitante.utils.ReleaseCandidateTextModel;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.GitlabMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.RocketchatMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.SlackMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.TelegramMarkdownHtml;
+import dev.pje.bots.apoiadorrequisitante.utils.textModels.ReleaseCandidateTextModel;
 
 @Component
 public class LanVersion020GenerateReleaseCandidateHandler extends Handler<JiraEventIssue>{
@@ -156,7 +156,7 @@ public class LanVersion020GenerateReleaseCandidateHandler extends Handler<JiraEv
 					// tramita para o impedmento, enviando as mensagens nos comentários
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 				}else {
 					if(!tagReleaseJaExistente || !releaseBranchJaExistente) {
 						Boolean comunicarLancamentoVersaoCanaisOficiais = false;
@@ -176,7 +176,7 @@ public class LanVersion020GenerateReleaseCandidateHandler extends Handler<JiraEv
 					Map<String, Object> updateFields = new HashMap<>();
 					jiraService.atualizarVersaoASerLancada(issue, versaoASerLancada, updateFields);
 					jiraService.adicionarComentario(issue, messages.getMessagesToJira(), updateFields);
-					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_SAIDA_PADRAO, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_SAIDA_PADRAO, true, true);
 				}
 			}
 		}
@@ -203,21 +203,25 @@ public class LanVersion020GenerateReleaseCandidateHandler extends Handler<JiraEv
 		}
 
 		if(StringUtils.isNotBlank(mensagemRoketchat)) {
-			slackService.sendBotMessage(mensagemRoketchat); // TODO - criar service rocketchat
+			rocketchatService.sendBotMessage(mensagemRoketchat);
 			if(comunicarCanaisOficiais) {
-				slackService.sendBotMessageOfficialChannel(mensagemRoketchat); // TODO - criar service rocketchat
+				rocketchatService.sendMessageGeral(mensagemRoketchat);
+				rocketchatService.sendMessageGrupoRevisorTecnico(mensagemRoketchat);
+				rocketchatService.sendMessageGrupoNegocial(mensagemRoketchat);
 			}
 		}
 		if(StringUtils.isNotBlank(mensagemSlack)) {
 			slackService.sendBotMessage(mensagemSlack);
 			if(comunicarCanaisOficiais) {
-				slackService.sendBotMessageOfficialChannel(mensagemSlack);
+				slackService.sendMessageGeral(mensagemSlack);
+				slackService.sendMessageGrupoRevisorTecnico(mensagemSlack);
+				slackService.sendMessageGrupoNegocial(mensagemSlack);
 			}
 		}
 		if(StringUtils.isNotBlank(mensagemTelegram)) {
 			telegramService.sendBotMessageHtml(mensagemTelegram);
 			if(comunicarCanaisOficiais) {
-				telegramService.sendOficialChannelMessageHtml(mensagemTelegram);
+				telegramService.sendMessageGeralHtml(mensagemTelegram);
 			}
 		}
 	}

@@ -114,7 +114,7 @@ public class Documentation05FinishHomologationHandler extends Handler<JiraEventI
 
 					jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
 
-					enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_SAIDA_PADRAO, true, true);
+					enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_SAIDA_PADRAO, true, true);
 				}
 			}
 		}

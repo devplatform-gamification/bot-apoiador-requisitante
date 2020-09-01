@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.utils;
+package dev.pje.bots.apoiadorrequisitante.utils.textModels;
 
 
 import org.apache.commons.lang3.StringUtils;
@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import com.devplatform.model.bot.VersionReleaseNotes;
 
+import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component
@@ -30,7 +31,7 @@ public class NewVersionReleasedSimpleCallTextModel extends AbstractTextModel{
 				titleSb.append(" (").append(releaseNotes.getVersionType()).append(")");
 			}
 			titleSb.append(" do ").append(releaseNotes.getProject()).append(" disponibilizada");
-			markdownText.append(markdown.head1(titleSb.toString()))
+			markdownText.append(markdown.head3(titleSb.toString()))
 				.append(markdown.newLine())
 				.append(markdown.normal("Acesse o link para maiores infrmações " + markdown.link("https://t.me/pjenews")));
 		}

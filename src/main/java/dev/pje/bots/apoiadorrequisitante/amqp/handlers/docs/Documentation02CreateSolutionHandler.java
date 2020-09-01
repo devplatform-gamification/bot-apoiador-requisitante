@@ -346,7 +346,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 						// indica que há pendências - encaminha ao demandante
 						Map<String, Object> updateFields = new HashMap<>();
 						jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
-						enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
+						enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_IMPEDIMENTO, true, true);
 					}else {
 						// tramita automaticamente, enviando as mensagens nos comentários
 						Map<String, Object> updateFields = new HashMap<>();
@@ -359,7 +359,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 
 						jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
 
-						enviarAlteracaoJira(issue, updateFields, JiraService.TRANSITION_PROPERTY_KEY_SOLICITAR_HOMOLOGACAO, true, true);
+						enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_SOLICITAR_HOMOLOGACAO, true, true);
 					}
 				}
 

@@ -20,7 +20,7 @@ public class SlackClientConfiguration {
 
 	@Bean
 	@ConditionalOnProperty(name = { "clients.slack.token" })
-	public OAuthRequestInterceptor oauth2FeignRequestInterceptor(@Value("${clients.slack.token}") String token) {
-		return new OAuthRequestInterceptor(token);
+	public SlackOAuthRequestInterceptor oauth2FeignRequestInterceptor(@Value("${clients.slack.token}") String token) {
+		return new SlackOAuthRequestInterceptor(token);
 	}
 }

@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.utils;
+package dev.pje.bots.apoiadorrequisitante.utils.textModels;
 
 
 import org.apache.commons.lang3.StringUtils;
@@ -44,7 +44,7 @@ public class ReleaseCandidateTextModel extends AbstractTextModel{
 		StringBuilder sbText = new StringBuilder();
 		
 		if(StringUtils.isNotBlank(version) && StringUtils.isNotBlank(branchName) && StringUtils.isNotBlank(jql) && StringUtils.isNotBlank(projectName)	) {
-			sbText.append(markdown.head1("Disponibilizada a prévia da versão " + this.version + " do " + this.projectName))
+			sbText.append(markdown.head3("Disponibilizada a prévia da versão " + this.version + " do " + this.projectName))
 				.append(markdown.newLine())
 				.append(markdown.normal("Ela estará disponível para a homlogação dos tribunais durante 15 dias quando será lançada a nova versão oficial, o branch é o " + markdown.bold(this.branchName)))
 				.append(markdown.newLine())

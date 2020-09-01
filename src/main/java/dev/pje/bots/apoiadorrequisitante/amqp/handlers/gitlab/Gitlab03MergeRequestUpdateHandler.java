@@ -130,8 +130,8 @@ public class Gitlab03MergeRequestUpdateHandler extends Handler<GitlabEventMergeR
 								jiraService.atualizarMRsAceitos(issue, MrURL, updateFields, false);
 								jiraService.atualizarIntegradoNosBranches(issue, targetBranch, updateFields, false);
 								textoComentarioAcao.append(jiraMarkdown.underline(jiraMarkdown.link(MrURL, "MR#" + MrIId)))
-								.append(" integrado ao branch ")
-								.append(jiraMarkdown.bold(targetBranch));
+									.append(" integrado ao branch ")
+									.append(jiraMarkdown.bold(targetBranch));
 								if(revisorUsuarioJira != null && revisorUsuarioJira.getDisplayName() != null) {
 									if(revisorUsuarioJira.getDisplayName().equalsIgnoreCase(jiraBotUser)) {
 										textoComentarioAcao.append(" automaticamente pelo ")
@@ -176,7 +176,7 @@ public class Gitlab03MergeRequestUpdateHandler extends Handler<GitlabEventMergeR
 							jiraService.adicionarComentario(issue, textoComentario.toString(), updateFields);
 
 							try {
-								enviarAlteracaoJira(issue, updateFields, transitionID, true, true);
+								enviarAlteracaoJira(issue, updateFields, null, transitionID, true, true);
 							}catch (Exception e) {
 								messages.error("Falhou ao tentar atualizar a issue: " + issue.getKey() + " - erro: " + e.getLocalizedMessage());
 							}
