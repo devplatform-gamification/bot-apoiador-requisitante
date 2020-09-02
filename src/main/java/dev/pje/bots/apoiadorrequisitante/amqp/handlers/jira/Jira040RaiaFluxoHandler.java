@@ -156,18 +156,19 @@ public class Jira040RaiaFluxoHandler extends Handler<JiraEventIssue>{
 						 */
 						JiraUser usuarioResponsavelAtual = issue.getFields().getAssignee();
 						String usuarioResponsavelRaiaFabrica = null;
-						if(usuarioResponsavelAtual != null && StringUtils.isNotBlank(usuarioResponsavelAtual.getName())) {
+						if(usuarioResponsavelAtual != null && StringUtils.isNotBlank(usuarioResponsavelAtual.getName()) && usuarioResponsavelAtual.getActive()) {
 							if(jiraService.isFabricaDesenvolvimento(usuarioResponsavelAtual)) {
 								usuarioResponsavelRaiaFabrica = usuarioResponsavelAtual.getName();
 							}else if(jiraService.isDesenvolvedor(usuarioResponsavelAtual)) {
 								usuarioResponsavelRaiaFabrica = usuarioResponsavelAtual.getName();
 								novaRaiaId = JiraService.FLUXO_RAIA_ID_DESENVOLVEDOR;
-							}else {
-								JiraUser usuarioResponsavelCodificacao = issue.getFields().getResponsavelCodificacao();
-								if(usuarioResponsavelCodificacao != null && jiraService.isDesenvolvedor(usuarioResponsavelCodificacao) && !jiraService.isServico(usuarioResponsavelCodificacao)) {
-									usuarioResponsavelRaiaFabrica = usuarioResponsavelCodificacao.getName();
-									novaRaiaId = JiraService.FLUXO_RAIA_ID_DESENVOLVEDOR;
-								}
+							}
+						}
+						if(StringUtils.isBlank(usuarioResponsavelRaiaFabrica)) {
+							JiraUser usuarioResponsavelCodificacao = issue.getFields().getResponsavelCodificacao();
+							if(usuarioResponsavelCodificacao != null && usuarioResponsavelCodificacao.getActive() && jiraService.isDesenvolvedor(usuarioResponsavelCodificacao) && !jiraService.isServico(usuarioResponsavelCodificacao)) {
+								usuarioResponsavelRaiaFabrica = usuarioResponsavelCodificacao.getName();
+								novaRaiaId = JiraService.FLUXO_RAIA_ID_DESENVOLVEDOR;
 							}
 						}
 						/**
@@ -179,10 +180,13 @@ public class Jira040RaiaFluxoHandler extends Handler<JiraEventIssue>{
 							if(issue.getFields().getFabricaDesenvolvimento() != null && StringUtils.isNotBlank(issue.getFields().getFabricaDesenvolvimento().getValue())) {
 								fabricaDesenvolvimento = issue.getFields().getFabricaDesenvolvimento().getValue();
 								JiraUser usuarioFabricaDesenvolvimento = jiraService.getUsuarioFabricaDesenvolvimentoDeSiglaTribunal(fabricaDesenvolvimento);
-								if(usuarioFabricaDesenvolvimento != null) {
+								if(usuarioFabricaDesenvolvimento != null && usuarioFabricaDesenvolvimento.getActive()) {
 									usuarioResponsavelRaiaFabrica = usuarioFabricaDesenvolvimento.getName();
-								}	
-							}else if(issue.getFields().getTribunalRequisitante() != null) {
+								}
+							}
+						}
+						if(StringUtils.isBlank(usuarioResponsavelRaiaFabrica)) {
+							if(issue.getFields().getTribunalRequisitante() != null) {
 								for (JiraIssueFieldOption tribunalRequisitante : issue.getFields().getTribunalRequisitante()) {
 									// recupera uma fábrica para o tribunal requisitante
 									String siglaTribunalRequisitante = tribunalRequisitante.getValue();
@@ -192,7 +196,7 @@ public class Jira040RaiaFluxoHandler extends Handler<JiraEventIssue>{
 									}
 									// recupera o usuário da fábrica para ser o responsável pela issue
 									JiraUser usuarioFabricaDesenvolvimento = jiraService.getUsuarioFabricaDesenvolvimentoDeSiglaTribunal(siglaTribunalRequisitante);
-									if(usuarioFabricaDesenvolvimento != null) {
+									if(usuarioFabricaDesenvolvimento != null && usuarioFabricaDesenvolvimento.getActive()) {
 										usuarioResponsavelRaiaFabrica = usuarioFabricaDesenvolvimento.getName();
 										break;
 									}	
@@ -209,7 +213,7 @@ public class Jira040RaiaFluxoHandler extends Handler<JiraEventIssue>{
 							}
 							// verifica se há responsável pela codificação - se não pertencer à mesma fábrica do responsável, então substitui o responsável pela codificação pelo "desenvolvedor.anonimo"
 							JiraUser usuarioResponsavelCodificacao = issue.getFields().getResponsavelCodificacao();
-							if(usuarioResponsavelCodificacao != null && jiraService.isDesenvolvedor(usuarioResponsavelCodificacao) && !jiraService.isServico(usuarioResponsavelCodificacao)) {
+							if(usuarioResponsavelCodificacao != null && usuarioResponsavelCodificacao.getActive() && jiraService.isDesenvolvedor(usuarioResponsavelCodificacao) && !jiraService.isServico(usuarioResponsavelCodificacao)) {
 								String fabricaDesenvolvimentoUsuarioResponsavelCodificacao = jiraService.getNomeFabricaDesenvolvimentoDeUsuario(usuarioResponsavelCodificacao.getName());
 								if(StringUtils.isNotBlank(fabricaDesenvolvimentoUsuarioResponsavelCodificacao) && StringUtils.isNotBlank(fabricaDesenvolvimento) &&
 										!fabricaDesenvolvimento.equalsIgnoreCase(fabricaDesenvolvimentoUsuarioResponsavelCodificacao)) {
@@ -235,12 +239,12 @@ public class Jira040RaiaFluxoHandler extends Handler<JiraEventIssue>{
 						 */
 						JiraUser usuarioResponsavelRaiaDesenvolvedor = null;
 						JiraUser usuarioResponsavelIssue = issue.getFields().getAssignee();
-						if(jiraService.isDesenvolvedor(usuarioResponsavelIssue)) {
+						if(usuarioResponsavelIssue != null && usuarioResponsavelIssue.getActive() && jiraService.isDesenvolvedor(usuarioResponsavelIssue)) {
 							usuarioResponsavelRaiaDesenvolvedor = usuarioResponsavelIssue;
 						}
 						if(usuarioResponsavelRaiaDesenvolvedor == null) {
 							JiraUser usuarioResponsavelCodificacao = issue.getFields().getResponsavelCodificacao();
-							if(usuarioResponsavelCodificacao != null && jiraService.isDesenvolvedor(usuarioResponsavelCodificacao) && !jiraService.isServico(usuarioResponsavelCodificacao)) {
+							if(usuarioResponsavelCodificacao != null && usuarioResponsavelCodificacao.getActive() && jiraService.isDesenvolvedor(usuarioResponsavelCodificacao) && !jiraService.isServico(usuarioResponsavelCodificacao)) {
 								usuarioResponsavelRaiaDesenvolvedor = usuarioResponsavelCodificacao;
 							}
 						}
@@ -268,11 +272,15 @@ public class Jira040RaiaFluxoHandler extends Handler<JiraEventIssue>{
 				Map<String, Object> updateFields = new HashMap<>();
 				if(StringUtils.isNotBlank(usernameResponsavel)){
 					JiraUser novoUsuarioResponsavel = jiraService.getUser(usernameResponsavel, null);
-					jiraService.atualizarResponsavelIssue(issue, novoUsuarioResponsavel, updateFields);
+					if(novoUsuarioResponsavel != null && novoUsuarioResponsavel.getActive()) {
+						jiraService.atualizarResponsavelIssue(issue, novoUsuarioResponsavel, updateFields);
+					}
 				}
 				if(StringUtils.isNotBlank(usernameResponsavelCodificacao)){
 					JiraUser novoUsuarioResponsavelCodificacao = jiraService.getUser(usernameResponsavelCodificacao, null);
-					jiraService.atualizarResponsavelCodificacao(issue, novoUsuarioResponsavelCodificacao, updateFields);
+					if(novoUsuarioResponsavelCodificacao != null && novoUsuarioResponsavelCodificacao.getActive()) {
+						jiraService.atualizarResponsavelCodificacao(issue, novoUsuarioResponsavelCodificacao, updateFields);
+					}
 				}
 				if(StringUtils.isNotBlank(fabricaDesenvolvimento)){
 					jiraService.atualizarFabricaDesenvolvimento(issue, fabricaDesenvolvimento, updateFields);
