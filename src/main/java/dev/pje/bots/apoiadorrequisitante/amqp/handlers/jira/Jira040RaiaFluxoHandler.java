@@ -120,7 +120,16 @@ public class Jira040RaiaFluxoHandler extends Handler<JiraEventIssue>{
 						// obtem o usuário demandante da issue
 						JiraUser usuarioDemandante = issue.getFields().getReporter();
 						if(usuarioDemandante != null && StringUtils.isNotBlank(usuarioDemandante.getName())) {
-							usernameResponsavel = usuarioDemandante.getName();
+							if(usuarioDemandante.getActive()) {
+								usernameResponsavel = usuarioDemandante.getName();
+							}else {
+								String siglaTribunal = jiraService.getTribunalUsuario(usuarioDemandante);
+								// caso o usuário anteriormente demandante da issue tenha sido inativado - recupera o usuário do próprio tribunal
+								JiraUser usuarioTribunal = jiraService.getUser(siglaTribunal, null);
+								if(usuarioTribunal != null && usuarioTribunal.getActive()) {
+									usernameResponsavel = usuarioTribunal.getName();
+								}
+							}
 						}
 						break;
 					case JiraService.FLUXO_RAIA_ID_EQUIPE_NEGOCIAL:
@@ -290,6 +299,9 @@ public class Jira040RaiaFluxoHandler extends Handler<JiraEventIssue>{
 				if((updateFields == null || updateFields.isEmpty()) && JiraService.TRANSITION_PROPERTY_KEY_EDICAO_AVANCADA.equals(transitionKey)) {
 					messages.info("Não há alterações a realizar");
 				}else {
+					if(!JiraService.TRANSITION_PROPERTY_KEY_EDICAO_AVANCADA.equals(transitionKey)) {
+						updateFields = new HashMap<>();
+					}
 					enviarAlteracaoJira(issue, updateFields, null, transitionKey, true, false);
 				}
 			}
