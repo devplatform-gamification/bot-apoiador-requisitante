@@ -294,8 +294,8 @@ public class Jira040RaiaFluxoHandler extends Handler<JiraEventIssue>{
 				if(StringUtils.isNotBlank(fabricaDesenvolvimento)){
 					jiraService.atualizarFabricaDesenvolvimento(issue, fabricaDesenvolvimento, updateFields);
 				}
-				jiraService.atualizarGrupoResponsavelAtribuicao(issue, grupoResponsavelAtribuicao, updateFields);
 				jiraService.atualizarRaiaFluxo(issue, novaRaiaId, updateFields);
+				jiraService.atualizarGrupoResponsavelAtribuicao(issue, grupoResponsavelAtribuicao, updateFields);
 				if((updateFields == null || updateFields.isEmpty()) && JiraService.TRANSITION_PROPERTY_KEY_EDICAO_AVANCADA.equals(transitionKey)) {
 					messages.info("Não há alterações a realizar");
 				}else {

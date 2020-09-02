@@ -1361,17 +1361,16 @@ public class JiraService {
 						|| FIELD_RAIA_FLUXO.equals(fieldName)) {
 			boolean identificouCampo = false;
 			identificouCampo = (valueToUpdate == null || valueToUpdate instanceof JiraCustomFieldOption);
+			Map<String, Object> newOption = new HashMap<>();
 			Map<String, String> optionObj = new HashMap<>();
+			List<Map<String, Object>> jiraOptionArray = new ArrayList<>();
 			if(valueToUpdate != null && valueToUpdate instanceof JiraCustomFieldOption) {
 				JiraCustomFieldOption customFieldOption = (JiraCustomFieldOption)valueToUpdate;
 				optionObj.put("id", customFieldOption.getId().toString());
+				newOption.put("set", optionObj);
+				jiraOptionArray.add(newOption);
 			}
 
-			Map<String, Object> newOption = new HashMap<>();
-			newOption.put("set", optionObj);
-
-			List<Map<String, Object>> jiraOptionArray = new ArrayList<>();
-			jiraOptionArray.add(newOption);
 			objectToUpdate.put(fieldName, jiraOptionArray);
 			
 			if(!identificouCampo) {
