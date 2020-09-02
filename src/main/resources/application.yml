@@ -18,7 +18,7 @@ spring:
     connection-timeout: 1000ms
     listener:
       direct:
-        prefetch: ${RABBIT_PREFETCH:20}
+        prefetch: ${RABBIT_PREFETCH:25}
       simple:
         prefetch: ${RABBIT_PREFETCH:20}
         concurrency: ${RABBIT_CONCURRENCY:3}
