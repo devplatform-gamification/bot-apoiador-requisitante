@@ -17,6 +17,8 @@ spring:
     password: ${RABBIT_PASSWORD:guest}
     connection-timeout: 1000ms
     listener:
+      direct:
+        prefetch: ${RABBIT_PREFETCH:20}
       simple:
         prefetch: ${RABBIT_PREFETCH:20}
         concurrency: ${RABBIT_CONCURRENCY:3}
