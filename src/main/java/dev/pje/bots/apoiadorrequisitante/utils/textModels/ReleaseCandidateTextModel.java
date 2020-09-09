@@ -46,9 +46,9 @@ public class ReleaseCandidateTextModel extends AbstractTextModel{
 		if(StringUtils.isNotBlank(version) && StringUtils.isNotBlank(branchName) && StringUtils.isNotBlank(jql) && StringUtils.isNotBlank(projectName)	) {
 			sbText.append(markdown.head3("Disponibilizada a prévia da versão " + this.version + " do " + this.projectName))
 				.append(markdown.newLine())
-				.append(markdown.normal("Ela estará disponível para a homlogação dos tribunais durante 15 dias quando será lançada a nova versão oficial, o branch é o " + markdown.bold(this.branchName)))
+				.append(markdown.normal("Ela estará disponível para a homologação dos tribunais durante 15 dias quando será lançada a nova versão oficial, o branch é o " + markdown.bold(this.branchName)))
 				.append(markdown.newLine())
-				.append(markdown.normal("Veja as issue que compõem esta versão " + markdown.link(getPathJql(this.jql), "aqui")));
+				.append(markdown.normal("Veja as issues que compõem esta versão " + markdown.link(getPathJql(this.jql), "aqui")));
 		}
 		
 		return sbText.toString();

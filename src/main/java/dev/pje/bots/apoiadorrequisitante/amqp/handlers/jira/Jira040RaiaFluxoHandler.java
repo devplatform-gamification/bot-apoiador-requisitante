@@ -73,6 +73,9 @@ public class Jira040RaiaFluxoHandler extends Handler<JiraEventIssue>{
 			
 			JiraIssue issue = issueEvent.getIssue();
 			issue = jiraService.recuperaIssueDetalhada(issue);
+			if(issue == null) {
+				return;
+			}
 			String statusId = issue.getFields().getStatus().getId().toString();
 			JiraIssueFieldOption raiaFluxo = issue.getFields().getRaiaDoFluxo();
 			String raiaAtualId = null;
