@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.devplatform.model.jira.JiraFilter;
 import com.devplatform.model.jira.JiraGroup;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraIssueAttachment;
@@ -25,7 +26,7 @@ import com.devplatform.model.jira.JiraProperty;
 import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.jira.JiraVersion;
 import com.devplatform.model.jira.custom.JiraCustomField;
-import com.devplatform.model.jira.custom.JiraCustomFieldOption;
+import com.devplatform.model.jira.custom.JiraCustomFieldOptionRequest;
 import com.devplatform.model.jira.custom.JiraWorkflow;
 import com.devplatform.model.jira.request.JiraCustomFieldOptionsRequest;
 import com.devplatform.model.jira.request.JiraIssueCreateAndUpdate;
@@ -101,10 +102,13 @@ public interface JiraClient {
 	public JiraCustomField updateCustomFieldOption(
 			@PathVariable("customFieldId") String customFieldId, 
 			@PathVariable("optionId") String optionId,
-			@RequestBody JiraCustomFieldOption customFieldOptionsRequest);
+			@RequestBody JiraCustomFieldOptionRequest customFieldOptionsRequest);
 
 	@GetMapping(value = "/rest/api/latest/search?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraJQLSearchResponse searchIssuesWithJQL(@SpringQueryMap Map<String, String> options);
+	
+	@GetMapping(value = "/rest/api/latest/filter/{filterId}", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public JiraFilter getFilter(@PathVariable("filterId") String filterId);
 	
 	@PostMapping(value = "/rest/api/2/issue/{issueKey}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public List<JiraIssueAttachment> sendAttachment(

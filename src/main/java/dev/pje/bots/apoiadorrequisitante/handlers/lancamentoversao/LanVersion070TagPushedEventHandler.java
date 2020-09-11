@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao;
+package dev.pje.bots.apoiadorrequisitante.handlers.lancamentoversao;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,8 +19,8 @@ import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.jira.JiraVersion;
 import com.devplatform.model.rocketchat.RocketchatUser;
 
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
+import dev.pje.bots.apoiadorrequisitante.handlers.Handler;
+import dev.pje.bots.apoiadorrequisitante.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;

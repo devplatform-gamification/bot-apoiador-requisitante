@@ -109,6 +109,11 @@ spring:
           auto-startup: ${RABBIT_DOCUMENTATION05_FINISH_HOMOLOGATION_AUTOSTARTUP:false}
           routing-key-updated: ${RABBIT_DOCUMENTATION05_FINISH_HOMOLOGATION_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.*.*.10054.PJEDOC.#}
           
+        gamification010-classificar-areas-conhecimento:
+          name: ${RABBIT_GAMIFICATION010_CLASSIFICAR_AREAS_CONHECIMENTO_QUEUE:gamification010-classificar-areas-conhecimento-queue}
+          auto-startup: ${RABBIT_GAMIFICATION010_CLASSIFICAR_AREAS_CONHECIMENTO_AUTOSTARTUP:false}
+          routing-key-start: ${RABBIT_GAMIFICATION010_CLASSIFICAR_AREAS_CONHECIMENTO_QUEUE:dev-platform.gamification.areas-conhecimento-classificar}
+          routing-key-end: ${RABBIT_GAMIFICATION010_CLASSIFICAR_AREAS_CONHECIMENTO_QUEUE:dev-platform.gamification.areas-conhecimento-classificadas}
           
         jira:
           issue-created:
@@ -156,6 +161,8 @@ clients:
 
 project:
   documentation.url: ${PROJECT_DOCUMENTATION_URL:my-documentation-url}
+  jira.filters:
+    pendentes-geral: ${JIRA_FILTERS_ISSUES_PENDENTES_GERAL:0}
   telegram.channel:
     name: ${PROJECT_TELEGRAM_CHANNEL_NAME:my-telegram-channel-name}
     url: ${PROJECT_TELEGRAM_CHANNEL_URL:my-telegram-channel-url}

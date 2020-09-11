@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs;
+package dev.pje.bots.apoiadorrequisitante.handlers.docs;
 
 import java.util.HashMap;
 import java.util.List;
@@ -15,8 +15,8 @@ import com.devplatform.model.jira.event.JiraEventIssue;
 import com.devplatform.model.jira.event.JiraEventIssue.IssueEventTypeNameEnum;
 import com.devplatform.model.jira.vo.JiraEstruturaDocumentacaoVO;
 
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
+import dev.pje.bots.apoiadorrequisitante.handlers.Handler;
+import dev.pje.bots.apoiadorrequisitante.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;

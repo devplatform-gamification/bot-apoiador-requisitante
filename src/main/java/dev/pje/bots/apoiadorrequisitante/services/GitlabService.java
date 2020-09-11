@@ -43,8 +43,8 @@ import com.devplatform.model.gitlab.vo.GitlabCommitFileVO;
 import com.devplatform.model.gitlab.vo.GitlabMergeRequestVO;
 import com.devplatform.model.gitlab.vo.GitlabScriptVersaoVO;
 
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.clients.GitlabClient;
+import dev.pje.bots.apoiadorrequisitante.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.utils.GitlabUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import feign.RetryableException;

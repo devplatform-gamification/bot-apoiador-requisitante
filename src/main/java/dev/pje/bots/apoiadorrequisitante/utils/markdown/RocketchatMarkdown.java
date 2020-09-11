@@ -44,12 +44,12 @@ public class RocketchatMarkdown implements MarkdownInterface{
 
 	@Override
 	public String bold(String text) {
-		return "**" + text + "**";
+		return " **" + text + "** ";
 	}
 
 	@Override
 	public String italic(String text) {
-		return "_" + text + "_";
+		return " _" + text + "_ ";
 	}
 
 	@Override
@@ -88,7 +88,7 @@ public class RocketchatMarkdown implements MarkdownInterface{
 
 	@Override
 	public String strike(String text) {
-		return "~" + text + "~";
+		return " ~" + text + "~ ";
 	}
 
 	@Override
@@ -98,7 +98,7 @@ public class RocketchatMarkdown implements MarkdownInterface{
 	
 	@Override
 	public String referUser(String username) {
-		return "@" + username.trim();
+		return " @" + username.trim();
 	}
 
 	@Override

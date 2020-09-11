@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs;
+package dev.pje.bots.apoiadorrequisitante.handlers.docs;
 
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -23,8 +23,8 @@ import com.devplatform.model.jira.JiraIssueAttachment;
 import com.devplatform.model.jira.event.JiraEventIssue;
 import com.devplatform.model.jira.vo.JiraEstruturaDocumentacaoVO;
 
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
+import dev.pje.bots.apoiadorrequisitante.handlers.Handler;
+import dev.pje.bots.apoiadorrequisitante.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;

@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira;
+package dev.pje.bots.apoiadorrequisitante.handlers.jira;
 
 import java.util.HashMap;
 import java.util.List;

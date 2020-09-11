@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers.gitlab;
+package dev.pje.bots.apoiadorrequisitante.handlers.gitlab;
 
 import java.util.ArrayList;
 import java.util.Collections;

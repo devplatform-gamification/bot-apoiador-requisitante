@@ -8,8 +8,11 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
+import java.text.NumberFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -497,6 +500,30 @@ public class Utils {
 		
 		return xmlProcessed;
 	}
+	
+	public static long checkDifferenceInDaysBetweenTwoDates(Date firstDate, Date secondDate) {
+	    long diffInMillies = Math.abs(secondDate.getTime() - firstDate.getTime());
+	    long diff = TimeUnit.DAYS.convert(diffInMillies, TimeUnit.MILLISECONDS);
+	    
+	    return diff;
+	}
+	
+	public static Date calculateDaysFromNow(long daysToAdd) {
+		LocalDate now = LocalDate.now();
+		LocalDate pretendedDay = now.plusDays(daysToAdd);
+		
+	    return java.util.Date.from(pretendedDay.atStartOfDay()
+	    	      .atZone(ZoneId.systemDefault())
+	    	      .toInstant());
+	}
+	
+	public static String doubleToStringAsPercent(Double percent) {
+		NumberFormat percentFormatter;
+		String percentOut;
 
+		percentFormatter = NumberFormat.getPercentInstance();
+		percentOut = percentFormatter.format(percent);
+		return percentOut;
+	}
 }
 	

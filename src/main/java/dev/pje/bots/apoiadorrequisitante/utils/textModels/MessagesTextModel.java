@@ -6,7 +6,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.devplatform.model.bot.ProcessingMessage;
-import com.devplatform.model.bot.ProcessingTypeEnum;
+import com.devplatform.model.jira.request.ProcessingTypeEnum;
 
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 

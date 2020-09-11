@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao;
+package dev.pje.bots.apoiadorrequisitante.handlers.lancamentoversao;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,8 +14,8 @@ import com.devplatform.model.gitlab.response.GitlabCommitResponse;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.event.JiraEventIssue;
 
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
+import dev.pje.bots.apoiadorrequisitante.handlers.Handler;
+import dev.pje.bots.apoiadorrequisitante.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;

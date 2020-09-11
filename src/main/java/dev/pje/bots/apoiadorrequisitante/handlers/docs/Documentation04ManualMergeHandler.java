@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs;
+package dev.pje.bots.apoiadorrequisitante.handlers.docs;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -13,8 +13,8 @@ import com.devplatform.model.gitlab.response.GitlabMRResponse;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.event.JiraEventIssue;
 
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
+import dev.pje.bots.apoiadorrequisitante.handlers.Handler;
+import dev.pje.bots.apoiadorrequisitante.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.GitlabUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;

@@ -1,5 +1,6 @@
 package dev.pje.bots.apoiadorrequisitante.utils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -7,6 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 import com.devplatform.model.jira.JiraEventChangelogItems;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraVersion;
+import com.devplatform.model.jira.custom.JiraCustomFieldOption;
 import com.devplatform.model.jira.event.JiraEventIssue;
 
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
@@ -117,5 +119,56 @@ public class JiraUtils {
 			}
 		}
 		return siglaTribunal;
+	}
+	
+	/**
+	 * Verifia se 
+	 * @param options
+	 * @param listaNomes
+	 * @return
+	 */
+	public static Boolean compareOptionsAndNames(List<JiraCustomFieldOption> options, List<String> names) {
+		Boolean validation = false;
+		if(options != null && names != null && options.size() == names.size()) {
+			validation = true;
+			for (String name : names) {
+				boolean nameFounded = false;
+				for (JiraCustomFieldOption option : options) {
+					if(StringUtils.isNotBlank(option.getValue()) && Utils.compareAsciiIgnoreCase(option.getValue(), name)) {
+						nameFounded = true;
+						break;
+					}
+				}
+				if(!nameFounded) {
+					validation = false;
+					break;
+				}
+			}
+		}
+		return validation;
+	}
+	
+	public static JiraCustomFieldOption getOptionWithName(List<JiraCustomFieldOption> options, String name) {
+		JiraCustomFieldOption option = null;
+		if(options != null && StringUtils.isNotBlank(name)) {
+			for (JiraCustomFieldOption opt : options) {
+				if(StringUtils.isNotBlank(opt.getValue()) && Utils.compareAsciiIgnoreCase(name, opt.getValue())) {
+					option = opt;
+					break;
+				}
+			}
+		}
+		return option;
+	}
+	
+	public static List<JiraCustomFieldOption> getChildrenOptionsFromOptionName(List<JiraCustomFieldOption> options, String name){
+		List<JiraCustomFieldOption> childrenOptions = new ArrayList<>();
+		if(options != null && StringUtils.isNotBlank(name)) {
+			JiraCustomFieldOption option = getOptionWithName(options, name);
+			if(option != null) {
+				childrenOptions = option.getCascadingOptions();
+			}
+		}
+		return childrenOptions;
 	}
 }

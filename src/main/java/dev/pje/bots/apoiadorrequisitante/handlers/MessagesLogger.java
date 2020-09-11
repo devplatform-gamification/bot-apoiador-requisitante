@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers;
+package dev.pje.bots.apoiadorrequisitante.handlers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.springframework.stereotype.Component;
 
 import com.devplatform.model.bot.ProcessingMessage;
-import com.devplatform.model.bot.ProcessingTypeEnum;
+import com.devplatform.model.jira.request.ProcessingTypeEnum;
 
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.RocketchatMarkdown;

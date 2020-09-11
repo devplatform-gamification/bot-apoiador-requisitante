@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.devplatform.model.gitlab.GitlabUser;
 import com.devplatform.model.gitlab.GitlabUserIdentity;
+import com.devplatform.model.jira.JiraFilter;
 import com.devplatform.model.jira.JiraGroup;
 import com.devplatform.model.jira.JiraGroups;
 import com.devplatform.model.jira.JiraIssue;
@@ -36,6 +37,7 @@ import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.jira.JiraVersion;
 import com.devplatform.model.jira.custom.JiraCustomField;
 import com.devplatform.model.jira.custom.JiraCustomFieldOption;
+import com.devplatform.model.jira.custom.JiraCustomFieldOptionRequest;
 import com.devplatform.model.jira.custom.JiraWorkflow;
 import com.devplatform.model.jira.request.JiraCustomFieldOptionsRequest;
 import com.devplatform.model.jira.request.JiraIssueCreateAndUpdate;
@@ -72,6 +74,9 @@ public class JiraService {
 
 	@Value("${clients.jira.url}") 
 	private String jiraUrl;
+	
+	@Value("${project.jira.filters.pendentes-geral}")
+	private String filterIssuesPendentesGeralId;
 
 	public static final String ISSUE_TYPE_NEW_VERSION = "10200";
 	public static final String ISSUE_TYPE_DOCUMENTATION = "10301";
@@ -176,6 +181,8 @@ public class JiraService {
 	public static final String FIELD_FIX_VERSION = "fixVersions";
 	public static final String FIELD_COMMENT = "comment";
 	public static final String FIELD_TRIBUNAL_REQUISITANTE = "customfield_11700";
+	public static final String FIELD_CTRL_PONTUACAO_AREA_CONHECIMENTO = "customfield_14016";
+	public static final String CTRL_PONTUACAO_AREA_CONHECIMENTO_DATA_ATUALIZACAO_OPTION = "atualizacao";
 	public static final String FIELD_SUPER_EPIC_THEME = "customfield_11800";
 	public static final String FIELD_AREAS_CONHECIMENTO = "customfield_13921";
 	public static final String FIELD_EPIC_THEME = "customfield_10201";
@@ -436,6 +443,20 @@ public class JiraService {
 		return jqlsb.toString();
 	}	
 
+	public Integer countIssuesFromJql(String jql) {
+		Integer totalIssues = 0;
+		Map<String, String> options = new HashMap<>();
+		if(StringUtils.isNotBlank(jql)) {
+			options.put("jql", jql);
+
+			JiraJQLSearchResponse response = searchIssuesWithJQL(options);
+			if(response != null) {
+				totalIssues = response.getTotal();
+			}
+		}
+		return totalIssues;
+	}
+	
 	public List<JiraIssue> getIssuesFromJql(String jql) {
 		List<JiraIssue> issues = new ArrayList<>();
 		Map<String, String> options = new HashMap<>();
@@ -460,7 +481,23 @@ public class JiraService {
 
 		return issues;
 	}
-	
+
+	@Cacheable(cacheNames = "filter")
+	public JiraFilter getFilter(String filterId) {
+		JiraFilter response = null;
+		try {
+			response = jiraClient.getFilter(filterId);
+		}catch (Exception e) {
+			String errorMesasge = "Erro ao buscar o filtro: "+ filterId + " - erro: " + e.getLocalizedMessage();
+			logger.error(errorMesasge);
+			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
+			telegramService.sendBotMessage(errorMesasge);
+		}
+		
+		return response;
+	}
+
 	public JiraJQLSearchResponse searchIssuesWithJQL(Map<String, String> options) {
 		JiraJQLSearchResponse response = null;
 		try {
@@ -1616,6 +1653,28 @@ public class JiraService {
 		return founded;
 	}
 
+	public String getJqlIssuesPendentesGeral() {
+		String jql = null;
+		if(StringUtils.isNotBlank(filterIssuesPendentesGeralId)) {
+			JiraFilter filterIssuesPendentesGeral = getFilter(filterIssuesPendentesGeralId);
+			if(filterIssuesPendentesGeral != null && StringUtils.isNotBlank(filterIssuesPendentesGeral.getJql())) {
+				jql = filterIssuesPendentesGeral.getJql();
+			}
+		}
+		return jql;
+	}
+	
+	public String getJqlIssuesPendentesGeralPorAreaConhecimento(String areaConhecimento) {
+		StringBuilder jql = new StringBuilder();
+		String jqlBase = getJqlIssuesPendentesGeral();
+		if(StringUtils.isNotBlank(areaConhecimento) && StringUtils.isNotBlank(jqlBase)) {
+			jql.append(JiraUtils.getFieldNameToJQL(FIELD_AREAS_CONHECIMENTO)).append(" in (\"")
+				.append(areaConhecimento).append("\") AND ").append(jqlBase);
+		}
+		
+		return jql.toString();
+	}
+	
 	public String getJqlIssuesPendentesTribunalRequisitante(String tribunal) {
 		String jql = jiraUrl + "/issues/?jql=cf%5B11700%5D%20in%20("+tribunal+")%20AND%20status%20not%20in%20(Fechado%2C%20Resolvido)";
 		return jql;
@@ -2107,8 +2166,6 @@ public class JiraService {
 
 	public String getEstruturaDocumentacaoOption(String searchItems) {
 		List<String> identificacaoEstruturaDocumentacao = new ArrayList<>();
-		JiraCustomFieldOption parentOption = null;
-		List<JiraCustomFieldOption> childOption = new ArrayList<JiraCustomFieldOption>();
 		JiraCustomField customField = getCustomFieldDetailed(FIELD_ESTRUTURA_DOCUMENTACAO, searchItems, Boolean.TRUE);
 		if(customField != null && customField.getOptions() != null && !customField.getOptions().isEmpty()) {
 			for (JiraCustomFieldOption customOption : customField.getOptions()) {
@@ -2121,6 +2178,37 @@ public class JiraService {
 			}
 		}
 		return String.join(":", identificacaoEstruturaDocumentacao);
+	}
+	
+	public JiraCustomField getCtrlPontuacaoAreasConhecimento() {
+		return getCustomFieldDetailed(FIELD_CTRL_PONTUACAO_AREA_CONHECIMENTO, null, Boolean.TRUE);
+	}
+
+	public JiraCustomField getAreasConhecimento() {
+		return getCustomFieldDetailed(FIELD_AREAS_CONHECIMENTO, null, Boolean.TRUE);
+	}
+
+	/**
+	 * Recupera a data da última atualizacao dos valores do campo
+	 * - a data fica na opção "filha" da opção de controle: "atualizacao"
+	 * @return
+	 */
+	public String getDataAtualizacaoCtrlPontuacaoAreasConhecimento() {
+		String dataAtualizacao = null;
+		JiraCustomField ctrlPontuacaoAreasConhecimento = getCtrlPontuacaoAreasConhecimento();
+		if(ctrlPontuacaoAreasConhecimento != null && ctrlPontuacaoAreasConhecimento.getOptions() != null && !ctrlPontuacaoAreasConhecimento.getOptions().isEmpty()) {
+			for (JiraCustomFieldOption customOption : ctrlPontuacaoAreasConhecimento.getOptions()) {
+				if(CTRL_PONTUACAO_AREA_CONHECIMENTO_DATA_ATUALIZACAO_OPTION.equalsIgnoreCase(customOption.getValue())) {
+					if(customOption.getCascadingOptions() != null && !customOption.getCascadingOptions().isEmpty()) {
+						dataAtualizacao = customOption.getCascadingOptions().get(0).getValue();
+						break;
+					}
+					break;
+				}
+
+			}
+		}
+		return dataAtualizacao;
 	}
 
 	@Cacheable(cacheNames = "project-versions")
@@ -2332,6 +2420,23 @@ public class JiraService {
 	}
 	
 	public void updateCustomFieldOption(String customFieldId, String optionId, JiraCustomFieldOption optionRequest) {
+		JiraCustomFieldOptionRequest customOptionRequest = new JiraCustomFieldOptionRequest();
+		customOptionRequest.setEnabled(optionRequest.getEnabled());
+		customOptionRequest.setId(optionRequest.getId());
+		customOptionRequest.setSequence(optionRequest.getSequence());
+		customOptionRequest.setValue(optionRequest.getValue());
+		List<String> cascadingOptionsStr = new ArrayList<>();
+		List<JiraCustomFieldOption> cascadingOptions = optionRequest.getCascadingOptions();
+		if(cascadingOptions != null) {
+			for (JiraCustomFieldOption childOption : cascadingOptions) {
+				cascadingOptionsStr.add(childOption.getValue());
+			}
+		}
+		customOptionRequest.setCascadingOptions(cascadingOptionsStr);
+		updateCustomFieldOption(customFieldId, optionId, customOptionRequest);
+	}
+
+	public void updateCustomFieldOption(String customFieldId, String optionId, JiraCustomFieldOptionRequest optionRequest) {
 		try {
 			optionRequest.setSelf(null);
 			jiraClient.updateCustomFieldOption(customFieldId, optionId, optionRequest);			

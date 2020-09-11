@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs;
+package dev.pje.bots.apoiadorrequisitante.handlers.docs;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,8 +11,8 @@ import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.event.JiraEventIssue;
 import com.devplatform.model.jira.vo.JiraEstruturaDocumentacaoVO;
 
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
+import dev.pje.bots.apoiadorrequisitante.handlers.Handler;
+import dev.pje.bots.apoiadorrequisitante.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
@@ -80,7 +80,7 @@ public class Documentation05FinishHomologationHandler extends Handler<JiraEventI
 						if(!messages.hasSomeError()) {
 							if(estruturaDocumentacao.getCategoriaIndicadaOutros() || estruturaDocumentacao.getSubCategoriaIndicadaOutros()) {
 								String issueCategoriaId = null;
-								String issueSubCategoriaId = null;
+//								String issueSubCategoriaId = null;
 								if(estruturaDocumentacao.getCategoriaIndicadaOutros()) {
 									// FIXME a informação faltante é a categoria
 									String nomeCategoria = estruturaDocumentacao.getCategoriaNomeParaExibicao();

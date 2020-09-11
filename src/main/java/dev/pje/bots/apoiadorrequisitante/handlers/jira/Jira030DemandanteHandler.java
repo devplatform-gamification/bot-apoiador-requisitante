@@ -1,4 +1,4 @@
-package dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira;
+package dev.pje.bots.apoiadorrequisitante.handlers.jira;
 
 import java.util.HashMap;
 import java.util.List;
@@ -17,8 +17,8 @@ import com.devplatform.model.jira.JiraProperty;
 import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.jira.event.JiraEventIssue;
 
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.Handler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.MessagesLogger;
+import dev.pje.bots.apoiadorrequisitante.handlers.Handler;
+import dev.pje.bots.apoiadorrequisitante.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 
 @Component

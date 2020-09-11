@@ -18,27 +18,28 @@ import com.devplatform.model.gitlab.event.GitlabEventPushTag;
 import com.devplatform.model.jira.event.JiraEventIssue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation01TriageHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation02CreateSolutionHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation03CheckAutomaticMergeHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation04ManualMergeHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.docs.Documentation05FinishHomologationHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.gitlab.CheckingNewScriptMigrationsInCommitHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.gitlab.Gitlab03MergeRequestUpdateHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.gitlab.Gitlab04TagPushFinishVersionHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.gitlab.GitlabEventHandlerGitflow;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira.Jira020ClassificationHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira.Jira010ApoiadorRequisitanteHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira.Jira030DemandanteHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.jira.Jira040RaiaFluxoHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion010TriageHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion015PrepareActualVersionHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion020GenerateReleaseCandidateHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion030PrepareNextVersionHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion040GenerateReleaseNotesHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion050ProcessReleaseNotesHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion060FinishReleaseNotesProcessingHandler;
-import dev.pje.bots.apoiadorrequisitante.amqp.handlers.lancamentoversao.LanVersion070TagPushedEventHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.docs.Documentation01TriageHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.docs.Documentation02CreateSolutionHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.docs.Documentation03CheckAutomaticMergeHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.docs.Documentation04ManualMergeHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.docs.Documentation05FinishHomologationHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.gamification.Gamification010ClassificarAreasConhecimentoHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.CheckingNewScriptMigrationsInCommitHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab03MergeRequestUpdateHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab04TagPushFinishVersionHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.GitlabEventHandlerGitflow;
+import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira010ApoiadorRequisitanteHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira020ClassificationHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira030DemandanteHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira040RaiaFluxoHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.lancamentoversao.LanVersion010TriageHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.lancamentoversao.LanVersion015PrepareActualVersionHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.lancamentoversao.LanVersion020GenerateReleaseCandidateHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.lancamentoversao.LanVersion030PrepareNextVersionHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.lancamentoversao.LanVersion040GenerateReleaseNotesHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.lancamentoversao.LanVersion050ProcessReleaseNotesHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.lancamentoversao.LanVersion060FinishReleaseNotesProcessingHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.lancamentoversao.LanVersion070TagPushedEventHandler;
 
 @Component
 public class AmqpConsumer {
@@ -113,6 +114,12 @@ public class AmqpConsumer {
 	
 	@Autowired
 	private Documentation05FinishHomologationHandler documentation05;
+	
+	/***************/
+	@Autowired
+	private Gamification010ClassificarAreasConhecimentoHandler gamification010;
+	
+	/***************/
 	
 	@RabbitListener(
 			bindings = @QueueBinding(
@@ -527,5 +534,20 @@ public class AmqpConsumer {
 			documentation05.handle(jiraEventIssue);
 		}
 	}
-
+	
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.gamification010-classificar-areas-conhecimento.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.gamification010-classificar-areas-conhecimento.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.gamification010-classificar-areas-conhecimento.routing-key-start}"})
+		)
+	public void gamification010ClassificarAreasConhecimento(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			String eventoClassificarAreasConheccimento = objectMapper.readValue(body, String.class);
+			logger.info(gamification010.getMessagePrefix() + " - " + msg.getMessageProperties().getReceivedRoutingKey() + " - " + eventoClassificarAreasConheccimento);
+			gamification010.handle(eventoClassificarAreasConheccimento);
+		}
+	}
 }
