@@ -27,7 +27,6 @@ import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.RocketchatMarkdown;
-import dev.pje.bots.apoiadorrequisitante.utils.markdown.TelegramMarkdownHtml;
 import dev.pje.bots.apoiadorrequisitante.utils.textModels.AtualizacaoClassificacaoAreasConhecimentoTextModel;
 
 @Component
@@ -68,7 +67,7 @@ public class Gamification010ClassificarAreasConhecimentoHandler extends Handler<
 	private String dataFinalizacaoProcesso = null;
 	private String getDataFinalizacaoProcesso() {
 		if(StringUtils.isBlank(dataFinalizacaoProcesso)) {
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+			SimpleDateFormat sdf = new SimpleDateFormat(JiraService.JIRA_DATETIME_PATTERN);
 			Date now = new Date();
 			dataFinalizacaoProcesso = sdf.format(now);
 		}
@@ -96,10 +95,9 @@ public class Gamification010ClassificarAreasConhecimentoHandler extends Handler<
 		if(StringUtils.isEmpty(dataUltimaAtualizacao)) {
 			recalcularPontuacao = true;
 		}else{
-			
 			Date dataMinAtualizacao = Utils.calculateDaysFromNow(-diferencaMinimaEntreAtualizacoes);
 			Date dataAtualizacao = Utils.getDateFromString(dataUltimaAtualizacao);
-			recalcularPontuacao = (Utils.checkDifferenceInDaysBetweenTwoDates(dataMinAtualizacao, dataAtualizacao) > diferencaMinimaEntreAtualizacoes);
+			recalcularPontuacao = (dataAtualizacao == null || (Utils.checkDifferenceInDaysBetweenTwoDates(dataAtualizacao, dataMinAtualizacao) <= 0));
 		}
 		if(recalcularPontuacao) {
 			// faz uma consulta sem verificar área de conhecimento para identificar a quantidade de issues únicas existentes
@@ -132,6 +130,11 @@ public class Gamification010ClassificarAreasConhecimentoHandler extends Handler<
 
 						for (NivelClassificacaoAreasConhecimentoEnum nivel : NivelClassificacaoAreasConhecimentoEnum.values()) {
 							JiraCustomFieldOption option = JiraUtils.getOptionWithName(ctrlAreasConhecimento.getOptions(), nivel.name());
+							if(option == null) {
+								jiraService.createCustomFieldOption(nivel.name(), null, ctrlAreasConhecimento);
+								ctrlAreasConhecimento = jiraService.getCtrlPontuacaoAreasConhecimento();
+								option = JiraUtils.getOptionWithName(ctrlAreasConhecimento.getOptions(), nivel.name());
+							}
 							List<String> areasConhecimentoNivel = getAreasConhecimentoDeNivel(pontuacoes.getClassificacoesAreasConhecimento(), nivel.toString());
 							List<JiraCustomFieldOption> cascadingOptions = new ArrayList<>();
 							if(areasConhecimentoNivel != null) {
@@ -177,12 +180,21 @@ public class Gamification010ClassificarAreasConhecimentoHandler extends Handler<
 					}
 					// atualiza a opcao 'atualizacao' com a data de execução desta operacao
 					JiraCustomFieldOption option = JiraUtils.getOptionWithName(ctrlAreasConhecimento.getOptions(), JiraService.CTRL_PONTUACAO_AREA_CONHECIMENTO_DATA_ATUALIZACAO_OPTION);
-					List<JiraCustomFieldOption> cascadingOptions = new ArrayList<>();
-					JiraCustomFieldOption dataAtualizacaoOption = new JiraCustomFieldOption();
-					dataAtualizacaoOption.setValue(getDataFinalizacaoProcesso());
-					cascadingOptions.add(dataAtualizacaoOption);
-					option.setCascadingOptions(cascadingOptions);					
-					jiraService.updateCustomFieldOption(ctrlAreasConhecimento.getId().toString(), option.getId().toString(), option);
+					if(option == null) {
+						jiraService.createCustomFieldOption(JiraService.CTRL_PONTUACAO_AREA_CONHECIMENTO_DATA_ATUALIZACAO_OPTION, null, ctrlAreasConhecimento);
+						ctrlAreasConhecimento = jiraService.getCtrlPontuacaoAreasConhecimento();
+						option = JiraUtils.getOptionWithName(ctrlAreasConhecimento.getOptions(), JiraService.CTRL_PONTUACAO_AREA_CONHECIMENTO_DATA_ATUALIZACAO_OPTION);
+					}
+					if(option == null) {
+						messages.error("Falhou ao tentar recuperar a nova opcao: " + JiraService.CTRL_PONTUACAO_AREA_CONHECIMENTO_DATA_ATUALIZACAO_OPTION);
+					}else {
+						List<JiraCustomFieldOption> cascadingOptions = new ArrayList<>();
+						JiraCustomFieldOption dataAtualizacaoOption = new JiraCustomFieldOption();
+						dataAtualizacaoOption.setValue(getDataFinalizacaoProcesso());
+						cascadingOptions.add(dataAtualizacaoOption);
+						option.setCascadingOptions(cascadingOptions);					
+						jiraService.updateCustomFieldOption(ctrlAreasConhecimento.getId().toString(), option.getId().toString(), option);
+					}
 				}
 			}
 		}

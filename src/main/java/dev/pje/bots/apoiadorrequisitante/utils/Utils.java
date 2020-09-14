@@ -502,7 +502,7 @@ public class Utils {
 	}
 	
 	public static long checkDifferenceInDaysBetweenTwoDates(Date firstDate, Date secondDate) {
-	    long diffInMillies = Math.abs(secondDate.getTime() - firstDate.getTime());
+	    long diffInMillies = Math.subtractExact(firstDate.getTime(), secondDate.getTime());
 	    long diff = TimeUnit.DAYS.convert(diffInMillies, TimeUnit.MILLISECONDS);
 	    
 	    return diff;

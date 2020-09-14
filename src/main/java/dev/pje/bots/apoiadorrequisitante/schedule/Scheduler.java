@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dev.pje.bots.apoiadorrequisitante.amqp.config.AmqpProducer;
+import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 
 @Component
 public class Scheduler {
@@ -29,7 +30,7 @@ public class Scheduler {
      */
 	@Scheduled(cron = "0 5 1 24-31 * 5-7")
 	public void atualizacaoPontuacoesAreasConhecimento() throws Exception {
-		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+		SimpleDateFormat sdf = new SimpleDateFormat(JiraService.JIRA_DATETIME_PATTERN);
 		Date now = new Date();
 		String strDate = sdf.format(now);
 		String msg = "Indicando a necessidade de reclassificação das áreas de conehcimento em :: " + strDate;

@@ -1,6 +1,8 @@
 package dev.pje.bots.apoiadorrequisitante.utils.textModels;
 
 
+import java.util.Date;
+
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -68,9 +70,11 @@ public class AtualizacaoClassificacaoAreasConhecimentoTextModel extends Abstract
 				.append(markdown.listItem(itemList.toString()));
 		}
 		
+		Date dataAtualizacao = Utils.getDateFromString(dataAtualizacaoClassificacao);
+		String dataAtualizacaoStr = Utils.dateToStringPattern(dataAtualizacao, "HH:mm dd/MM/yyyy");
 		markdownText
 			.append(markdown.newLine())
-			.append(markdown.normal("Data de referência :: " + dataAtualizacaoClassificacao));
+			.append(markdown.normal("Data de referência :: " + dataAtualizacaoStr));
 		
 		return markdownText.toString();
 	}
