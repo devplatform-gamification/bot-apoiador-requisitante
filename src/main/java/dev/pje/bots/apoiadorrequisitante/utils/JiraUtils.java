@@ -147,14 +147,36 @@ public class JiraUtils {
 		}
 		return validation;
 	}
-	
-	public static JiraCustomFieldOption getOptionWithName(List<JiraCustomFieldOption> options, String name) {
+
+	public static JiraCustomFieldOption getParentOptionWithChildName(List<JiraCustomFieldOption> options, String name) {
+		JiraCustomFieldOption parentOption = null;
+		JiraCustomFieldOption option = null;
+		if(options != null && StringUtils.isNotBlank(name)) {
+			for (JiraCustomFieldOption opt : options) {
+				if(opt.getCascadingOptions() != null) {
+					parentOption = opt;
+					option = getOptionWithName(opt.getCascadingOptions(), name, true);
+					if(option != null) {
+						break;
+					}
+				}
+			}
+		}
+		return parentOption;
+	}
+
+	public static JiraCustomFieldOption getOptionWithName(List<JiraCustomFieldOption> options, String name, Boolean recursive) {
 		JiraCustomFieldOption option = null;
 		if(options != null && StringUtils.isNotBlank(name)) {
 			for (JiraCustomFieldOption opt : options) {
 				if(StringUtils.isNotBlank(opt.getValue()) && Utils.compareAsciiIgnoreCase(name, opt.getValue())) {
 					option = opt;
 					break;
+				}else if(recursive && opt.getCascadingOptions() != null) {
+					option = getOptionWithName(opt.getCascadingOptions(), name, recursive);
+					if(option != null) {
+						break;
+					}
 				}
 			}
 		}
@@ -164,7 +186,7 @@ public class JiraUtils {
 	public static List<JiraCustomFieldOption> getChildrenOptionsFromOptionName(List<JiraCustomFieldOption> options, String name){
 		List<JiraCustomFieldOption> childrenOptions = new ArrayList<>();
 		if(options != null && StringUtils.isNotBlank(name)) {
-			JiraCustomFieldOption option = getOptionWithName(options, name);
+			JiraCustomFieldOption option = getOptionWithName(options, name, false);
 			if(option != null) {
 				childrenOptions = option.getCascadingOptions();
 			}

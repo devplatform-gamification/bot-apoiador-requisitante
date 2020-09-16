@@ -275,25 +275,18 @@ public class LanVersion040GenerateReleaseNotesHandler extends Handler<JiraEventI
 		return versionReleasedSimpleCallSlack;
 	}
 
-	public static final int ISSUE_TYPE_HOTFIX = 10202;
-	public static final int ISSUE_TYPE_BUGFIX = 10201;
-	public static final int ISSUE_TYPE_BUG = 1;
-	public static final int ISSUE_TYPE_NEWFEATURE = 2;
-	public static final int ISSUE_TYPE_IMPROVEMENT = 4;
-	public static final int ISSUE_TYPE_MINOR_CHANGES = 5;
-	
 	public VersionReleaseNotesIssueTypeEnum getIssueTypeEnum(JiraIssuetype issueType){
 		VersionReleaseNotesIssueTypeEnum releaseNotesIssueType = null;
-		switch (issueType.getId().intValue()) {
-			case ISSUE_TYPE_HOTFIX:
-			case ISSUE_TYPE_BUGFIX:
-			case ISSUE_TYPE_BUG:
+		switch (issueType.getId().toString()) {
+			case JiraService.ISSUE_TYPE_HOTFIX:
+			case JiraService.ISSUE_TYPE_BUGFIX:
+			case JiraService.ISSUE_TYPE_BUG:
 				releaseNotesIssueType = VersionReleaseNotesIssueTypeEnum.BUGFIX;
 				break;
-			case ISSUE_TYPE_NEWFEATURE:
+			case JiraService.ISSUE_TYPE_NEWFEATURE:
 				releaseNotesIssueType = VersionReleaseNotesIssueTypeEnum.NEW_FEATURE;
 				break;
-			case ISSUE_TYPE_IMPROVEMENT:
+			case JiraService.ISSUE_TYPE_IMPROVEMENT:
 				releaseNotesIssueType = VersionReleaseNotesIssueTypeEnum.IMPROVEMENT;
 				break;
 			default:

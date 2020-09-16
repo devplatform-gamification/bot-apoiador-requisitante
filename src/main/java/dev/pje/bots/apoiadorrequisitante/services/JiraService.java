@@ -81,7 +81,18 @@ public class JiraService {
 	public static final String ISSUE_TYPE_NEW_VERSION = "10200";
 	public static final String ISSUE_TYPE_DOCUMENTATION = "10301";
 	public static final String ISSUE_TYPE_RELEASE_NOTES = "10302";
+
 	public static final String ISSUE_TYPE_HOTFIX = "10202";
+	public static final String ISSUE_TYPE_BUGFIX = "10201";
+	public static final String ISSUE_TYPE_BUG = "1";
+	public static final String ISSUE_TYPE_IMPROVEMENT = "4";
+	public static final String ISSUE_TYPE_NEWFEATURE = "2";
+	public static final String ISSUE_TYPE_QUESTION = "23";
+
+	public static final String ISSUE_REPORTER_PRIORITY_PANIC = "1";
+	public static final String ISSUE_REPORTER_PRIORITY_CRITICAL = "2";
+	public static final String ISSUE_REPORTER_PRIORITY_NORMAL = "3";
+	public static final String ISSUE_REPORTER_PRIORITY_MINOR = "4";
 
 	public static final String PROJECTKEY_PJEDOC = "PJEDOC";
 
@@ -186,6 +197,8 @@ public class JiraService {
 	public static final String FIELD_SUPER_EPIC_THEME = "customfield_11800";
 	public static final String FIELD_AREAS_CONHECIMENTO = "customfield_13921";
 	public static final String FIELD_EPIC_THEME = "customfield_10201";
+	public static final String FIELD_BUSSINESS_VALUE = "customfield_10204";
+	
 	public static final String FIELD_DATA_RELEASE_NOTES = "customfield_13910";
 	public static final String FIELD_URL_RELEASE_NOTES = "customfield_13911";
 	public static final String FIELD_DATA_TAG_GIT = "customfield_13912";
@@ -716,6 +729,22 @@ public class JiraService {
 				}
 			}
 		}		
+	}
+
+	public void atualizarBussinessValue(JiraIssue issue,  Integer bussinessValue, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if((issueDetalhada.getFields().getBusinessValue() == null) || !issueDetalhada.getFields().getBusinessValue().equals(bussinessValue)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_BUSSINESS_VALUE, bussinessValue, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_BUSSINESS_VALUE) != null) {
+				updateFields.put(FIELD_BUSSINESS_VALUE, updateField.get(FIELD_BUSSINESS_VALUE));
+			}
+		}
 	}
 
 	public void atualizarFabricaDesenvolvimento(JiraIssue issue,  String nomeFabrica, Map<String, Object> updateFields) throws Exception {
@@ -1413,8 +1442,21 @@ public class JiraService {
 			if(!identificouCampo) {
 				throw new Exception("Valor para update fora do padrão - deveria ser JiraCustomFieldOption, recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
-		}
+		}else if(
+				FIELD_BUSSINESS_VALUE.equals(fieldName)) {
 
+			boolean identificouCampo = false;
+			identificouCampo = (valueToUpdate == null || valueToUpdate instanceof Integer);
+			Map<String, Object> newOption = new HashMap<>();
+			newOption.put("set", (Integer) valueToUpdate);
+			List<Map<String, Object>> jiraOptionArray = new ArrayList<>();
+			jiraOptionArray.add(newOption);
+			objectToUpdate.put(fieldName, jiraOptionArray);
+			
+			if(!identificouCampo) {
+				throw new Exception("Valor para update fora do padrão - deveria ser Integer, recebeu: " +  valueToUpdate.getClass().getTypeName());
+			}
+		}
 		return objectToUpdate;
 	}
 
@@ -2077,7 +2119,7 @@ public class JiraService {
 					if(StringUtils.isNotBlank(releaseDate)) {
 						Date releaseDateTime;
 						releaseDateTime = Utils.getDateFromString(releaseDate);
-						jiraVersion.setReleaseDate(Utils.dateToStringPattern(releaseDateTime, Utils.DATE_SIMPLE_PATTERN));
+						jiraVersion.setReleaseDate(Utils.dateToStringPattern(releaseDateTime, Utils.DATE_PATTERN_SIMPLE));
 						jiraVersion.setReleased(true);
 					}else {
 						jiraVersion.setReleased(false);
@@ -2257,10 +2299,10 @@ public class JiraService {
 				jiraVersion.setName(versionName);
 				jiraVersion.setDescription(description);
 				jiraVersion.setProjectId(project.getId());
-				jiraVersion.setStartDate(Utils.dateToStringPattern(new Date(), Utils.DATE_SIMPLE_PATTERN)); // assumi que iniciará a versão na criacao do registro
+				jiraVersion.setStartDate(Utils.dateToStringPattern(new Date(), Utils.DATE_PATTERN_SIMPLE)); // assumi que iniciará a versão na criacao do registro
 				if(StringUtils.isNotBlank(releaseDate)) {
 					Date releaseDateTime = Utils.getDateFromString(releaseDate);
-					jiraVersion.setReleaseDate(Utils.dateToStringPattern(releaseDateTime, Utils.DATE_SIMPLE_PATTERN));
+					jiraVersion.setReleaseDate(Utils.dateToStringPattern(releaseDateTime, Utils.DATE_PATTERN_SIMPLE));
 					jiraVersion.setReleased(true);
 				}else {
 					jiraVersion.setReleased(false);

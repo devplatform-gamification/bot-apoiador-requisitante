@@ -51,7 +51,8 @@ import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 
 public class Utils {
-	public static final String DATE_SIMPLE_PATTERN = "yyyy-MM-dd";
+	public static final String DATE_PATTERN_SIMPLE = "yyyy-MM-dd";
+	public static final String DATE_PATTERN_PORTUGUESE = "HH:mm dd/MM/yyyy";
 	
 	public static boolean compareAsciiIgnoreCase(String valueA, String valueB) {
 		if((valueA != null && valueB == null) || (valueA == null && valueB != null)) {
@@ -208,7 +209,7 @@ public class Utils {
 					date = Utils.stringToDate(releaseDateStr, GitlabService.GITLAB_DATETIME_PATTERN);
 				}catch (Exception e2) {
 					try {
-						date = Utils.stringToDate(releaseDateStr, DATE_SIMPLE_PATTERN);						
+						date = Utils.stringToDate(releaseDateStr, DATE_PATTERN_SIMPLE);						
 					}catch (Exception e3) {
 						e3.getStackTrace();
 					}
@@ -499,6 +500,13 @@ public class Utils {
 		}
 		
 		return xmlProcessed;
+	}
+
+	public static long checkDifferenceInHoursBetweenTwoDates(Date firstDate, Date secondDate) {
+	    long diffInMillies = Math.subtractExact(firstDate.getTime(), secondDate.getTime());
+	    long diff = TimeUnit.HOURS.convert(diffInMillies, TimeUnit.MILLISECONDS);
+	    
+	    return diff;
 	}
 	
 	public static long checkDifferenceInDaysBetweenTwoDates(Date firstDate, Date secondDate) {

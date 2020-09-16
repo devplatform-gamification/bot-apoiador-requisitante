@@ -105,8 +105,12 @@ public abstract class Handler<E> {
 			String msg = "update string: " + Utils.convertObjectToJson(jiraIssueCreateAndUpdate);
 			messages.debug(msg);
 			getLogger().info(msg);
-			jiraService.updateIssue(issue, jiraIssueCreateAndUpdate);
-			messages.info("Issue atualizada");
+			try {
+				jiraService.updateIssue(issue, jiraIssueCreateAndUpdate);
+				messages.info("Issue atualizada");
+			}catch (Exception e) {
+				messages.error("Falhou ao tentar atualizar a issue: " + issue.getKey());
+			}
 		}
 	}
 

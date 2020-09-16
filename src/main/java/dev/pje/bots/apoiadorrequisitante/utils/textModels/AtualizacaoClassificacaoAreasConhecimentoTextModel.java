@@ -71,7 +71,7 @@ public class AtualizacaoClassificacaoAreasConhecimentoTextModel extends Abstract
 		}
 		
 		Date dataAtualizacao = Utils.getDateFromString(dataAtualizacaoClassificacao);
-		String dataAtualizacaoStr = Utils.dateToStringPattern(dataAtualizacao, "HH:mm dd/MM/yyyy");
+		String dataAtualizacaoStr = Utils.dateToStringPattern(dataAtualizacao, Utils.DATE_PATTERN_PORTUGUESE);
 		markdownText
 			.append(markdown.newLine())
 			.append(markdown.normal("Data de referência :: " + dataAtualizacaoStr));

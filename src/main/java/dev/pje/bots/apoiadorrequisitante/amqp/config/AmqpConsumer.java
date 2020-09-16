@@ -24,6 +24,7 @@ import dev.pje.bots.apoiadorrequisitante.handlers.docs.Documentation03CheckAutom
 import dev.pje.bots.apoiadorrequisitante.handlers.docs.Documentation04ManualMergeHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.docs.Documentation05FinishHomologationHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.gamification.Gamification010ClassificarAreasConhecimentoHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.gamification.Gamification020CalcularPrioridadeDemandaHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.CheckingNewScriptMigrationsInCommitHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab03MergeRequestUpdateHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab04TagPushFinishVersionHandler;
@@ -118,7 +119,10 @@ public class AmqpConsumer {
 	/***************/
 	@Autowired
 	private Gamification010ClassificarAreasConhecimentoHandler gamification010;
-	
+
+	@Autowired
+	private Gamification020CalcularPrioridadeDemandaHandler gamification020;
+
 	/***************/
 	
 	@RabbitListener(
@@ -550,4 +554,22 @@ public class AmqpConsumer {
 			gamification010.handle(eventoClassificarAreasConheccimento);
 		}
 	}
+	
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.gamification020-calculo-prioridade-demanda.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.gamification020-calculo-prioridade-demanda.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-generic.routing-key}"})
+		)
+	public void gamification020CalculoPrioridadeGeralDemanda(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
+			String issueKey = jiraEventIssue.getIssue().getKey();
+			logger.info(gamification020.getMessagePrefix() + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+			gamification020.handle(jiraEventIssue);
+		}
+	}
+
 }

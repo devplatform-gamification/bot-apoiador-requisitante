@@ -41,6 +41,9 @@ public class RocketchatService {
 	@Value("${project.rocketchat.channel.pje-news-id}") 
 	private String GRUPO_PJE_NEWS;
 
+	@Value("${project.rocketchat.channel.pje-dev-platform-id}") 
+	private String GRUPO_PJE_DEV_PLATFORM;
+
 	@Value("${project.rocketchat.channel.geral}") 
 	private String GRUPO_GERAL;
 	
@@ -81,6 +84,10 @@ public class RocketchatService {
 	
 	public void sendMessagePJENews(String text) {
 		sendSimpleMessage(GRUPO_PJE_NEWS, text);
+	}
+	
+	public void sendMessagePlataformaPJEDev(String text) {
+		sendSimpleMessage(GRUPO_PJE_DEV_PLATFORM, text);
 	}
 	
 	public void sendMessageGeral(String text) {

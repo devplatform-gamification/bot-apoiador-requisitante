@@ -52,7 +52,7 @@ public class Gamification010ClassificarAreasConhecimentoHandler extends Handler<
 
 	@Override
 	public String getMessagePrefix() {
-		return "|JIRA||050||PRIORIDADES-AREAS-CONHECIMENTO|";
+		return "|GAMIFICATION||010||PRIORIDADES-AREAS-CONHECIMENTO|";
 	}
 	@Override
 	public int getLogLevel() {
@@ -129,11 +129,11 @@ public class Gamification010ClassificarAreasConhecimentoHandler extends Handler<
 						// atualizar o campo de ctrl para as novas pontuacoes
 
 						for (NivelClassificacaoAreasConhecimentoEnum nivel : NivelClassificacaoAreasConhecimentoEnum.values()) {
-							JiraCustomFieldOption option = JiraUtils.getOptionWithName(ctrlAreasConhecimento.getOptions(), nivel.name());
+							JiraCustomFieldOption option = JiraUtils.getOptionWithName(ctrlAreasConhecimento.getOptions(), nivel.name(), false);
 							if(option == null) {
 								jiraService.createCustomFieldOption(nivel.name(), null, ctrlAreasConhecimento);
 								ctrlAreasConhecimento = jiraService.getCtrlPontuacaoAreasConhecimento();
-								option = JiraUtils.getOptionWithName(ctrlAreasConhecimento.getOptions(), nivel.name());
+								option = JiraUtils.getOptionWithName(ctrlAreasConhecimento.getOptions(), nivel.name(), false);
 							}
 							List<String> areasConhecimentoNivel = getAreasConhecimentoDeNivel(pontuacoes.getClassificacoesAreasConhecimento(), nivel.toString());
 							List<JiraCustomFieldOption> cascadingOptions = new ArrayList<>();
@@ -160,6 +160,7 @@ public class Gamification010ClassificarAreasConhecimentoHandler extends Handler<
 						RocketchatMarkdown rocketMarkdown = new RocketchatMarkdown();
 						String rocketAtualizacaoClassificacaoText = atualizacaoClassificacaoTextModel.convert(rocketMarkdown);
 						rocketchatService.sendBotMessage(rocketAtualizacaoClassificacaoText);
+						rocketchatService.sendMessagePlataformaPJEDev(rocketAtualizacaoClassificacaoText);						
 
 						/**
 						 * Atualização da classificação das áreas de conhecimento em: DD/MM/YYYY
@@ -179,11 +180,11 @@ public class Gamification010ClassificarAreasConhecimentoHandler extends Handler<
 						amqpProducer.sendMessageGeneric(msg, routingKeyFinishClassification);
 					}
 					// atualiza a opcao 'atualizacao' com a data de execução desta operacao
-					JiraCustomFieldOption option = JiraUtils.getOptionWithName(ctrlAreasConhecimento.getOptions(), JiraService.CTRL_PONTUACAO_AREA_CONHECIMENTO_DATA_ATUALIZACAO_OPTION);
+					JiraCustomFieldOption option = JiraUtils.getOptionWithName(ctrlAreasConhecimento.getOptions(), JiraService.CTRL_PONTUACAO_AREA_CONHECIMENTO_DATA_ATUALIZACAO_OPTION, false);
 					if(option == null) {
 						jiraService.createCustomFieldOption(JiraService.CTRL_PONTUACAO_AREA_CONHECIMENTO_DATA_ATUALIZACAO_OPTION, null, ctrlAreasConhecimento);
 						ctrlAreasConhecimento = jiraService.getCtrlPontuacaoAreasConhecimento();
-						option = JiraUtils.getOptionWithName(ctrlAreasConhecimento.getOptions(), JiraService.CTRL_PONTUACAO_AREA_CONHECIMENTO_DATA_ATUALIZACAO_OPTION);
+						option = JiraUtils.getOptionWithName(ctrlAreasConhecimento.getOptions(), JiraService.CTRL_PONTUACAO_AREA_CONHECIMENTO_DATA_ATUALIZACAO_OPTION, false);
 					}
 					if(option == null) {
 						messages.error("Falhou ao tentar recuperar a nova opcao: " + JiraService.CTRL_PONTUACAO_AREA_CONHECIMENTO_DATA_ATUALIZACAO_OPTION);

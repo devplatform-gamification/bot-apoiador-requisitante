@@ -112,8 +112,12 @@ spring:
         gamification010-classificar-areas-conhecimento:
           name: ${RABBIT_GAMIFICATION010_CLASSIFICAR_AREAS_CONHECIMENTO_QUEUE:gamification010-classificar-areas-conhecimento-queue}
           auto-startup: ${RABBIT_GAMIFICATION010_CLASSIFICAR_AREAS_CONHECIMENTO_AUTOSTARTUP:false}
-          routing-key-start: ${RABBIT_GAMIFICATION010_CLASSIFICAR_AREAS_CONHECIMENTO_QUEUE:dev-platform.gamification.areas-conhecimento-classificar}
-          routing-key-end: ${RABBIT_GAMIFICATION010_CLASSIFICAR_AREAS_CONHECIMENTO_QUEUE:dev-platform.gamification.areas-conhecimento-classificadas}
+          routing-key-start: ${RABBIT_GAMIFICATION010_CLASSIFICAR_AREAS_CONHECIMENTO_ROUTING_KEY_START:dev-platform.gamification.areas-conhecimento-classificar}
+          routing-key-end: ${RABBIT_GAMIFICATION010_CLASSIFICAR_AREAS_CONHECIMENTO_ROUTING_KEY_END:dev-platform.gamification.areas-conhecimento-classificadas}
+          
+        gamification020-calculo-prioridade-demanda:
+          name: ${RABBIT_GAMIFICATION020_CALCULO_PRIORIDADE_DEMANDA_QUEUE:gamification020-calculo-prioridade-demanda-queue}
+          auto-startup: ${RABBIT_GAMIFICATION020_CALCULO_PRIORIDADE_DEMANDA_AUTOSTARTUP:false}
           
         jira:
           issue-created:
@@ -174,6 +178,7 @@ project:
       grupo-revisor-id: ${PROJECT_ROCKETCHAT_CHANNEL_GRUPO_REVISOR:my-grupo-revisor-channel}
       grupo-negocial-id: ${PROJECT_ROCKETCHAT_CHANNEL_GRUPO_NEOGIAL:my-grupo-neogical-channel}
       pje-news-id: ${PROJECT_ROCKETCHAT_CHANNEL_PJENEWS:my-pjenews-channel}
+      pje-dev-platform-id: ${PROJECT_ROCKETCHAT_CHANNEL_PJEDEVPLATFORM:my-pjedevplatform-channel}
       geral: ${PROJECT_ROCKETCHAT_CHANNEL_GENERAL:general}
   slack:
     channel:
