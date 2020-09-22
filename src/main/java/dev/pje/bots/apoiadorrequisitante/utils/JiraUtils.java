@@ -7,6 +7,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.devplatform.model.jira.JiraEventChangelogItems;
 import com.devplatform.model.jira.JiraIssue;
+import com.devplatform.model.jira.JiraIssueFieldOption;
 import com.devplatform.model.jira.JiraVersion;
 import com.devplatform.model.jira.custom.JiraCustomFieldOption;
 import com.devplatform.model.jira.event.JiraEventIssue;
@@ -15,6 +16,10 @@ import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 
 public class JiraUtils {
 
+	private static final String PATH_JQL = "/issues/?jql=";
+	private static final String PATH_ISSUE = "/browse/";
+	private static final String PATH_USERPROFILE = "/secure/ViewProfile.jspa?name=";
+	
 	public static boolean isIssueFromType(JiraIssue issue, String issueTypeId) {
 		return (issue != null && issue.getFields() != null && issue.getFields().getIssuetype() != null
 				&& issue.getFields().getIssuetype().getId() != null && issueTypeId
@@ -192,5 +197,27 @@ public class JiraUtils {
 			}
 		}
 		return childrenOptions;
+	}
+	
+	public static List<String> translateFieldOptionsToValueList(List<JiraIssueFieldOption> options){
+		List<String> valueList = new ArrayList<>();
+		if(options != null) {
+			for (JiraIssueFieldOption option : options) {
+				valueList.add(option.getValue());
+			}
+		}
+		return valueList;
+	}
+		
+	public static String getPathIssue(String issueKey, String JIRAURL) {
+		return JIRAURL + PATH_ISSUE + issueKey;
+	}
+
+	public static String getPathUserProfile(String userKey, String JIRAURL) {
+		return JIRAURL + PATH_USERPROFILE + userKey;
+	}
+
+	public static String getPathJql(String jql, String JIRAURL) {
+		return JIRAURL + PATH_JQL + jql;
 	}
 }

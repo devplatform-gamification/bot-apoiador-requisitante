@@ -17,20 +17,26 @@ import org.springframework.stereotype.Service;
 
 import com.devplatform.model.bot.VersionTypeEnum;
 import com.devplatform.model.gitlab.GitlabCommit;
+import com.devplatform.model.gitlab.GitlabDiscussion;
+import com.devplatform.model.gitlab.GitlabMergeRequestAttributes;
 import com.devplatform.model.gitlab.GitlabMergeRequestStateEnum;
+import com.devplatform.model.gitlab.GitlabNote;
 import com.devplatform.model.gitlab.GitlabPipeline;
 import com.devplatform.model.gitlab.GitlabProject;
 import com.devplatform.model.gitlab.GitlabProjectExtended;
 import com.devplatform.model.gitlab.GitlabProjectVariable;
 import com.devplatform.model.gitlab.GitlabTag;
 import com.devplatform.model.gitlab.GitlabTagRelease;
+import com.devplatform.model.gitlab.GitlabUser;
 import com.devplatform.model.gitlab.request.GitlabAcceptMRRequest;
 import com.devplatform.model.gitlab.request.GitlabBranchRequest;
 import com.devplatform.model.gitlab.request.GitlabCherryPickRequest;
 import com.devplatform.model.gitlab.request.GitlabCommitActionRequest;
 import com.devplatform.model.gitlab.request.GitlabCommitActionsEnum;
 import com.devplatform.model.gitlab.request.GitlabCommitRequest;
+import com.devplatform.model.gitlab.request.GitlabMRCommentRequest;
 import com.devplatform.model.gitlab.request.GitlabMRRequest;
+import com.devplatform.model.gitlab.request.GitlabMRUpdateRequest;
 import com.devplatform.model.gitlab.request.GitlabRepositoryTagRequest;
 import com.devplatform.model.gitlab.request.GitlabTagReleaseRequest;
 import com.devplatform.model.gitlab.response.GitlabBranchResponse;
@@ -75,6 +81,7 @@ public class GitlabService {
 	public static final String TAG_RELEASE_CANDIDATE_SUFFIX = "-RC";
 	
 	public static final String PROJECT_DOCUMENTACAO = "276";
+	public static final String PROJECT_PJE = "7";
 	
 	public static final String SCRIPS_MIGRATION_BASE_PATH = "pje-comum/src/main/resources/migrations/";
 	public static final String SCRIPT_EXTENSION = ".sql";
@@ -85,6 +92,7 @@ public class GitlabService {
 	public static final String AUTHOR_EMAIL = "bot.revisor.pje@cnj.jus.br";
 	
 	public static final String LABEL_MR_LANCAMENTO_VERSAO = "Lancamento de versao";
+	public static final String PREFIXO_LABEL_APROVACAO_TRIBUNAL = "Aprovado_";
 	
 	public static final String GITLAB_DATETIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSS";
 	
@@ -166,7 +174,7 @@ public class GitlabService {
 	public String getScriptsMigrationBasePath(String projectId) {
 		String scriptsMigrationBasePath = null;
 		if(StringUtils.isNotBlank(projectId)) {
-			if(projectId.equals("7")) {
+			if(projectId.equals(PROJECT_PJE)) {
 				scriptsMigrationBasePath = GitlabService.SCRIPS_MIGRATION_BASE_PATH;
 			}
 		}
@@ -705,10 +713,10 @@ public class GitlabService {
 		return MR;
 	}
 	
-	public String checkMRsOpened(String MRs) {
+	public String checkMRsOpened(String mergesWebUrls) {
 		List<String> mrAbertosConfirmados = new ArrayList<>();
 		
-		List<GitlabMergeRequestVO> MRsVO = GitlabUtils.getMergeRequestVOListFromString(MRs, gitlabUrl);
+		List<GitlabMergeRequestVO> MRsVO = GitlabUtils.getMergeRequestVOListFromString(mergesWebUrls, gitlabUrl);
 		// pesquisar MR com a identificacao do projeto + número do MR
 		if(MRsVO != null && !MRsVO.isEmpty()) {
 			Map<String, GitlabProjectExtended> projectsCache = new HashMap<>();
@@ -718,7 +726,10 @@ public class GitlabService {
 					if(projectsCache.get(projectNamespace) == null) {
 						List<GitlabProjectExtended> projects = searchProjectByNamespace(projectNamespace);
 						if(projects != null && !projects.isEmpty()) {
-							projectsCache.put(projectNamespace, projects.get(0));
+							for (GitlabProjectExtended project : projects) {
+								String pathWithNamespace = project.getPathWithNamespace();
+								projectsCache.put(pathWithNamespace, project);
+							}
 						}
 					}
 					if(projectsCache.get(projectNamespace) != null) {
@@ -903,6 +914,52 @@ public class GitlabService {
 		return mrAccepted;
 	}
 	
+	public GitlabMRResponse atualizaLabelsMR(GitlabMergeRequestAttributes mergeRequest, List<String> labels) {
+		GitlabMRResponse mergeResponse = null;
+		if(labels != null && mergeRequest != null) {
+			String projectId = mergeRequest.getTargetProjectId().toString();
+			BigDecimal mergeRequestIId = mergeRequest.getIid();
+			GitlabMRUpdateRequest updateMerge = new GitlabMRUpdateRequest();
+			updateMerge.setMergeRequestIid(mergeRequestIId);
+			updateMerge.setId(mergeRequest.getId());
+			updateMerge.setLabels(String.join(",", labels));
+			
+			mergeResponse = updateMergeRequest(projectId, mergeRequestIId, updateMerge);
+		}
+		
+		return mergeResponse;
+	}
+
+	public GitlabMRResponse removeLabelsMR(GitlabMergeRequestAttributes mergeRequest, List<String> removerLabels) {
+		GitlabMRResponse mergeResponse = null;
+		if(removerLabels != null && mergeRequest != null) {
+			String projectId = mergeRequest.getTargetProjectId().toString();
+			BigDecimal mergeRequestIId = mergeRequest.getIid();
+			GitlabMRUpdateRequest updateMerge = new GitlabMRUpdateRequest();
+			updateMerge.setMergeRequestIid(mergeRequestIId);
+			updateMerge.setId(mergeRequest.getId());
+			updateMerge.setRemoveLabels(String.join(",", removerLabels));
+			
+			mergeResponse = updateMergeRequest(projectId, mergeRequestIId, updateMerge);
+		}
+		
+		return mergeResponse;
+	}
+	
+	public GitlabMRResponse updateMergeRequest(String projectId, BigDecimal mergeRequestIId, GitlabMRUpdateRequest updateMerge) {
+		GitlabMRResponse mergeResponse = null;
+		try {
+			mergeResponse = gitlabClient.updateMergeRequest(projectId, mergeRequestIId, updateMerge);
+		} catch (Exception e) {
+			String errorMessage = "Falhou ao tentar atualizar o merge: "+ mergeRequestIId 
+				+ " - no projeto: " + projectId + " erro: " + e.getLocalizedMessage();
+			logger.error(errorMessage);
+			telegramService.sendBotMessage(errorMessage);
+		}
+		
+		return mergeResponse;
+	}
+	
 	public boolean projectHasPipelines(String projectId, BigDecimal mergeRequestIId) {
 		List<GitlabPipeline> pipelines = null;
 		try {
@@ -945,7 +1002,39 @@ public class GitlabService {
 		}
 		return mergeResponse;
 	}
-	
+
+	public GitlabDiscussion sendMergeRequestDiscussionThread(String projectId, BigDecimal mergeRequestIId, String body) throws Exception {
+		GitlabDiscussion mergeResponse = null;
+		try {
+			GitlabMRCommentRequest mergeComment = new GitlabMRCommentRequest(new BigDecimal(projectId), mergeRequestIId, body);
+			mergeResponse = gitlabClient.createMergeRequestDiscussion(projectId, mergeRequestIId, mergeComment);
+		}catch (Exception e) {
+			String errorMessage = "Falhou ao tentar criar uma discussão no MR: !"+ mergeRequestIId 
+				+ " - no projeto: " + projectId + " erro: " + e.getLocalizedMessage();
+			logger.error(errorMessage);
+			telegramService.sendBotMessage(errorMessage);
+			
+			throw new Exception(errorMessage);
+		}
+		return mergeResponse;
+	}
+
+	public GitlabNote sendMergeRequestComment(String projectId, BigDecimal mergeRequestIId, String body) throws Exception {
+		GitlabNote mergeResponse = null;
+		try {
+			GitlabMRCommentRequest mergeComment = new GitlabMRCommentRequest(new BigDecimal(projectId), mergeRequestIId, body);
+			mergeResponse = gitlabClient.createMergeRequestNote(projectId, mergeRequestIId, mergeComment);
+		}catch (Exception e) {
+			String errorMessage = "Falhou ao tentar criar uma discussão no MR: !"+ mergeRequestIId 
+				+ " - no projeto: " + projectId + " erro: " + e.getLocalizedMessage();
+			logger.error(errorMessage);
+			telegramService.sendBotMessage(errorMessage);
+			
+			throw new Exception(errorMessage);
+		}
+		return mergeResponse;
+	}
+
 	public GitlabCommitResponse atualizaVersaoPom(String projectId, String branchName, String newVersion, 
 			String actualVersion, String commitMessage) {
 		GitlabCommitResponse response = null;
@@ -1085,5 +1174,47 @@ public class GitlabService {
 			}
 		}
 		return lastCommitId;
+	}
+
+	public GitlabUser findUserByEmail(String email) {
+		Map<String, String> options = new HashMap<>();
+		if(StringUtils.isNotBlank(email)) {
+			options.put("search", email);
+		}
+		List<GitlabUser> users = findUsers(options);
+		GitlabUser user = (users != null && !users.isEmpty()) ? users.get(0) : null;
+		return user;
+	}
+
+	public GitlabUser findUserById(String id) {
+		Map<String, String> options = new HashMap<>();
+		if(StringUtils.isNotBlank(id) && StringUtils.isNumeric(id)) {
+			options.put("id", id);
+		}
+		List<GitlabUser> users = findUsers(options);
+		GitlabUser user = (users != null && !users.isEmpty()) ? users.get(0) : null;
+		return user;
+	}
+	
+	public List<GitlabUser> findGitlabUsers(String searchValue) {
+		Map<String, String> options = new HashMap<>();
+		if(StringUtils.isNotBlank(searchValue)) {
+			if(StringUtils.isNumeric(searchValue)) {
+				options.put("id", searchValue);
+			}else {
+				options.put("search", searchValue);
+			}
+		}
+		
+		return findUsers(options);
+	}
+
+	public List<GitlabUser> findUsers(Map<String, String> options){
+		List<GitlabUser> users = null;
+		try {
+			users = gitlabClient.findUser(options);
+		}catch (Exception e) {
+		}
+		return users;
 	}
 }

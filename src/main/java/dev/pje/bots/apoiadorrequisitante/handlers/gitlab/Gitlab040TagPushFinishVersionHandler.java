@@ -24,9 +24,9 @@ import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
 
 @Component
-public class Gitlab04TagPushFinishVersionHandler extends Handler<GitlabEventPushTag>{
+public class Gitlab040TagPushFinishVersionHandler extends Handler<GitlabEventPushTag>{
 
-	private static final Logger logger = LoggerFactory.getLogger(Gitlab04TagPushFinishVersionHandler.class);
+	private static final Logger logger = LoggerFactory.getLogger(Gitlab040TagPushFinishVersionHandler.class);
 
 	@Value("${clients.gitlab.url}")
 	private String gitlabUrl;
@@ -41,7 +41,7 @@ public class Gitlab04TagPushFinishVersionHandler extends Handler<GitlabEventPush
 
 	@Override
 	public String getMessagePrefix() {
-		return "|GITLAB||04||TAG-PUSHED|";
+		return "|GITLAB||040||TAG-PUSHED|";
 	}
 
 	@Override

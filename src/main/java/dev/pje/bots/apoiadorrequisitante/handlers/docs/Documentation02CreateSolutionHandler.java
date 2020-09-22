@@ -325,11 +325,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 						}
 						if(mrResponse != null) {
 							messages.info("MR " + mrResponse.getIid() + " aberto para o branch: " + branchName + " no projeto: " + gitlabProjectId);
-							if(StringUtils.isBlank(MrsAbertosConfirmados)) {
-								MrsAbertosConfirmados = mrResponse.getWebUrl();
-							}else  if(!MrsAbertosConfirmados.contains(mrResponse.getWebUrl())) {
-								MrsAbertosConfirmados += ", " + mrResponse.getWebUrl();
-							}
+							MrsAbertosConfirmados = Utils.concatenaItensUnicosStrings(MrsAbertosConfirmados, mrResponse.getWebUrl());
 							messages.debug(mrResponse.toString());
 						}
 					}

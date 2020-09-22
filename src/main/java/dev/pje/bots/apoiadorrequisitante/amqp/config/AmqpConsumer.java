@@ -25,10 +25,11 @@ import dev.pje.bots.apoiadorrequisitante.handlers.docs.Documentation04ManualMerg
 import dev.pje.bots.apoiadorrequisitante.handlers.docs.Documentation05FinishHomologationHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.gamification.Gamification010ClassificarAreasConhecimentoHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.gamification.Gamification020CalcularPrioridadeDemandaHandler;
-import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.CheckingNewScriptMigrationsInCommitHandler;
-import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab03MergeRequestUpdateHandler;
-import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab04TagPushFinishVersionHandler;
-import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.GitlabEventHandlerGitflow;
+import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab010CheckingNewScriptMigrationsInCommitHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab030MergeRequestMergeOrCloseHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab040TagPushFinishVersionHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab060MergeRequestApprovalsHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab020GitflowEventHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira010ApoiadorRequisitanteHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira020ClassificationHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira030DemandanteHandler;
@@ -64,16 +65,19 @@ public class AmqpConsumer {
 
 	/**************/
 	@Autowired
-	private CheckingNewScriptMigrationsInCommitHandler checkingNewScriptMigrationsInCommit;
+	private Gitlab010CheckingNewScriptMigrationsInCommitHandler gitlab010CheckNewScriptMigrationInCommit;
 
 	@Autowired
-	private GitlabEventHandlerGitflow gitlabEventHandlerGitflow;
+	private Gitlab020GitflowEventHandler gitlab020Gitflow;
 
 	@Autowired
-	private Gitlab03MergeRequestUpdateHandler gitlab03MergeRequestUpdate;
+	private Gitlab030MergeRequestMergeOrCloseHandler gitlab030MergeRequestMergeOrClose;
 
 	@Autowired
-	private Gitlab04TagPushFinishVersionHandler gitlab04TagPushFinishVersion;
+	private Gitlab040TagPushFinishVersionHandler gitlab040TagPushFinishVersion;
+
+	@Autowired
+	private Gitlab060MergeRequestApprovalsHandler gitlab060MergeRequestApprovals;
 
 	/**************/
 	@Autowired
@@ -213,49 +217,49 @@ public class AmqpConsumer {
 	/************************/
 
 	@RabbitListener(
-			autoStartup = "${spring.rabbitmq.template.custom.commit-script-queue.auto-startup}",
+			autoStartup = "${spring.rabbitmq.template.custom.gitlab010-commit-script-queue.auto-startup}",
 			bindings = @QueueBinding(
-				value = @Queue(value = "${spring.rabbitmq.template.custom.commit-script-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				value = @Queue(value = "${spring.rabbitmq.template.custom.gitlab010-commit-script-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
 				key = {"${spring.rabbitmq.template.custom.gitlab.push.routing-key}"})
 		)
-	public void gitlabPushCodeToCheckScript(Message msg) throws Exception {
+	public void gitlab010PushCodeToCheckScript(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
 			String body = new String(msg.getBody());
 			GitlabEventPush gitEventPush = objectMapper.readValue(body, GitlabEventPush.class);
 			String projectName = gitEventPush.getProject().getName();
 			String branchName = gitEventPush.getRef();
 			logger.info("[COMMIT][GITLAB] - project: " + projectName + " branch: " + branchName);
-			checkingNewScriptMigrationsInCommit.handle(gitEventPush);
+			gitlab010CheckNewScriptMigrationInCommit.handle(gitEventPush);
 		}
 	}	
 
 	@RabbitListener(
-			autoStartup = "${spring.rabbitmq.template.custom.gitflow-queue.auto-startup}",
+			autoStartup = "${spring.rabbitmq.template.custom.gitlab020-gitflow-queue.auto-startup}",
 			bindings = @QueueBinding(
-				value = @Queue(value = "${spring.rabbitmq.template.custom.gitflow-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				value = @Queue(value = "${spring.rabbitmq.template.custom.gitlab020-gitflow-queue.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
 				key = {"${spring.rabbitmq.template.custom.gitlab.push.routing-key}"})
 		)
-	public void gitlabGitflowPush(Message msg) throws Exception {
+	public void gitlab020GitflowPush(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
 			String body = new String(msg.getBody());
 			GitlabEventPush gitEventPush = objectMapper.readValue(body, GitlabEventPush.class);
 			String projectName = gitEventPush.getProject().getName();
 			String branchName = gitEventPush.getRef();
 			logger.info("[GITFLOW][GITLAB] - project: " + projectName + " branch: " + branchName);
-			gitlabEventHandlerGitflow.handle(gitEventPush);
+			gitlab020Gitflow.handle(gitEventPush);
 		}
 	}
 
 	@RabbitListener(
-			autoStartup = "${spring.rabbitmq.template.custom.gitlab03-merge-request-updated.auto-startup}",
+			autoStartup = "${spring.rabbitmq.template.custom.gitlab030-merge-request-merge-close.auto-startup}",
 			bindings = @QueueBinding(
-				value = @Queue(value = "${spring.rabbitmq.template.custom.gitlab03-merge-request-updated.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				value = @Queue(value = "${spring.rabbitmq.template.custom.gitlab030-merge-request-merge-close.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
 				key = {"${spring.rabbitmq.template.custom.gitlab.merge-request.routing-key}"})
 		)
-	public void gitlab03MergeRequestUpdated(Message msg) throws Exception {
+	public void gitlab030MergeRequestUpdated(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
 			String body = new String(msg.getBody());
 			GitlabEventMergeRequest gitEventMR = objectMapper.readValue(body, GitlabEventMergeRequest.class);
@@ -265,22 +269,22 @@ public class AmqpConsumer {
 				if(gitEventMR.getObjectAttributes() != null && StringUtils.isNotBlank(gitEventMR.getObjectAttributes().getTitle())) {
 					mergeTitle = gitEventMR.getObjectAttributes().getTitle();
 				}
-				logger.info(gitlab03MergeRequestUpdate.getMessagePrefix() + " - " + "project: " + projectName + " - MR: " + mergeTitle);
-				gitlab03MergeRequestUpdate.handle(gitEventMR);
+				logger.info(gitlab030MergeRequestMergeOrClose.getMessagePrefix() + " - " + "project: " + projectName + " - MR: " + mergeTitle);
+				gitlab030MergeRequestMergeOrClose.handle(gitEventMR);
 			}else {
-				logger.error(gitlab03MergeRequestUpdate.getMessagePrefix() + " Objeto não parece ser de um evento de MR");
+				logger.error(gitlab030MergeRequestMergeOrClose.getMessagePrefix() + " Objeto não parece ser de um evento de MR");
 			}
 		}
 	}
 	
 	@RabbitListener(
-			autoStartup = "${spring.rabbitmq.template.custom.gitlab04-tag-pushed-end-version.auto-startup}",
+			autoStartup = "${spring.rabbitmq.template.custom.gitlab040-tag-pushed-end-version.auto-startup}",
 			bindings = @QueueBinding(
-				value = @Queue(value = "${spring.rabbitmq.template.custom.gitlab04-tag-pushed-end-version.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				value = @Queue(value = "${spring.rabbitmq.template.custom.gitlab040-tag-pushed-end-version.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
 				key = {"${spring.rabbitmq.template.custom.gitlab.tag-push.routing-key}"})
 		)
-	public void gitlab04TagPushedFinishVersion(Message msg) throws Exception {
+	public void gitlab040TagPushedFinishVersion(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
 			String body = new String(msg.getBody());
 			GitlabEventPushTag gitEventTag = objectMapper.readValue(body, GitlabEventPushTag.class);
@@ -290,14 +294,39 @@ public class AmqpConsumer {
 				if(StringUtils.isNotBlank(gitEventTag.getRef())) {
 					tagName = gitEventTag.getRef();
 				}
-				logger.info(gitlab04TagPushFinishVersion.getMessagePrefix() + " - " + "project: " + projectName + " - TAG: " + tagName);
-				gitlab04TagPushFinishVersion.handle(gitEventTag);
+				logger.info(gitlab040TagPushFinishVersion.getMessagePrefix() + " - " + "project: " + projectName + " - TAG: " + tagName);
+				gitlab040TagPushFinishVersion.handle(gitEventTag);
 			}else {
-				logger.error(gitlab04TagPushFinishVersion.getMessagePrefix() + " Objeto não parece ser de um evento de MR");
+				logger.error(gitlab040TagPushFinishVersion.getMessagePrefix() + " Objeto não parece ser de um evento de MR");
 			}
 		}
 	}
 
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.gitlab060-merge-request-approvals.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.gitlab060-merge-request-approvals.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.gitlab.merge-request.routing-key}"})
+		)
+	public void gitlab06MergeRequestApprovals(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			GitlabEventMergeRequest gitEventMR = objectMapper.readValue(body, GitlabEventMergeRequest.class);
+			if(gitEventMR != null) {
+				String projectName = gitEventMR.getProject().getName();
+				String mergeTitle = "Título não identificado";
+				if(gitEventMR.getObjectAttributes() != null && StringUtils.isNotBlank(gitEventMR.getObjectAttributes().getTitle())) {
+					mergeTitle = gitEventMR.getObjectAttributes().getTitle();
+				}
+				logger.info(gitlab060MergeRequestApprovals.getMessagePrefix() + " - " + "project: " + projectName + " - MR: " + mergeTitle);
+				gitlab060MergeRequestApprovals.handle(gitEventMR);
+			}else {
+				logger.error(gitlab060MergeRequestApprovals.getMessagePrefix() + " Objeto não parece ser de um evento de MR");
+			}
+		}
+	}
+	
 	/************************/
 	// Consumers de lancamento de versao
 	/************************/

@@ -5,6 +5,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component
@@ -13,16 +14,14 @@ public class TagAddedOrRemovedTextModel extends AbstractTextModel{
 	@Value("${clients.jira.url}")
 	private String JIRAURL;
 
-	private static final String PATH_ISSUE = "/browse/";
-	private static final String PATH_USERPROFILE = "/secure/ViewProfile.jspa?name=";
 	private static final String DESENVOLVEDOR_ANONIMO = "desenvolvedor.anonimo";
 
 	private String getPathIssue(String issueKey) {
-		return JIRAURL + PATH_ISSUE + issueKey;
+		return JiraUtils.getPathIssue(issueKey, JIRAURL);
 	}
 
 	private String getPathUserProfile(String userKey) {
-		return JIRAURL + PATH_USERPROFILE + userKey;
+		return JiraUtils.getPathUserProfile(userKey, JIRAURL);
 	}
 
 	private String issueKey;

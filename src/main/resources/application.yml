@@ -38,21 +38,25 @@ spring:
           name: ${RABBIT_JIRA04_RAIA_FLUXO_QUEUE:jira040-raia-fluxo.queue}
           auto-startup: ${RABBIT_JIRA04_RAIA_FLUXO_AUTOSTARTUP:false}
 
-        commit-script-queue:
-          name: ${RABBIT_GITLAB01_COMMIT_SCRIPT_QUEUE:gitlab01-commit-script.queue}
-          auto-startup: ${RABBIT_GITLAB01_COMMIT_SCRIPT_QUEUE_AUTOSTARTUP:false}
-        gitflow-queue:
-          name: ${RABBIT_GITLAB02_GITFLOW_QUEUE:gitlab02-gitflow-queue}
-          auto-startup: ${RABBIT_GITLAB02_GITFLOW_QUEUE_AUTOSTARTUP:false}
-        gitlab03-merge-request-updated:
-          name: ${RABBIT_GITLAB03_MERGE_REQUEST_UPDATED_QUEUE:gitlab03-merge-request-updated-queue}
-          auto-startup: ${RABBIT_GITLAB03_MERGE_REQUEST_UPDATED_QUEUE_AUTOSTARTUP:false}
-        gitlab04-tag-pushed-end-version:
-          name: ${RABBIT_GITLAB04_TAG_PUSHED_END_VERSION_QUEUE:gitlab04-tag-pushed-end-version-queue}
-          auto-startup: ${RABBIT_GITLAB04_TAG_PUSHED_END_VERSION_QUEUE_AUTOSTARTUP:false}
-        gitlab05-tag-pushed-prepare-next-version:
-          name: ${RABBIT_GITLAB05_TAG_PUSHED_PREPARE_NEXT_VERSION_QUEUE:gitlab05-tag-pushed-prepare-next-version-queue}
-          auto-startup: ${RABBIT_GITLAB05_TAG_PUSHED_PREPARE_NEXT_VERSION_QUEUE_AUTOSTARTUP:false}
+        gitlab010-commit-script-queue:
+          name: ${RABBIT_GITLAB010_COMMIT_SCRIPT_QUEUE:gitlab010-commit-script.queue}
+          auto-startup: ${RABBIT_GITLAB010_COMMIT_SCRIPT_AUTOSTARTUP:false}
+        gitlab020-gitflow-queue:
+          name: ${RABBIT_GITLAB020_GITFLOW_QUEUE:gitlab020-gitflow-queue}
+          auto-startup: ${RABBIT_GITLAB020_GITFLOW_AUTOSTARTUP:false}
+        gitlab030-merge-request-merge-close:
+          name: ${RABBIT_GITLAB030_MERGE_REQUEST_MERGE_CLOSE_QUEUE:gitlab030-merge-request-merge-close-queue}
+          auto-startup: ${RABBIT_GITLAB030_MERGE_REQUEST_MERGE_CLOSE_AUTOSTARTUP:false}
+        gitlab040-tag-pushed-end-version:
+          name: ${RABBIT_GITLAB040_TAG_PUSHED_END_VERSION_QUEUE:gitlab040-tag-pushed-end-version-queue}
+          auto-startup: ${RABBIT_GITLAB040_TAG_PUSHED_END_VERSION_AUTOSTARTUP:false}
+        gitlab050-tag-pushed-prepare-next-version:
+          name: ${RABBIT_GITLAB050_TAG_PUSHED_PREPARE_NEXT_VERSION_QUEUE:gitlab050-tag-pushed-prepare-next-version-queue}
+          auto-startup: ${RABBIT_GITLAB050_TAG_PUSHED_PREPARE_NEXT_VERSION_AUTOSTARTUP:false}
+        gitlab060-merge-request-approvals:
+          name: ${RABBIT_GITLAB060_MERGE_REQUEST_APPROVALS_QUEUE:gitlab060-merge-request-approvals-queue}
+          auto-startup: ${RABBIT_GITLAB060_MERGE_REQUEST_APPROVALS_AUTOSTARTUP:false}
+          
           
         lanver010-triage-queue:
           name: ${RABBIT_LANVER010_TRIAGE_QUEUE:lanver010-triage-queue}
@@ -164,7 +168,9 @@ clients:
     token: ${SERVICE_ROCKETCHAT_TOKEN:my-token}
 
 project:
-  documentation.url: ${PROJECT_DOCUMENTATION_URL:my-documentation-url}
+  documentation:
+    url: ${PROJECT_DOCUMENTATION_URL:my-documentation-url}
+    manual-revisao-codigo: ${PROJECT_DOCUMENTATION_MANUAL_REVISAO_CODIGO:my-documentation-revisao-codigo-url}
   jira.filters:
     pendentes-geral: ${JIRA_FILTERS_ISSUES_PENDENTES_GERAL:0}
   telegram.channel:

@@ -10,7 +10,7 @@ import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 
 public class RocketchatMarkdown implements MarkdownInterface{
 	
-	public static final String NAME = "RocketchatMarkdown";
+	public static final String NAME = MARKDOWN_ROCKETCHAT;
 
 	@Override
 	public String getName() {

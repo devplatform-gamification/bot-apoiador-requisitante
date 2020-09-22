@@ -11,7 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 
 public class AsciiDocMarkdown implements MarkdownInterface{
 	
-	public static final String NAME = "AsciiDocMarkdown";
+	public static final String NAME = MARKDOWN_ASCIIDOC;
 
 	@Override
 	public String getName() {

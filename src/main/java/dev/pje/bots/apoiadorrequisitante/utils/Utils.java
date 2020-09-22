@@ -55,9 +55,9 @@ public class Utils {
 	public static final String DATE_PATTERN_PORTUGUESE = "HH:mm dd/MM/yyyy";
 	
 	public static boolean compareAsciiIgnoreCase(String valueA, String valueB) {
-		if((valueA != null && valueB == null) || (valueA == null && valueB != null)) {
+		if((StringUtils.isNotBlank(valueA) && StringUtils.isBlank(valueB)) || (StringUtils.isBlank(valueA) && StringUtils.isNotBlank(valueB))) {
 			return false;
-		}else if(valueA == null && valueB == null) {
+		}else if(StringUtils.isBlank(valueA) && StringUtils.isBlank(valueB)) {
 			return true;
 		}
 	    String valueAprepared = StringUtils.stripAccents(valueA);
@@ -71,6 +71,20 @@ public class Utils {
 			return listA.containsAll(listB) && listA.size() == listB.size();
 		}
 		return (listA == null && listB == null);
+	}
+
+	public static List<String> getValuesOnlyInA(List<String> listA, List<String> listB) {
+		List<String> valuesOnlyInA = new ArrayList<>();
+		if(listA != null && listB != null) {
+			for (String itemA : listA) {
+				if(!listB.contains(itemA)) {
+					valuesOnlyInA.add(itemA);
+				}
+			}
+		}else if(listB == null) {
+			valuesOnlyInA = listA;
+		}
+		return valuesOnlyInA;
 	}
 	
 	public static String escapeTelegramMarkup(String text) {
@@ -532,6 +546,16 @@ public class Utils {
 		percentFormatter = NumberFormat.getPercentInstance();
 		percentOut = percentFormatter.format(percent);
 		return percentOut;
+	}
+	
+	public static String concatenaItensUnicosStrings(String stringA, String stringB) {
+		if(StringUtils.isBlank(stringA)) {
+			stringA = stringB;
+		}else  if(!stringA.contains(stringB)) {
+			stringA += ", " + stringB;
+		}
+		
+		return stringA;
 	}
 }
 	

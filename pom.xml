@@ -18,7 +18,7 @@
 	<properties>
 		<java.version>1.8</java.version>
 		<spring-cloud.version>Hoxton.SR5</spring-cloud.version>
-		<devplatform-commons.version>0.2.7-SNAPSHOT</devplatform-commons.version>
+		<devplatform-commons.version>0.2.8-SNAPSHOT</devplatform-commons.version>
 		<jira.version>8.5.3</jira.version>
 	</properties>
 

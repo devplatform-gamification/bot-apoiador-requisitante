@@ -191,17 +191,17 @@ public class Gamification020CalcularPrioridadeDemandaHandler extends Handler<Jir
 	 * ---- JiraService.FLUXO_RAIA_ID_GRUPO_REVISOR_TECNICO
 	 * ---- JiraService.FLUXO_RAIA_ID_FINALIZADA
 	 * 
-	 * *DEFAULT=true -- se não souber em que raia está, será uma raia calculável
+	 * ** se não houver raia, será FALSE (pois pode ser que ainda não tenha conseguido identificar a raia)
+	 * ** se houver raia, o default será TRUE
 	 * @return
 	 */
 	private Boolean demandaEmRaiaCalculavel(JiraIssue issue) {
-		Boolean demandaEmRaiaCalculavel = true;
-		
 		JiraIssueFieldOption raiaFluxo = issue.getFields().getRaiaDoFluxo();
 		String raiaAtualId = null;
 		if(raiaFluxo != null) {
 			raiaAtualId = raiaFluxo.getId().toString();
 		}
+		Boolean demandaEmRaiaCalculavel = (StringUtils.isNotBlank(raiaAtualId));
 		if(StringUtils.isNotBlank(raiaAtualId)) {
 			// não se calcula em nenhuma hipótese
 			List<String> raiasNaoCalculaveis = new ArrayList<>();
@@ -516,7 +516,7 @@ public class Gamification020CalcularPrioridadeDemandaHandler extends Handler<Jir
 		Integer pontosCriterio = 0;
 		List<JiraIssueLinkRequest> issuelinks = issue.getFields().getIssuelinks();
 		JiraUser usuarioCriador = issue.getFields().getReporter();
-		String tribunalUsuarioCriador = jiraService.getTribunalUsuario(usuarioCriador);
+		String tribunalUsuarioCriador = jiraService.getTribunalUsuario(usuarioCriador, false);
 		List<String> issueKeys = new ArrayList<>();
 		if(issuelinks != null && !issuelinks.isEmpty()) {
 			for (JiraIssueLinkRequest issuelink : issuelinks) {
@@ -538,7 +538,7 @@ public class Gamification020CalcularPrioridadeDemandaHandler extends Handler<Jir
 						Boolean contabilizarDemandaRelacionada = true;
 						if(StringUtils.isNotBlank(tribunalUsuarioCriador)) {
 							JiraUser usuarioCriadorIssueRelacionada = issueRelacionada.getFields().getReporter();
-							String tribunalUsuarioCriadorIssueRelacionada = jiraService.getTribunalUsuario(usuarioCriadorIssueRelacionada);
+							String tribunalUsuarioCriadorIssueRelacionada = jiraService.getTribunalUsuario(usuarioCriadorIssueRelacionada, false);
 							if(StringUtils.isNotBlank(tribunalUsuarioCriadorIssueRelacionada) && tribunalUsuarioCriador.equalsIgnoreCase(tribunalUsuarioCriadorIssueRelacionada) ) {
 								contabilizarDemandaRelacionada = false;
 							}

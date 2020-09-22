@@ -124,8 +124,10 @@ public class JiraService {
 
 	public static final String GRUPO_LANCADORES_VERSAO = "PJE_LancadoresDeVersao";
 	public static final String GRUPO_SERVICOS = "PJE_Servicos";
+	public static final String GRUPO_LIDERES_PROJETO = "PJE_Lideres";
 	public static final String GRUPO_FABRICA_DESENVOLVIMENTO = "PJE_FabricasDesenvolvimento";
-	public static final String GRUPO_DESENVOLVEDORES = "PJE_Desenvolvedores";
+	public static final String PREFIXO_GRUPO_DESENVOLVEDORES = "PJE_Desenvolvedores";
+	public static final String GRUPO_REVISORES_CODIGO = "PJE_RevisoresDeCodigo";
 	public static final String GRUPO_TESTES = "PJE_Testes";
 	public static final String PREFIXO_GRUPO_TRIBUNAL = "PJE_TRIBUNAL_";
 	public static final String PREFIXO_GRUPO_DESENVOLVEDORES_FABRICA = "PJE_GRUPO_Desenvolvedores_";
@@ -191,7 +193,10 @@ public class JiraService {
 	public static final String FIELD_AFFECTED_VERSION_TO_JQL = "affectedVersion";
 	public static final String FIELD_FIX_VERSION = "fixVersions";
 	public static final String FIELD_COMMENT = "comment";
-	public static final String FIELD_TRIBUNAL_REQUISITANTE = "customfield_11700";
+	public static final String FIELD_TRIBUNAIS_REQUISITANTES = "customfield_11700";
+	public static final String FIELD_APROVACOES_REALIZADAS = "customfield_13835";
+	public static final String FIELD_TRIBUNAIS_RESPONSAVEIS_REVISAO = "customfield_14018";
+	public static final String FIELD_USUARIOS_RESPONSAVEIS_REVISAO = "customfield_14017";
 	public static final String FIELD_CTRL_PONTUACAO_AREA_CONHECIMENTO = "customfield_14016";
 	public static final String CTRL_PONTUACAO_AREA_CONHECIMENTO_DATA_ATUALIZACAO_OPTION = "atualizacao";
 	public static final String FIELD_SUPER_EPIC_THEME = "customfield_11800";
@@ -267,9 +272,17 @@ public class JiraService {
 	}
 	
 	public boolean isDesenvolvedor(JiraUser user) {
-		return isUsuarioGrupo(user, GRUPO_DESENVOLVEDORES, true);
+		return isUsuarioGrupo(user, PREFIXO_GRUPO_DESENVOLVEDORES, true);
 	}
 
+	public boolean isLiderProjeto(JiraUser user) {
+		return isUsuarioGrupo(user, GRUPO_LIDERES_PROJETO, false);
+	}
+
+	public boolean isRevisorCodigo(JiraUser user) {
+		return isUsuarioGrupo(user, GRUPO_REVISORES_CODIGO, false);
+	}
+	
 	public boolean isUsuarioGrupo(JiraUser user, String nomeGrupo, Boolean checkPrefix) {
 		boolean isUsuarioGrupo = false;
 		try {
@@ -322,13 +335,13 @@ public class JiraService {
 		return grupoDesenvolvimento;
 	}
 
-	public String getTribunalUsuario(JiraUser user) {
+	public String getTribunalUsuario(JiraUser user, boolean ignoreCNJ) {
 		String tribunal = null;
 		JiraGroup grupoTribunal = getGrupoTribunalUsuario(user);
 		if (grupoTribunal != null) {
 			tribunal = grupoTribunal.getName().replaceAll(PREFIXO_GRUPO_TRIBUNAL, "");
 		}
-		if(!StringUtils.isBlank(tribunal) && tribunal.equalsIgnoreCase("CNJ")) {
+		if(ignoreCNJ && !StringUtils.isBlank(tribunal) && tribunal.equalsIgnoreCase("CNJ")) {
 			tribunal = null;
 		}
 		return tribunal;
@@ -369,6 +382,10 @@ public class JiraService {
 		}
 		
 		return usuarioFabricaTribunal;
+	}
+
+	public String getLabelAprovacaoCodigoDeUsuario(JiraUser user) {
+		return getTribunalUsuario(user, false);
 	}
 	
 	public String getGrupoDesenvolvimentoDeUsuario(String username) {
@@ -526,12 +543,6 @@ public class JiraService {
 		return response;
 	}
 
-	/**
-	 * 1. recupera a issue do jira, para saber a informação atualizada do campo:
-	 * tribunais requisitantes 2. identifica qual é a transição que deverá ser
-	 * utilizada 3. monta o payload 4. encaminha o payload da alteraco
-	 * @throws Exception 
-	 */
 	public void adicionaTribunalRequisitante(JiraIssue issue, String tribunalRequisitante, Map<String, Object> updateFields) throws Exception {
 		List<String> listaTribunaisAtualizada = new ArrayList<>();
 
@@ -549,8 +560,44 @@ public class JiraService {
 			}
 		}
 		if (!tribunalConstaComoRequisitante) {
-			String fieldName = FIELD_TRIBUNAL_REQUISITANTE;
+			String fieldName = FIELD_TRIBUNAIS_REQUISITANTES;
 			Map<String, Object> updateField = createUpdateObject(fieldName, listaTribunaisAtualizada, "ADD");
+			if(updateField != null && updateField.get(fieldName) != null) {
+				updateFields.put(fieldName, updateField.get(fieldName));
+			}
+		}
+	}
+
+	public void atualizarTribunaisRevisores(JiraIssue issue, List<String> novosTribunaisRevisores, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+		List<String> tribunaisRevisores = JiraUtils.translateFieldOptionsToValueList(getTribunaisRevisores(issueDetalhada));
+		boolean houveAlteracao = false;
+		if (tribunaisRevisores != null && novosTribunaisRevisores != null) {
+			houveAlteracao = !(tribunaisRevisores.containsAll(novosTribunaisRevisores) && novosTribunaisRevisores.containsAll(tribunaisRevisores));
+		}else if(!(tribunaisRevisores == null && novosTribunaisRevisores == null)) {
+			houveAlteracao = true;
+		}
+		if (houveAlteracao) {
+			String fieldName = FIELD_TRIBUNAIS_RESPONSAVEIS_REVISAO;
+			Map<String, Object> updateField = createUpdateObject(fieldName, novosTribunaisRevisores, "UPDATE");
+			if(updateField != null && updateField.get(fieldName) != null) {
+				updateFields.put(fieldName, updateField.get(fieldName));
+			}
+		}
+	}
+
+	public void atualizarResponsaveisRevisao(JiraIssue issue, List<JiraUser> novosUsuariosRevisores, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+		List<JiraUser> usuariosRevisores = issueDetalhada.getFields().getResponsaveisRevisao();
+		boolean houveAlteracao = false;
+		if (usuariosRevisores != null && novosUsuariosRevisores != null) {
+			houveAlteracao = !(usuariosRevisores.containsAll(novosUsuariosRevisores) && novosUsuariosRevisores.containsAll(usuariosRevisores));
+		}else if(!(usuariosRevisores == null && novosUsuariosRevisores == null)) {
+			houveAlteracao = true;
+		}
+		if (houveAlteracao) {
+			String fieldName = FIELD_USUARIOS_RESPONSAVEIS_REVISAO;
+			Map<String, Object> updateField = createUpdateObject(fieldName, novosUsuariosRevisores, "UPDATE");
 			if(updateField != null && updateField.get(fieldName) != null) {
 				updateFields.put(fieldName, updateField.get(fieldName));
 			}
@@ -747,6 +794,22 @@ public class JiraService {
 		}
 	}
 
+	public void atualizarAprovacoesRealizadas(JiraIssue issue,  Integer aprovacoesRealizadas, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if((issueDetalhada.getFields().getAprovacoesRealizadas() == null) || !issueDetalhada.getFields().getAprovacoesRealizadas().equals(aprovacoesRealizadas)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_APROVACOES_REALIZADAS, aprovacoesRealizadas, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_APROVACOES_REALIZADAS) != null) {
+				updateFields.put(FIELD_APROVACOES_REALIZADAS, updateField.get(FIELD_APROVACOES_REALIZADAS));
+			}
+		}
+	}
+
 	public void atualizarFabricaDesenvolvimento(JiraIssue issue,  String nomeFabrica, Map<String, Object> updateFields) throws Exception {
 		JiraCustomFieldOption fabricaDesenvolvimento = getFabricaDesenvolvimentoDeSiglaTribunal(nomeFabrica);
 		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
@@ -917,12 +980,14 @@ public class JiraService {
 	public void atualizarMRsAbertos(JiraIssue issue,  String mrAberto, Map<String, Object> updateFields, boolean replaceValue) throws Exception {
 		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
 
-		boolean houveAlteracao = false;
+		boolean alterarCampo = false;
 		if(StringUtils.isBlank(issueDetalhada.getFields().getMrAbertos()) || !issueDetalhada.getFields().getMrAbertos().contains(mrAberto)) {
-			houveAlteracao = true;
+			alterarCampo = true;
+		}else if(replaceValue && !issueDetalhada.getFields().getMrAbertos().equals(mrAberto)) {
+			alterarCampo = true;
 		}
-
-		if(houveAlteracao || replaceValue) {
+		
+		if(alterarCampo) {
 			String mrsAbertos = null;
 			if(replaceValue) {
 				mrsAbertos = mrAberto;
@@ -1289,7 +1354,8 @@ public class JiraService {
 			}else {
 				throw new Exception("Valor para update fora do padrão - deveria ter o formato: " + JIRA_DATETIME_PATTERN + ", recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
-		}else if(FIELD_TRIBUNAL_REQUISITANTE.equals(fieldName) || FIELD_AREAS_CONHECIMENTO.equals(fieldName)) {
+		}else if(FIELD_TRIBUNAIS_REQUISITANTES.equals(fieldName) || FIELD_AREAS_CONHECIMENTO.equals(fieldName)
+				|| FIELD_TRIBUNAIS_RESPONSAVEIS_REVISAO.equals(fieldName)) {
 			boolean identificouCampo = false;
 			if(valueToUpdate instanceof List<?>) {
 				List<?> valueToUpdateList = (List<?>) valueToUpdate;
@@ -1400,6 +1466,40 @@ public class JiraService {
 			if(!identificouCampo) {
 				throw new Exception("Valor para update fora do padrão - deveria ser JiraUser, recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
+		}else if(FIELD_USUARIOS_RESPONSAVEIS_REVISAO.equals(fieldName)) {
+			boolean identificouCampo = false;
+			
+			if(valueToUpdate instanceof List) {
+				@SuppressWarnings("rawtypes")
+				List<?> list = (List) valueToUpdate;
+				List<Map<String, Object>> jiraUsersArray = new ArrayList<>();
+
+				int numConvertedElements = 0;
+				Map<String, Object> newJiraUsers = new HashMap<>();
+				List<Map<String, Object>> usersArray = new ArrayList<Map<String,Object>>();
+				for (Object object : list) {
+					if(object instanceof JiraUser) {
+						JiraUser user = (JiraUser) object;
+						Map<String, Object> userObj = new HashMap<>();
+						userObj.put("key", user.getKey());
+						userObj.put("name", user.getName());
+
+						usersArray.add(userObj);
+					}
+				}
+				numConvertedElements = usersArray.size();
+				newJiraUsers.put("set", usersArray);
+				jiraUsersArray.add(newJiraUsers);
+
+				if(numConvertedElements != list.size()) {
+					throw new Exception("Algum dos valores para a identificação de usuários não pôde ser identificado.");
+				}
+				objectToUpdate.put(fieldName, jiraUsersArray);
+				identificouCampo = true;
+			}
+			if(!identificouCampo) {
+				throw new Exception("Valor para update fora do padrão - deveria ser List<JiraVersion>, recebeu: " +  valueToUpdate.getClass().getTypeName());
+			}
 		}else if((
 						FIELD_GRUPO_RESPONSAVEL_ATRIBUICAO.equals(fieldName)
 				)) {
@@ -1443,7 +1543,8 @@ public class JiraService {
 				throw new Exception("Valor para update fora do padrão - deveria ser JiraCustomFieldOption, recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
 		}else if(
-				FIELD_BUSSINESS_VALUE.equals(fieldName)) {
+				FIELD_BUSSINESS_VALUE.equals(fieldName)
+				|| FIELD_APROVACOES_REALIZADAS.equals(fieldName)) {
 
 			boolean identificouCampo = false;
 			identificouCampo = (valueToUpdate == null || valueToUpdate instanceof Integer);
@@ -1961,6 +2062,16 @@ public class JiraService {
 			// ignora
 		}
 		return tribunaisRequisitantes;
+	}
+
+	public List<JiraIssueFieldOption> getTribunaisRevisores(JiraIssue issue) {
+		List<JiraIssueFieldOption> tribunaisRevisores = null;
+		try {
+			tribunaisRevisores = issue.getFields().getTribunaisResponsaveisRevisao();
+		} catch (Exception e) {
+			// ignora
+		}
+		return tribunaisRevisores;
 	}
 
 	public JiraUser getJiraUserFromGitlabUser(GitlabUser gitlabUser) {

@@ -28,10 +28,10 @@ public class GitlabUtils {
 		return mergeIIds;
 	}
 
-	public static List<GitlabMergeRequestVO> getMergeRequestVOListFromString(String merges, String serverUrl){
+	public static List<GitlabMergeRequestVO> getMergeRequestVOListFromString(String mergesWebUrls, String serverUrl){
 		List<GitlabMergeRequestVO> MRs = new ArrayList<>();
-		if(StringUtils.isNotBlank(merges)) {
-			String[] weburls = merges.split(",");
+		if(StringUtils.isNotBlank(mergesWebUrls)) {
+			String[] weburls = mergesWebUrls.split(",");
 			for (String weburl: weburls) {
 				if(StringUtils.isNotBlank(weburl)) {
 					String projectNamespace = getMergeProjectNamespaceFromWebUrl(serverUrl, weburl.trim());

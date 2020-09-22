@@ -6,7 +6,7 @@ import org.apache.commons.lang3.StringUtils;
 
 public class TelegramMarkdownHtml implements MarkdownInterface{
 	
-	public static final String NAME = "TelegramHtml";
+	public static final String NAME = MARKDOWN_TELEGRAM_HTML;
 
 	@Override
 	public String getName() {

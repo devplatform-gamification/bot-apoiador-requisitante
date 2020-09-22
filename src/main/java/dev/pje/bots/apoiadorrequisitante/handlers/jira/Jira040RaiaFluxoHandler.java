@@ -126,7 +126,7 @@ public class Jira040RaiaFluxoHandler extends Handler<JiraEventIssue>{
 							if(usuarioDemandante.getActive()) {
 								usernameResponsavel = usuarioDemandante.getName();
 							}else {
-								String siglaTribunal = jiraService.getTribunalUsuario(usuarioDemandante);
+								String siglaTribunal = jiraService.getTribunalUsuario(usuarioDemandante, true);
 								// caso o usuário anteriormente demandante da issue tenha sido inativado - recupera o usuário do próprio tribunal
 								JiraUser usuarioTribunal = jiraService.getUser(siglaTribunal, null);
 								if(usuarioTribunal != null && usuarioTribunal.getActive()) {

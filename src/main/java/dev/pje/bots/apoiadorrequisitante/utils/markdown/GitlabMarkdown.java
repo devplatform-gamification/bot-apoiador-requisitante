@@ -10,7 +10,7 @@ import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 
 public class GitlabMarkdown implements MarkdownInterface{
 	
-	public static final String NAME = "GitlabMarkdown";
+	public static final String NAME = MARKDOWN_GITLAB;
 
 	@Override
 	public String getName() {

@@ -34,7 +34,7 @@ public class Jira010ApoiadorRequisitanteHandler {
 	public void handle(JiraEventIssue jiraEventIssue) {
 		telegramService.sendBotMessage("|JIRA||010||REQUISITANTE| - " + jiraEventIssue.getIssue().getKey() + " - " + jiraEventIssue.getIssueEventTypeName().name());
 		JiraUser reporter = jiraService.getIssueReporter(jiraEventIssue.getIssue());
-		String tribunalUsuario = jiraService.getTribunalUsuario(reporter);
+		String tribunalUsuario = jiraService.getTribunalUsuario(reporter, true);
 		adicionarTribunalRequisitanteDemanda(
 				jiraEventIssue.getIssue(), tribunalUsuario, reporter, JiraWebhookEventEnum.ISSUE_CREATED);
 		
@@ -48,7 +48,7 @@ public class Jira010ApoiadorRequisitanteHandler {
 			if(usuarioAcao == null) {
 				usuarioAcao = jiraService.getIssueAssignee(jiraEventIssue.getIssue());
 			}
-			String tribunalUsuarioAcao = jiraService.getTribunalUsuario(usuarioAcao);
+			String tribunalUsuarioAcao = jiraService.getTribunalUsuario(usuarioAcao, true);
 			if(StringUtils.isNotBlank(tribunalUsuarioAcao)) {
 				tribunalUsuario = tribunalUsuarioAcao;
 			}

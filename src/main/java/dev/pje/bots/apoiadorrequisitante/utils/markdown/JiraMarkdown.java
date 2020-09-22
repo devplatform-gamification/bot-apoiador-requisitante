@@ -10,7 +10,7 @@ import org.apache.commons.lang3.StringUtils;
 
 public class JiraMarkdown implements MarkdownInterface{
 	
-	public static final String NAME = "JiraMarkdown";
+	public static final String NAME = MARKDOWN_JIRA;
 
 	@Override
 	public String getName() {

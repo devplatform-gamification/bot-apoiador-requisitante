@@ -22,9 +22,9 @@ import dev.pje.bots.apoiadorrequisitante.services.TelegramService;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 
 @Component
-public class CheckingNewScriptMigrationsInCommitHandler {
+public class Gitlab010CheckingNewScriptMigrationsInCommitHandler {
 
-	private static final Logger logger = LoggerFactory.getLogger(CheckingNewScriptMigrationsInCommitHandler.class);
+	private static final Logger logger = LoggerFactory.getLogger(Gitlab010CheckingNewScriptMigrationsInCommitHandler.class);
 
 	@Autowired
 	private GitlabService gitlabService;

@@ -2,8 +2,6 @@ package dev.pje.bots.apoiadorrequisitante.handlers.gitlab;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -12,18 +10,12 @@ import com.devplatform.model.gitlab.GitlabProject;
 import com.devplatform.model.gitlab.event.GitlabEventPush;
 
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
-import dev.pje.bots.apoiadorrequisitante.services.TelegramService;
 
 @Component
-public class GitlabEventHandlerGitflow {
+public class Gitlab020GitflowEventHandler {
 	
-	private static final Logger logger = LoggerFactory.getLogger(GitlabEventHandlerGitflow.class);
-
 	@Autowired
 	private GitlabService gitlabService;
-	
-	@Autowired
-	private TelegramService telegramService;
 	
 	public void handle(GitlabEventPush gitlabEventPush) {
 		if(gitlabEventPush != null && gitlabEventPush.getProjectId() != null) {

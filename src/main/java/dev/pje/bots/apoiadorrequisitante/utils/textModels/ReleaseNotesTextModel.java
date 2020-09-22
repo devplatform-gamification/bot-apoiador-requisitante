@@ -19,6 +19,7 @@ import com.devplatform.model.bot.VersionReleaseNotesIssueTypeEnum;
 import com.devplatform.model.jira.JiraIssueTipoVersaoEnum;
 import com.devplatform.model.jira.JiraUser;
 
+import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
@@ -34,25 +35,21 @@ public class ReleaseNotesTextModel extends AbstractTextModel{
 	@Value("${project.telegram.channel.name}")
 	private String TELEGRAM_CHANNEL_NAME;
 
-	private static final String PATH_JQL = "/issues/?jql=";
-	private static final String PATH_ISSUE = "/browse/";
-	private static final String PATH_USERPROFILE = "/secure/ViewProfile.jspa?name=";
-	
 	private static final String DESENVOLVEDOR_ANONIMO = "desenvolvedor.anonimo";
 	
 	private VersionReleaseNotes releaseNotes;
 	private MarkdownInterface markdown;	
 
 	private String getPathJql(String jql) {
-		return JIRAURL + PATH_JQL + jql;
+		return JiraUtils.getPathJql(jql, JIRAURL);
 	}
-
+	
 	private String getPathIssue(String issueKey) {
-		return JIRAURL + PATH_ISSUE + issueKey;
+		return JiraUtils.getPathIssue(issueKey, JIRAURL);
 	}
 
 	private String getPathUserProfile(String userKey) {
-		return JIRAURL + PATH_USERPROFILE + userKey;
+		return JiraUtils.getPathUserProfile(userKey, JIRAURL);
 	}
 	
 	public void setReleaseNotes(VersionReleaseNotes releaseNotes) {
@@ -240,7 +237,7 @@ public class ReleaseNotesTextModel extends AbstractTextModel{
 	
 	private String getSpecificMarkdownCode(VersionReleaseNotes releaseNotes) {
 		StringBuilder sb = new StringBuilder();
-		if(markdown.getName().equals("AsciiDocMarkdown")) {
+		if(markdown.getName().equals(MarkdownInterface.MARKDOWN_ASCIIDOC)) {
 			sb.append(":releaseVersion: ")
 				.append(releaseNotes.getVersion())
 				.append(markdown.newLine());

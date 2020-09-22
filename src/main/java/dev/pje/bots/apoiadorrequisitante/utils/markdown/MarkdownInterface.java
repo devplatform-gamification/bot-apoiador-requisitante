@@ -6,6 +6,13 @@ import org.springframework.stereotype.Service;
 
 @Service
 public interface MarkdownInterface {
+	
+	public static final String MARKDOWN_ROCKETCHAT = "RocketchatMarkdown";
+	public static final String MARKDOWN_SLACK = "SlackMarkdown";
+	public static final String MARKDOWN_TELEGRAM_HTML = "TelegramHtml";
+	public static final String MARKDOWN_JIRA = "JiraMarkdown";
+	public static final String MARKDOWN_GITLAB = "GitlabMarkdown";
+	public static final String MARKDOWN_ASCIIDOC = "AsciiDocMarkdown";
 
 	public String getName();
 	

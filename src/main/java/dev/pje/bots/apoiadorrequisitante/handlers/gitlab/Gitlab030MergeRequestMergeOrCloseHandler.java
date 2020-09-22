@@ -24,9 +24,9 @@ import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.JiraMarkdown;
 
 @Component
-public class Gitlab03MergeRequestUpdateHandler extends Handler<GitlabEventMergeRequest>{
+public class Gitlab030MergeRequestMergeOrCloseHandler extends Handler<GitlabEventMergeRequest>{
 
-	private static final Logger logger = LoggerFactory.getLogger(Gitlab03MergeRequestUpdateHandler.class);
+	private static final Logger logger = LoggerFactory.getLogger(Gitlab030MergeRequestMergeOrCloseHandler.class);
 
 	@Value("${clients.gitlab.url}")
 	private String gitlabUrl;
@@ -41,7 +41,7 @@ public class Gitlab03MergeRequestUpdateHandler extends Handler<GitlabEventMergeR
 
 	@Override
 	public String getMessagePrefix() {
-		return "|GITLAB||03||MERGE-REQUEST-UPDATED|";
+		return "|GITLAB||030||MERGE-REQUEST-MERGE-CLOSE|";
 	}
 
 	@Override

@@ -8,7 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 
 public class SlackMarkdown implements MarkdownInterface{
 	
-	public static final String NAME = "SlackMarkdown";
+	public static final String NAME = MARKDOWN_SLACK;
 
 	@Override
 	public String getName() {

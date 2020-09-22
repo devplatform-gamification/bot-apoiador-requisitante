@@ -73,7 +73,7 @@ public class Jira030DemandanteHandler extends Handler<JiraEventIssue>{
 					execcutorEhDemandante = true;
 				}else {
 					// verifica se o usuário que execcutou a ação é de um dos tribunais listados em "tribunais requisitantes"
-					String tribunalUsuarioAcao = jiraService.getTribunalUsuario(usuarioAcao);
+					String tribunalUsuarioAcao = jiraService.getTribunalUsuario(usuarioAcao, false);
 					if(StringUtils.isNotBlank(tribunalUsuarioAcao)) {
 						// verifica se esse tribunal está na lista de tribunais da issue
 						List<JiraIssueFieldOption> tribunaisRequisitantes = jiraService.getTribunaisRequisitantes(issue);

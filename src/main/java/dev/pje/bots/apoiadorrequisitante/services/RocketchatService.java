@@ -14,8 +14,10 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.devplatform.model.rocketchat.RocketchatEmail;
+import com.devplatform.model.rocketchat.RocketchatRoom;
 import com.devplatform.model.rocketchat.RocketchatUser;
 import com.devplatform.model.rocketchat.request.RocketchatPostMessageRequest;
+import com.devplatform.model.rocketchat.response.RocketchatChannelsResponse;
 import com.devplatform.model.rocketchat.response.RocketchatPostMessageResponse;
 import com.devplatform.model.rocketchat.response.RocketchatUsersResponse;
 
@@ -63,10 +65,21 @@ public class RocketchatService {
 	}
 	
 	public void sendSimpleMessage(String channel, String text) {
-		RocketchatPostMessageRequest message = new RocketchatPostMessageRequest(channel, text);
-		RocketchatPostMessageResponse response = postMessage(message);
-		if(response != null) {
-			logger.debug("Message response: "+ response.toString());
+		String idChannel = channel;
+		if(StringUtils.isNotBlank(channel) && !channel.startsWith("@")) {
+			RocketchatRoom channelObj = findChannel(channel);
+			if(channelObj != null) {			
+				idChannel = channelObj.getId();
+			}
+		}
+		if(StringUtils.isNotBlank(idChannel)) {
+			RocketchatPostMessageRequest message = new RocketchatPostMessageRequest(idChannel, text);
+			RocketchatPostMessageResponse response = postMessage(message);
+			if(response != null) {
+				logger.debug("Message response: "+ response.toString());
+			}
+		}else {
+			logger.error("Channel not founded :: " + channel);
 		}
 	}
 	
@@ -92,6 +105,14 @@ public class RocketchatService {
 	
 	public void sendMessageGeral(String text) {
 		sendSimpleMessage(GRUPO_GERAL, text);
+	}
+
+	public void sendMessageCanaisEspecificos(String text, List<String> canais) {
+		if(canais != null && !canais.isEmpty()) {
+			for (String canal : canais) {
+				sendSimpleMessage(canal, text);
+			}
+		}
 	}
 	
 	public RocketchatPostMessageResponse postMessage(RocketchatPostMessageRequest message) {
@@ -127,23 +148,10 @@ public class RocketchatService {
 		  ]
 		}		
 		 */
-		Map<String, Object> elementN4 = new HashMap<>();
-		elementN4.put("address", userNameOrNameOrEmail);
+		String query = "{\"$or\": [{\"emails\": {\"$elemMatch\":{\"address\": \"" + userNameOrNameOrEmail + "\"}}}, {\"name\":\"" + userNameOrNameOrEmail + "\"}, {\"username\":\"" + userNameOrNameOrEmail + "\"}], \"active\":true}";
 		
-		Map<String, Object> elementN3 = new HashMap<>();
-		elementN3.put("$elemMatch", elementN4);
-
-		Map<String, Object> elementN2 = new HashMap<>();
-		elementN2.put("emails", elementN3);
-		elementN2.put("name", userNameOrNameOrEmail);
-		elementN2.put("username", userNameOrNameOrEmail);
-
-		Map<String, Object> elementN1 = new HashMap<>();
-		elementN1.put("active", true);
-		elementN1.put("$or", elementN2);
-
 		RocketchatUser foundedUser = null;
-		List<RocketchatUser> users = getUsers(elementN1);
+		List<RocketchatUser> users = getUsersStringQuery(query);
 		if(users != null && !users.isEmpty()) {
 			foundedUser = users.get(0);
 			if(users.size() > 1) {
@@ -175,11 +183,22 @@ public class RocketchatService {
 		
 		return foundedUser;
 	}
-	
-	public List<RocketchatUser> getUsers(Map<String, Object> query){
+
+	public List<RocketchatUser> getUsersStringQuery(String query){
 		Map<String, Object> elementN0 = new HashMap<>();
 		elementN0.put("query", query);
+		
+		return getUsers(elementN0);
+	}
 
+	public List<RocketchatUser> getUsersMapQuery(Map<String, Object> query){
+		Map<String, Object> elementN0 = new HashMap<>();
+		elementN0.put("query", query);
+		
+		return getUsers(elementN0);
+	}	
+	@Cacheable(cacheNames = "rocket-get-users")
+	public List<RocketchatUser> getUsers(Map<String, Object> elementN0){
 		List<RocketchatUser> users = new ArrayList<>();
 		Integer startAt = 0;
 		boolean finalizado = false;
@@ -200,10 +219,100 @@ public class RocketchatService {
 				}
 			}
 		}catch (Exception e) {
-			String errorMsg = "Houve um problema ao recuperar a lista de usuários com a query: "+ query.toString() + " - erro: " + e.getLocalizedMessage();
+			String errorMsg = "Houve um problema ao recuperar a lista de usuários com a query: "+ elementN0.toString() + " - erro: " + e.getLocalizedMessage();
 			logger.error(errorMsg);
 		}
 		
 		return users;
 	}
+	
+	
+	@Cacheable(cacheNames = "rocket-user-from-name")
+	public RocketchatRoom findChannel(String nameOrId) {
+		nameOrId += "_R";
+		nameOrId = "tjmt_r";
+		/**
+			{
+			  "t": "c",
+			  "$or": [
+			    {
+			      "name": {
+			        "$regex": "^TJMT$",
+			        "$options": "i"
+			      }
+			    },
+			    {
+			      "_id": "tjmt"
+			    }
+			  ]
+			}
+		 */
+		String query = "{\"t\":\"c\", \"$or\": [{\"name\":{ \"$regex\":\"^" + nameOrId + "$\", \"$options\":\"i\"}},{\"_id\":\"" + nameOrId + "\"}]}";
+		
+		RocketchatRoom foundedRoom = null;
+		List<RocketchatRoom> rooms = getChannelsStringQuery(query);
+		if(rooms != null && !rooms.isEmpty()) {
+			if(rooms.size() > 1) {
+				for (RocketchatRoom room : rooms) {
+					if(Utils.compareAsciiIgnoreCase(room.getId(), nameOrId)) {
+						foundedRoom = room;
+						break;
+					}
+					if(Utils.compareAsciiIgnoreCase(room.getName(), nameOrId)) {
+						foundedRoom = room;
+						break;
+					}
+				}
+			}
+			if(foundedRoom == null) {
+				foundedRoom = rooms.get(0);
+			}
+		}
+		
+		return foundedRoom;
+	}
+
+	public List<RocketchatRoom> getChannelsStringQuery(String query){
+		Map<String, Object> elementN0 = new HashMap<>();
+		elementN0.put("query", query);
+		
+		return getChannels(elementN0);
+	}
+
+	public List<RocketchatRoom> getChannelsMapQuery(Map<String, Object> query){
+		Map<String, Object> elementN0 = new HashMap<>();
+		elementN0.put("query", query);
+		
+		return getChannels(elementN0);
+	}
+
+	@Cacheable(cacheNames = "rocket-get-channels")
+	public List<RocketchatRoom> getChannels(Map<String, Object> elementN0){
+		List<RocketchatRoom> rooms = new ArrayList<>();
+		Integer startAt = 0;
+		boolean finalizado = false;
+		try {
+			while(!finalizado) {
+				elementN0.put("offset", startAt.toString());
+				RocketchatChannelsResponse response = rocketchatClient.getChannels(elementN0);
+				
+				if(response != null && response.getSuccess() && response.getTotal() > 0) {
+					if((response.getCount() + response.getOffset()) <= response.getTotal() ) {
+						startAt += (response.getCount() + response.getOffset());
+						rooms.addAll(response.getChannels());
+					}
+				}
+				if(response == null || !response.getSuccess() || response.getCount() == 0 || startAt >= response.getTotal()) {
+					finalizado = true;
+					break;
+				}
+			}
+		}catch (Exception e) {
+			String errorMsg = "Houve um problema ao recuperar a lista de canais com a query: "+ elementN0.toString() + " - erro: " + e.getLocalizedMessage();
+			logger.error(errorMsg);
+		}
+		
+		return rooms;
+	}
+
 }
