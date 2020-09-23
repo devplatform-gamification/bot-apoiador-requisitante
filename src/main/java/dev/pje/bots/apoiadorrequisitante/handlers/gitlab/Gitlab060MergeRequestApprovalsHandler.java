@@ -108,8 +108,8 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 			List<GitlabLabel> labelsAdicionadas = alteracaoNasLabels.getAddedItems();
 			List<GitlabLabel> labelsRemovidas = alteracaoNasLabels.getRemovedItems();
 			
-			List<String> labelsAprovacoesAdicionadas = GitlabUtils.translateGitlabLabelListToValueList(labelsAdicionadas);
-			List<String> labelsAprovacoesRemovidas = GitlabUtils.translateGitlabLabelListToValueList(labelsRemovidas);
+			List<String> labelsAprovacoesAdicionadas = recuperaLabelsAprovacao(GitlabUtils.translateGitlabLabelListToValueList(labelsAdicionadas));
+			List<String> labelsAprovacoesRemovidas = recuperaLabelsAprovacao(GitlabUtils.translateGitlabLabelListToValueList(labelsRemovidas));
 			if((labelsAprovacoesAdicionadas != null && !labelsAprovacoesAdicionadas.isEmpty()) ||
 					(labelsAprovacoesRemovidas != null && !labelsAprovacoesRemovidas.isEmpty())) {
 				String gitlabProjectId = gitlabEventMR.getProject().getId().toString();
@@ -124,7 +124,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 				// verifica se o usuário tem permissao de alterar a label
 				// retorno: tem permissao / não tem - mesmo autor do commit / não tem - resposponsavel pela codificacao da issue / não tem - alterou label errada
 				TipoPermissaoMREnum permissaoUsuario = verificaPermissaoUsuario(revisorJira, revisorGitlab, tribunalUsuarioRevisor, 
-						issue, mergeRequest, labelsAdicionadas, labelsRemovidas);
+						issue, mergeRequest, labelsAprovacoesAdicionadas, labelsAprovacoesRemovidas);
 				
 				if(permissaoUsuario.equals(TipoPermissaoMREnum.COM_PERMISSAO)) {
 					messages.info("O usuário " + revisorJira.getName() + " possui permissão para a alteração de labels:\n" + alteracaoNasLabels);
@@ -180,7 +180,6 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 					// se já completou todas as aprovações, aprova o MR
 					
 					Integer aprovacoesNecessarias = issue.getFields().getAprovacoesNecessarias();
-					Integer aprovacoesRealizadasAnterior = issue.getFields().getAprovacoesRealizadas();
 					List<JiraIssueFieldOption> tribunaisRequisitantes = issue.getFields().getTribunalRequisitante();
 					
 					List<String> listaTribunaisRequisitantesIssue = JiraUtils.translateFieldOptionsToValueList(tribunaisRequisitantes);
@@ -195,7 +194,10 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 					aprovacoesMRTextModel.setUsuariosResponsaveisAprovacoes(responsaveisRevisao);
 					aprovacoesMRTextModel.setTribunaisRequisitantesPendentes(listaTribunaisRequisitantesPendentesAprovacao);
 					
-					boolean houveAlteracoesNasAprovacoes = !(aprovacoesRealizadasAnterior.equals(aprovacoesRealizadas));
+					if(issue.getFields().getResponsaveisRevisao() == null && responsaveisRevisao != null) {
+						
+					}
+					boolean houveAlteracoesNasAprovacoes = verificaSeHouveAlteracaoRevisores(responsaveisRevisao, tribunaisRevisoresIssue, issue);
 					Map<String, Object> updateFields = new HashMap<>();
 					
 					// aprovacoes realizadas
@@ -228,7 +230,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 					}
 					
 					if(!jiraService.isServico(revisorJira)) {
-						if(true || houveAlteracoesNasAprovacoes) {
+						if(houveAlteracoesNasAprovacoes) {
 							RocketchatMarkdown rocketchatMarkdown = new RocketchatMarkdown();
 							String aprovacoesMRTextRocketchat = aprovacoesMRTextModel.convert(rocketchatMarkdown);
 							
@@ -243,7 +245,6 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 							gitlabService.sendMergeRequestComment(gitlabProjectId, mrIID, aprovacoesMRTextGitlab);
 						}
 					}
-					
 					if(aprovacoesRealizadas >= aprovacoesNecessarias && gitlabEventMR.getObjectAttributes() != null) {
 						// aprovar o MR
 						GitlabMRResponse response = gitlabService.acceptMergeRequest(gitlabProjectId, mrIID);
@@ -280,14 +281,15 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 						.append(gitlabMarkdown.normal("As labels: "))
 						.append(gitlabMarkdown.normal(String.join(", ", labels)))
 						.append(gitlabMarkdown.normal(" foram reestabelecidas, pois o usuário"));
-						String motivoReversao = " não tem permissão para alterar uma ou todas as labels alteradas";
+						String motivoReversao = "não tem permissão para alterar uma ou todas as labels alteradas";
 						if(permissaoUsuario.equals(TipoPermissaoMREnum.SEM_PERMISSAO_AUTOR_COMMIT)) {
-							motivoReversao = " é o autor do último commit";
+							motivoReversao = "é o autor do último commit";
 						}else if(permissaoUsuario.equals(TipoPermissaoMREnum.SEM_PERMISSAO_RESPONSAVEL_CODIFICACAO)) {
-							motivoReversao = " é o responsável pela codificação na issue " + gitlabMarkdown.link(issueLink, issue.getKey());
+							motivoReversao = "é o responsável pela codificação na issue " + gitlabMarkdown.link(issueLink, issue.getKey());
 						}
 						mensagemRevertLabels
-						.append(gitlabMarkdown.bold(motivoReversao))
+						.append(" ")
+						.append(gitlabMarkdown.bold(motivoReversao.trim()))
 						.append(".");
 						gitlabService.sendMergeRequestComment(gitlabProjectId, mrIID, mensagemRevertLabels.toString());
 					}
@@ -297,6 +299,43 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 			}
 			
 		}
+	}
+	
+	private boolean verificaSeHouveAlteracaoRevisores(List<JiraUser> responsaveisRevisaoAtualizado, List<String> tribunaisRevisoresAtualizado, JiraIssue issue) {
+		List<JiraUser> responsaveisRevisaoAnteriores = issue.getFields().getResponsaveisRevisao();
+		List<JiraIssueFieldOption> tribunaisResponsaveisRevisaoAnteriores = issue.getFields().getTribunaisResponsaveisRevisao();
+		List<String> tribunaisRevisoresAnteriores = JiraUtils.translateFieldOptionsToValueList(tribunaisResponsaveisRevisaoAnteriores);
+		
+		boolean houveAlteracao = false;
+		if(responsaveisRevisaoAnteriores == null) {
+			responsaveisRevisaoAnteriores = new ArrayList<>();
+		}
+		if(responsaveisRevisaoAtualizado == null) {
+			responsaveisRevisaoAtualizado = new ArrayList<>();
+		}
+		if(responsaveisRevisaoAnteriores.size() != responsaveisRevisaoAtualizado.size()) {
+			houveAlteracao = true;
+		}else {
+			if(tribunaisRevisoresAnteriores == null) {
+				tribunaisRevisoresAnteriores = new ArrayList<>();
+			}
+			if(tribunaisRevisoresAtualizado == null) {
+				tribunaisRevisoresAtualizado = new ArrayList<>();
+			}
+			if(tribunaisRevisoresAnteriores.size() != tribunaisRevisoresAtualizado.size()) {
+				houveAlteracao = true;
+			}else {
+				if(!responsaveisRevisaoAtualizado.containsAll(responsaveisRevisaoAnteriores)) {
+					houveAlteracao = true;
+				}else {
+					if(tribunaisRevisoresAtualizado.containsAll(tribunaisRevisoresAnteriores)) {
+						houveAlteracao = true;
+					}
+				}
+			}
+		}
+		
+		return houveAlteracao;
 	}
 	
 	/**
@@ -311,7 +350,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 	private TipoPermissaoMREnum verificaPermissaoUsuario(
 				JiraUser revisorJira, GitlabUser revisorGitlab, String tribunalRevisor,
 				JiraIssue issue, GitlabMergeRequestAttributes mergeRequest,
-				List<GitlabLabel> labelsAdicionadas, List<GitlabLabel> labelsRemovidas) {
+				List<String> labelsAdicionadas, List<String> labelsRemovidas) {
 		TipoPermissaoMREnum permissaoUsuario = null;
 		
 		if(revisorJira != null && revisorGitlab != null) {
@@ -325,11 +364,11 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 					
 					if(labelsAdicionadas != null && labelsAdicionadas.size() == 1
 							&& (labelsRemovidas == null || labelsRemovidas.isEmpty())
-							&& Utils.compareAsciiIgnoreCase(labelsAdicionadas.get(0).getTitle(), labelAprovacaoUsuario)) {
+							&& Utils.compareAsciiIgnoreCase(labelsAdicionadas.get(0), labelAprovacaoUsuario)) {
 						usuarioAlterouSuaLabel = true;
 					}else if(labelsRemovidas != null && labelsRemovidas.size() == 1
 							&& (labelsAdicionadas == null || labelsAdicionadas.isEmpty())
-							&& Utils.compareAsciiIgnoreCase(labelsRemovidas.get(0).getTitle(), labelAprovacaoUsuario)) {
+							&& Utils.compareAsciiIgnoreCase(labelsRemovidas.get(0), labelAprovacaoUsuario)) {
 						usuarioAlterouSuaLabel = true;
 					}
 				}else if(StringUtils.isNotBlank(labelAprovacaoUsuario) && StringUtils.isNotBlank(tribunalRevisor)) {
@@ -339,7 +378,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 				if(usuarioAlterouSuaLabel) {
 					// verifica se o usuário não é o autor do MR, nem é o autor do último commit, nem é o responsável pela codificação da issue
 					GitlabUser autorUltimoCommit = getLastCommitAuthor(mergeRequest);
-					if(autorUltimoCommit.getId().equals(revisorGitlab.getId())) {
+					if(autorUltimoCommit != null && autorUltimoCommit.getId().equals(revisorGitlab.getId())) {
 						permissaoUsuario = TipoPermissaoMREnum.SEM_PERMISSAO_AUTOR_COMMIT;
 					}else {
 						JiraUser responsavelCodificacao = issue.getFields().getResponsavelCodificacao();

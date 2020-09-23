@@ -8,10 +8,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.devplatform.model.gitlab.GitlabMergeRequestAttributes;
+import com.devplatform.model.gitlab.GitlabUser;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraUser;
 import com.devplatform.model.rocketchat.RocketchatUser;
 
+import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.RocketchatService;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
@@ -28,6 +30,9 @@ public class AprovacoesMRTextModel extends AbstractTextModel {
 
 	@Autowired
 	protected RocketchatService rocketchatService;
+
+	@Autowired
+	protected GitlabService gitlabService;
 
 	private GitlabMergeRequestAttributes mergeRequest;
 	private JiraIssue issue;
@@ -137,7 +142,7 @@ public class AprovacoesMRTextModel extends AbstractTextModel {
 			String targetBranch = mergeRequest.getTargetBranch();
 			String nomeProjeto = issue.getFields().getProject().getName();
 			markdownText.append(markdown.newLine()).append("Este MR será automaticamente integrado ao branch ")
-					.append(targetBranch).append("do projeto ").append(nomeProjeto)
+					.append(targetBranch).append(" do projeto ").append(nomeProjeto)
 					.append(", de acordo com as aprovações de:");
 
 			if (usuariosResponsaveisAprovacoes != null) {
@@ -187,6 +192,14 @@ public class AprovacoesMRTextModel extends AbstractTextModel {
 				}
 			} else if (markdown.getName().equals(MarkdownInterface.MARKDOWN_JIRA)) {
 				username = jirauser.getName();
+			} else if (markdown.getName().equals(MarkdownInterface.MARKDOWN_GITLAB)) {
+				if (jirauser != null) {
+					username = jirauser.getName();
+					GitlabUser gitlabUser = gitlabService.findUserByEmail(jirauser.getEmailAddress());
+					if (gitlabUser != null) {
+						username = gitlabUser.getUsername();
+					}
+				}
 			} else {
 				username = jirauser.getName();
 			}
