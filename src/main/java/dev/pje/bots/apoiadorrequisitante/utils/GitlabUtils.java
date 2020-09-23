@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.devplatform.model.gitlab.GitlabLabel;
 import com.devplatform.model.gitlab.vo.GitlabMergeRequestVO;
 
 public class GitlabUtils {	
@@ -98,5 +99,17 @@ public class GitlabUtils {
 			releasesUrl = projectWebUrl + "-/releases";
 		}
 		return releasesUrl;
+	}
+	
+	public static List<String> translateGitlabLabelListToValueList(List<GitlabLabel> gitlabLabels){
+		List<String> labelList = new ArrayList<>();
+
+		if(gitlabLabels != null) {
+			for (GitlabLabel gitlabLabel : gitlabLabels) {
+				labelList.add(gitlabLabel.getTitle());
+			}
+		}
+		
+		return labelList;
 	}
 }

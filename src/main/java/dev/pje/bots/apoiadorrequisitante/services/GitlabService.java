@@ -92,7 +92,7 @@ public class GitlabService {
 	public static final String AUTHOR_EMAIL = "bot.revisor.pje@cnj.jus.br";
 	
 	public static final String LABEL_MR_LANCAMENTO_VERSAO = "Lancamento de versao";
-	public static final String PREFIXO_LABEL_APROVACAO_TRIBUNAL = "Aprovado_";
+	public static final String PREFIXO_LABEL_APROVACAO_TRIBUNAL = "Aprovado";
 	
 	public static final String GITLAB_DATETIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSS";
 	

@@ -125,23 +125,23 @@ spring:
           
         jira:
           issue-created:
-            routing-key: ${RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_CREATED.#}
+            routing-key: ${RABBIT_JIRA_ISSUE_CREATED_ROUTINGKEY:dev-platform.jira.ISSUE_CREATED.#}
           issue-updated:
-            routing-key: ${RABBIT_JIRA_ISSUE_UPDATED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_UPDATED.#}
+            routing-key: ${RABBIT_JIRA_ISSUE_UPDATED_ROUTINGKEY:dev-platform.jira.ISSUE_UPDATED.#}
           issue-commented:
-            routing-key: ${RABBIT_JIRA_ISSUE_COMMENTED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_COMMENTED.#}
+            routing-key: ${RABBIT_JIRA_ISSUE_COMMENTED_ROUTINGKEY:dev-platform.jira.ISSUE_COMMENTED.#}
           issue-comment-edited:
-            routing-key: ${RABBIT_JIRA_ISSUE_COMMENT_EDITED_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_COMMENT_EDITED.#}
+            routing-key: ${RABBIT_JIRA_ISSUE_COMMENT_EDITED_ROUTINGKEY:dev-platform.jira.ISSUE_COMMENT_EDITED.#}
           issue-generic:
-            routing-key: ${RABBIT_JIRA_ISSUE_GENERIC_ROUTINGKEY_PREFIX:dev-platform.jira.ISSUE_GENERIC.#}
+            routing-key: ${RABBIT_JIRA_ISSUE_GENERIC_ROUTINGKEY:dev-platform.jira.ISSUE_GENERIC.#}
 
         gitlab:
           push:
-            routing-key: ${RABBIT_GITLAB_PUSH_ROUTINGKEY_PREFIX:dev-platform.gitlab.PUSH}
+            routing-key: ${RABBIT_GITLAB_PUSH_ROUTINGKEY:dev-platform.gitlab.PUSH}
           tag-push:
-            routing-key: ${RABBIT_GITLAB_TAGPUSH_ROUTINGKEY_PREFIX:dev-platform.gitlab.TAG_PUSH}
+            routing-key: ${RABBIT_GITLAB_TAGPUSH_ROUTINGKEY:dev-platform.gitlab.TAG_PUSH}
           merge-request:
-            routing-key: ${RABBIT_GITLAB_MERGE_REQUEST_ROUTINGKEY_PREFIX:dev-platform.gitlab.MERGE_REQUEST}
+            routing-key: ${RABBIT_GITLAB_MERGE_REQUEST_ROUTINGKEY:dev-platform.gitlab.MERGE_REQUEST}
 springfox:
   documentation:
     swagger:

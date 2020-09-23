@@ -104,7 +104,9 @@ public class AprovacoesMRTextModel extends AbstractTextModel {
 			// 	 * [MR#xx/link para o merge] aprovado pelo revisor @username.revisor (aprovação <1> de <3> necessárias).
 			markdownText
 					.append(markdown.link(mergeRequest.getUrl(), nomeMR))
-					.append(" aprovado pelo revisor ")
+					.append(" ")
+					.append(markdown.bold("aprovado pelo revisor"))
+					.append(" ")
 					.append(markdown.normal(referUser))
 					.append(" (aprovação ")
 					.append(aprovacoesRealizadas)
@@ -115,7 +117,9 @@ public class AprovacoesMRTextModel extends AbstractTextModel {
 			// RETIROU LABEL
 			// @username.revisor retirou sua aprovação do [MR#XXX/link para o merge] (há <1> aprovação de <3> necessárias).
 			markdownText.append(markdown.normal(referUser))
-					.append(markdown.bold(" retirou sua aprovação do "))
+					.append(" ")
+					.append(markdown.bold("retirou sua aprovação do"))
+					.append(" ")
 					.append(markdown.link(mergeRequest.getUrl(), nomeMR))
 					.append(" (há ").append(aprovacoesRealizadas);
 

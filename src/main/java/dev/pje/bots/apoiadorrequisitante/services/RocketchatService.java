@@ -229,8 +229,6 @@ public class RocketchatService {
 	
 	@Cacheable(cacheNames = "rocket-user-from-name")
 	public RocketchatRoom findChannel(String nameOrId) {
-		nameOrId += "_R";
-		nameOrId = "tjmt_r";
 		/**
 			{
 			  "t": "c",

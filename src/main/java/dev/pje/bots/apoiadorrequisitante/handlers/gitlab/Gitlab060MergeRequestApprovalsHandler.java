@@ -31,6 +31,7 @@ import dev.pje.bots.apoiadorrequisitante.handlers.Handler;
 import dev.pje.bots.apoiadorrequisitante.handlers.MessagesLogger;
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
+import dev.pje.bots.apoiadorrequisitante.utils.GitlabUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.GitlabMarkdown;
@@ -107,186 +108,194 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 			List<GitlabLabel> labelsAdicionadas = alteracaoNasLabels.getAddedItems();
 			List<GitlabLabel> labelsRemovidas = alteracaoNasLabels.getRemovedItems();
 			
-			String gitlabProjectId = gitlabEventMR.getProject().getId().toString();
-			BigDecimal mrIID = gitlabEventMR.getObjectAttributes().getIid();
-			
-			GitlabMRResponse mergeRequest = gitlabService.getMergeRequest(gitlabProjectId, mrIID);
-			JiraIssue issue = getIssue(gitlabEventMR);
-			GitlabUser revisorGitlab = gitlabEventMR.getUser();
-			JiraUser revisorJira = jiraService.getJiraUserFromGitlabUser(revisorGitlab);
-			String tribunalUsuarioRevisor = jiraService.getTribunalUsuario(revisorJira, false);
-			
-			// verifica se o usuário tem permissao de alterar a label
-			// retorno: tem permissao / não tem - mesmo autor do commit / não tem - resposponsavel pela codificacao da issue / não tem - alterou label errada
-			TipoPermissaoMREnum permissaoUsuario = verificaPermissaoUsuario(revisorJira, revisorGitlab, tribunalUsuarioRevisor, 
-					issue, mergeRequest, labelsAdicionadas, labelsRemovidas);
-			
-			if(permissaoUsuario.equals(TipoPermissaoMREnum.COM_PERMISSAO)) {
-				messages.info("O usuário " + revisorJira.getName() + " possui permissão para a alteração de labels:\n" + alteracaoNasLabels);
-				// identifica os dados da issue e do merge
-				boolean adicaoDeLabel = (labelsAdicionadas != null && !labelsAdicionadas.isEmpty());
-				List<JiraUser> responsaveisRevisao = issue.getFields().getResponsaveisRevisao();
-				List<JiraIssueFieldOption> tribunaisResponsaveisRevisao = issue.getFields().getTribunaisResponsaveisRevisao();
-				List<String> tribunaisRevisores = JiraUtils.translateFieldOptionsToValueList(tribunaisResponsaveisRevisao);
-
-				/**
-				 * se nao tiver sido aprovado por um usuário de serviço, atualiza:
-				 * - a lista de pessoas revisoras da issue
-				 * - a lista de tribunais revisores da issue
-				 */
-				if(!jiraService.isServico(revisorJira)) {
-					// indica na issue quem é o responsável pela aprovação - na verdade adiciona mais um nome aos já existentes
-					responsaveisRevisao = atualizaListaUsuariosRevisores(adicaoDeLabel, responsaveisRevisao, revisorJira);
-					// indica na issue qual tribunal é o responsável pela aprovação - de acordo com o responsável pela aprovação
-					tribunaisRevisores = atualizaListaTribunaisRevisores(adicaoDeLabel, tribunaisRevisores, tribunalUsuarioRevisor);
-				}
+			List<String> labelsAprovacoesAdicionadas = GitlabUtils.translateGitlabLabelListToValueList(labelsAdicionadas);
+			List<String> labelsAprovacoesRemovidas = GitlabUtils.translateGitlabLabelListToValueList(labelsRemovidas);
+			if((labelsAprovacoesAdicionadas != null && !labelsAprovacoesAdicionadas.isEmpty()) ||
+					(labelsAprovacoesRemovidas != null && !labelsAprovacoesRemovidas.isEmpty())) {
+				String gitlabProjectId = gitlabEventMR.getProject().getId().toString();
+				BigDecimal mrIID = gitlabEventMR.getObjectAttributes().getIid();
 				
-				List<String> labelsList = new ArrayList<>();
-				if(mergeRequest != null) {
-					labelsList = mergeRequest.getLabels();
-				}
-				/**
-				 * - se houver mais tribunais nas labels do que na issue
-				 * -- retira a label do MR, pois não tem como saber quem fez a ação, indica que houve erro na operação
-				 */
-				List<String> labelsAprovacoesTribunais = recuperaLabelsAprovacao(labelsList);
-				try {
-					removeLabelsSemTribunalRevisorNaIssue(mergeRequest, issue, labelsAprovacoesTribunais, tribunaisRevisores);
-				}catch (Exception e) {
-					String errorMsg = "Houve um problema ao tentar remover as labels sem tribunal revisor do MR - erro: " + e.getLocalizedMessage();
-					messages.error(errorMsg);
-				}
-
-				/**
- 				 * - se houver mais tribunais na issue do que nas labels
-				 * -- retira o tribunal da issue
-				 */
-				if(tribunaisRevisores != null) {
-					List<String> tribunaisAprovadoresSemLabel = identificaTribunalRevisorSemLabelAprovacao(labelsAprovacoesTribunais, tribunaisRevisores);
-					// retirar da lista de tribunais revisores os tribunais sem label
-					tribunaisRevisores.removeAll(tribunaisAprovadoresSemLabel);
-					// retirar da lista de usuários revisores os usuários dos tribunais sem label 
-					responsaveisRevisao = removeUsuariosDosTribunais(responsaveisRevisao, tribunaisAprovadoresSemLabel);
-				}
+				GitlabMRResponse mergeRequest = gitlabService.getMergeRequest(gitlabProjectId, mrIID);
+				JiraIssue issue = getIssue(gitlabEventMR);
+				GitlabUser revisorGitlab = gitlabEventMR.getUser();
+				JiraUser revisorJira = jiraService.getJiraUserFromGitlabUser(revisorGitlab);
+				String tribunalUsuarioRevisor = jiraService.getTribunalUsuario(revisorJira, false);
 				
-				// faz a recontagem de quantos tribunais aprovaram e preenche o campo: "Aprovações realizadas"
-				Integer aprovacoesRealizadas = (tribunaisRevisores != null ? tribunaisRevisores.size() : 0);
-				// manda mensagem no jira / canais dos tribunais requisitantes / canal do grupo revisor
-				// se já completou todas as aprovações, aprova o MR
+				// verifica se o usuário tem permissao de alterar a label
+				// retorno: tem permissao / não tem - mesmo autor do commit / não tem - resposponsavel pela codificacao da issue / não tem - alterou label errada
+				TipoPermissaoMREnum permissaoUsuario = verificaPermissaoUsuario(revisorJira, revisorGitlab, tribunalUsuarioRevisor, 
+						issue, mergeRequest, labelsAdicionadas, labelsRemovidas);
 				
-				Integer aprovacoesNecessarias = issue.getFields().getAprovacoesNecessarias();
-				Integer aprovacoesRealizadasAnterior = issue.getFields().getAprovacoesRealizadas();
-				List<JiraIssueFieldOption> tribunaisRequisitantes = issue.getFields().getTribunalRequisitante();
-
-				List<String> listaTribunaisRequisitantes = JiraUtils.translateFieldOptionsToValueList(tribunaisRequisitantes);
-				List<String> listaTribunaisRequisitantesPendentesAprovacao = Utils.getValuesOnlyInA(listaTribunaisRequisitantes, tribunaisRevisores);
-				
-				aprovacoesMRTextModel.setAprovacoesNecessarias(aprovacoesNecessarias);
-				aprovacoesMRTextModel.setAprovacoesRealizadas(aprovacoesRealizadas);
-				aprovacoesMRTextModel.setAprovou(adicaoDeLabel);
-				aprovacoesMRTextModel.setIssue(issue);
-				aprovacoesMRTextModel.setMergeRequest(gitlabEventMR.getObjectAttributes());
-				aprovacoesMRTextModel.setUltimoRevisor(revisorJira);
-				aprovacoesMRTextModel.setUsuariosResponsaveisAprovacoes(responsaveisRevisao);
-				aprovacoesMRTextModel.setTribunaisRequisitantesPendentes(listaTribunaisRequisitantesPendentesAprovacao);
-
-				boolean houveAlteracoesNasAprovacoes = !(aprovacoesRealizadasAnterior.equals(aprovacoesRealizadas));
-				Map<String, Object> updateFields = new HashMap<>();
-
-				// aprovacoes realizadas
-				jiraService.atualizarAprovacoesRealizadas(issue, aprovacoesRealizadas, updateFields);
-				// usuarios responsaveis aprovacoes
-				jiraService.atualizarResponsaveisRevisao(issue, responsaveisRevisao, updateFields);
-				// atualiza tribunais responsaveis aprovacoes
-				jiraService.atualizarTribunaisRevisores(issue, tribunaisRevisores, updateFields);
-
-				// adiciona os MR abertos
-				String MRsAbertos = issue.getFields().getMrAbertos();
-				String urlMR = gitlabEventMR.getObjectAttributes().getUrl();
-				MRsAbertos = Utils.concatenaItensUnicosStrings(MRsAbertos, urlMR);
-				
-				String MrsAbertosConfirmados = gitlabService.checkMRsOpened(MRsAbertos);
-				jiraService.atualizarMRsAbertos(issue, MrsAbertosConfirmados, updateFields, true);
-
-				// se o usuário não é de serviço - publica a altearção como um comentário na issue
-				if(!jiraService.isServico(revisorJira)) {
-					if(houveAlteracoesNasAprovacoes) {
-						// adiciona o comentário
-						JiraMarkdown jiraMarkdown = new JiraMarkdown();
-						String aprovacoesMRTextJira = aprovacoesMRTextModel.convert(jiraMarkdown);
-						jiraService.adicionarComentario(issue, aprovacoesMRTextJira, updateFields);
+				if(permissaoUsuario.equals(TipoPermissaoMREnum.COM_PERMISSAO)) {
+					messages.info("O usuário " + revisorJira.getName() + " possui permissão para a alteração de labels:\n" + alteracaoNasLabels);
+					// identifica os dados da issue e do merge
+					boolean adicaoDeLabel = (labelsAprovacoesAdicionadas != null && !labelsAprovacoesAdicionadas.isEmpty());
+					List<JiraUser> responsaveisRevisao = issue.getFields().getResponsaveisRevisao();
+					List<JiraIssueFieldOption> tribunaisResponsaveisRevisao = issue.getFields().getTribunaisResponsaveisRevisao();
+					List<String> tribunaisRevisoresIssue = JiraUtils.translateFieldOptionsToValueList(tribunaisResponsaveisRevisao);
+					
+					/**
+					 * se nao tiver sido aprovado por um usuário de serviço, atualiza:
+					 * - a lista de pessoas revisoras da issue
+					 * - a lista de tribunais revisores da issue
+					 */
+					if(!jiraService.isServico(revisorJira)) {
+						// indica na issue quem é o responsável pela aprovação - na verdade adiciona mais um nome aos já existentes
+						responsaveisRevisao = atualizaListaUsuariosRevisores(adicaoDeLabel, responsaveisRevisao, revisorJira);
+						// indica na issue qual tribunal é o responsável pela aprovação - de acordo com o responsável pela aprovação
+						tribunaisRevisoresIssue = atualizaListaTribunaisRevisores(adicaoDeLabel, tribunaisRevisoresIssue, tribunalUsuarioRevisor);
 					}
-				}
-				
-				if(updateFields != null && !updateFields.isEmpty()) {
-					enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_EDICAO_AVANCADA, false, false);
-				}
-
-				if(!jiraService.isServico(revisorJira)) {
-					if(houveAlteracoesNasAprovacoes) {
-						RocketchatMarkdown rocketchatMarkdown = new RocketchatMarkdown();
-						String aprovacoesMRTextRocketchat = aprovacoesMRTextModel.convert(rocketchatMarkdown);
-						
-						// envia mensagens para os tribunais requisitantes da demanda
-						rocketchatService.sendMessageCanaisEspecificos(aprovacoesMRTextRocketchat, listaTribunaisRequisitantes);
-						// envia mensagens para o grupo revisor
-						rocketchatService.sendMessageGrupoRevisorTecnico(aprovacoesMRTextRocketchat);
-		
-						// envia para o MR relacionado
-						GitlabMarkdown gitlabMarkdown = new GitlabMarkdown();
-						String aprovacoesMRTextGitlab = aprovacoesMRTextModel.convert(gitlabMarkdown);
-						gitlabService.sendMergeRequestComment(gitlabProjectId, mrIID, aprovacoesMRTextGitlab);
+					
+					List<String> labelsList = new ArrayList<>();
+					if(mergeRequest != null) {
+						labelsList = mergeRequest.getLabels();
 					}
-				}
-				
-				if(aprovacoesRealizadas >= aprovacoesNecessarias && gitlabEventMR.getObjectAttributes() != null) {
-					// aprovar o MR
-					GitlabMRResponse response = gitlabService.acceptMergeRequest(gitlabProjectId, mrIID);
-					if(response == null) {
-						messages.error("Houve um erro ao tentar aceitar o MR: "+ mrIID + " - do projeto: " + gitlabProjectId);
+					/**
+					 * - se houver mais tribunais nas labels do que na issue
+					 * -- retira a label do MR, pois não tem como saber quem fez a ação, indica que houve erro na operação
+					 */
+					List<String> labelsAprovacoesTribunais = recuperaLabelsAprovacao(labelsList);
+					try {
+						removeLabelsSemTribunalRevisorNaIssue(mergeRequest, issue, labelsAprovacoesTribunais, tribunaisRevisoresIssue, labelsList);
+					}catch (Exception e) {
+						String errorMsg = "Houve um problema ao tentar remover as labels sem tribunal revisor do MR - erro: " + e.getLocalizedMessage();
+						messages.error(errorMsg);
 					}
-				}
-
-			}else {
-				messages.error("O usuário " + revisorJira.getName() + " não possui permissão para alterar uma ou mais labels do MR, revertendo alterações.");
-				
-				// reverter a alteração indicando o motivo:
-				/**
-				 * - usuário não é um revisor habilitado
-				 * - usuário é o autor do último commit do branch
-				 * - usuário é o responsável pela codificação da issue
-				 */
-				List<GitlabLabel> labelsAnteriores = alteracaoNasLabels.getPrevious();
-				List<String> labels = new ArrayList<>();
-				for (GitlabLabel label : labelsAnteriores) {
-					labels.add(label.getTitle());
-				}
-				
-				GitlabMRResponse response = gitlabService.atualizaLabelsMR(gitlabEventMR.getObjectAttributes(), labels);
-				if(response == null) {
-					messages.error("Houve um erro ao tentar reverter a altearção nas labels do MR :: MRIID=" + mrIID 
-							+ " - labels:\n" + labels);
+					
+					/**
+					 * - se houver mais tribunais na issue do que nas labels
+					 * -- retira o tribunal da issue
+					 */
+					if(tribunaisRevisoresIssue != null) {
+						List<String> tribunaisAprovadoresSemLabel = identificaTribunalRevisorSemLabelAprovacao(labelsAprovacoesTribunais, tribunaisRevisoresIssue);
+						// retirar da lista de tribunais revisores os tribunais sem label
+						tribunaisRevisoresIssue.removeAll(tribunaisAprovadoresSemLabel);
+						// retirar da lista de usuários revisores os usuários dos tribunais sem label 
+						responsaveisRevisao = removeUsuariosDosTribunais(responsaveisRevisao, tribunaisAprovadoresSemLabel);
+					}
+					
+					// faz a recontagem de quantos tribunais aprovaram e preenche o campo: "Aprovações realizadas"
+					Integer aprovacoesRealizadas = (tribunaisRevisoresIssue != null ? tribunaisRevisoresIssue.size() : 0);
+					// manda mensagem no jira / canais dos tribunais requisitantes / canal do grupo revisor
+					// se já completou todas as aprovações, aprova o MR
+					
+					Integer aprovacoesNecessarias = issue.getFields().getAprovacoesNecessarias();
+					Integer aprovacoesRealizadasAnterior = issue.getFields().getAprovacoesRealizadas();
+					List<JiraIssueFieldOption> tribunaisRequisitantes = issue.getFields().getTribunalRequisitante();
+					
+					List<String> listaTribunaisRequisitantesIssue = JiraUtils.translateFieldOptionsToValueList(tribunaisRequisitantes);
+					List<String> listaTribunaisRequisitantesPendentesAprovacao = Utils.getValuesOnlyInA(listaTribunaisRequisitantesIssue, tribunaisRevisoresIssue);
+					
+					aprovacoesMRTextModel.setAprovacoesNecessarias(aprovacoesNecessarias);
+					aprovacoesMRTextModel.setAprovacoesRealizadas(aprovacoesRealizadas);
+					aprovacoesMRTextModel.setAprovou(adicaoDeLabel);
+					aprovacoesMRTextModel.setIssue(issue);
+					aprovacoesMRTextModel.setMergeRequest(gitlabEventMR.getObjectAttributes());
+					aprovacoesMRTextModel.setUltimoRevisor(revisorJira);
+					aprovacoesMRTextModel.setUsuariosResponsaveisAprovacoes(responsaveisRevisao);
+					aprovacoesMRTextModel.setTribunaisRequisitantesPendentes(listaTribunaisRequisitantesPendentesAprovacao);
+					
+					boolean houveAlteracoesNasAprovacoes = !(aprovacoesRealizadasAnterior.equals(aprovacoesRealizadas));
+					Map<String, Object> updateFields = new HashMap<>();
+					
+					// aprovacoes realizadas
+					jiraService.atualizarAprovacoesRealizadas(issue, aprovacoesRealizadas, updateFields);
+					// usuarios responsaveis aprovacoes
+					jiraService.atualizarResponsaveisRevisao(issue, responsaveisRevisao, updateFields);
+					// atualiza tribunais responsaveis aprovacoes
+					jiraService.atualizarTribunaisRevisores(issue, tribunaisRevisoresIssue, updateFields);
+					
+					// adiciona os MR abertos
+					String MRsAbertos = issue.getFields().getMrAbertos();
+					String urlMR = gitlabEventMR.getObjectAttributes().getUrl();
+					MRsAbertos = Utils.concatenaItensUnicosStrings(MRsAbertos, urlMR);
+					
+					String MrsAbertosConfirmados = gitlabService.checkMRsOpened(MRsAbertos);
+					jiraService.atualizarMRsAbertos(issue, MrsAbertosConfirmados, updateFields, true);
+					
+					// se o usuário não é de serviço - publica a altearção como um comentário na issue
+					if(!jiraService.isServico(revisorJira)) {
+						if(houveAlteracoesNasAprovacoes) {
+							// adiciona o comentário
+							JiraMarkdown jiraMarkdown = new JiraMarkdown();
+							String aprovacoesMRTextJira = aprovacoesMRTextModel.convert(jiraMarkdown);
+							jiraService.adicionarComentario(issue, aprovacoesMRTextJira, updateFields);
+						}
+					}
+					
+					if(updateFields != null && !updateFields.isEmpty()) {
+						enviarAlteracaoJira(issue, updateFields, null, JiraService.TRANSITION_PROPERTY_KEY_EDICAO_AVANCADA, false, false);
+					}
+					
+					if(!jiraService.isServico(revisorJira)) {
+						if(houveAlteracoesNasAprovacoes) {
+							RocketchatMarkdown rocketchatMarkdown = new RocketchatMarkdown();
+							String aprovacoesMRTextRocketchat = aprovacoesMRTextModel.convert(rocketchatMarkdown);
+							
+							// envia mensagens para os tribunais requisitantes da demanda
+							rocketchatService.sendMessageCanaisEspecificos(aprovacoesMRTextRocketchat, listaTribunaisRequisitantesIssue);
+							// envia mensagens para o grupo revisor
+							rocketchatService.sendMessageGrupoRevisorTecnico(aprovacoesMRTextRocketchat);
+							
+							// envia para o MR relacionado
+							GitlabMarkdown gitlabMarkdown = new GitlabMarkdown();
+							String aprovacoesMRTextGitlab = aprovacoesMRTextModel.convert(gitlabMarkdown);
+							gitlabService.sendMergeRequestComment(gitlabProjectId, mrIID, aprovacoesMRTextGitlab);
+						}
+					}
+					
+					if(aprovacoesRealizadas >= aprovacoesNecessarias && gitlabEventMR.getObjectAttributes() != null) {
+						// aprovar o MR
+						GitlabMRResponse response = gitlabService.acceptMergeRequest(gitlabProjectId, mrIID);
+						if(response == null) {
+							messages.error("Houve um erro ao tentar aceitar o MR: "+ mrIID + " - do projeto: " + gitlabProjectId);
+						}
+					}
+					
 				}else {
-					StringBuilder mensagemRevertLabels = new StringBuilder();
-					GitlabMarkdown gitlabMarkdown = new GitlabMarkdown();
-					String issueLink = JiraUtils.getPathIssue(issue.getKey(), jiraUrl);
-
-					mensagemRevertLabels
+					messages.error("O usuário " + revisorJira.getName() + " não possui permissão para alterar uma ou mais labels do MR, revertendo alterações.");
+					
+					// reverter a alteração indicando o motivo:
+					/**
+					 * - usuário não é um revisor habilitado
+					 * - usuário é o autor do último commit do branch
+					 * - usuário é o responsável pela codificação da issue
+					 */
+					List<GitlabLabel> labelsAnteriores = alteracaoNasLabels.getPrevious();
+					List<String> labels = new ArrayList<>();
+					for (GitlabLabel label : labelsAnteriores) {
+						labels.add(label.getTitle());
+					}
+					
+					GitlabMRResponse response = gitlabService.atualizaLabelsMR(gitlabEventMR.getObjectAttributes(), labels);
+					if(response == null) {
+						messages.error("Houve um erro ao tentar reverter a altearção nas labels do MR :: MRIID=" + mrIID 
+								+ " - labels:\n" + labels);
+					}else {
+						StringBuilder mensagemRevertLabels = new StringBuilder();
+						GitlabMarkdown gitlabMarkdown = new GitlabMarkdown();
+						String issueLink = JiraUtils.getPathIssue(issue.getKey(), jiraUrl);
+						
+						mensagemRevertLabels
 						.append(gitlabMarkdown.normal("As labels: "))
 						.append(gitlabMarkdown.normal(String.join(", ", labels)))
 						.append(gitlabMarkdown.normal(" foram reestabelecidas, pois o usuário"));
-					String motivoReversao = " não tem permissão para alterar uma ou todas as labels alteradas";
-					if(permissaoUsuario.equals(TipoPermissaoMREnum.SEM_PERMISSAO_AUTOR_COMMIT)) {
-						motivoReversao = " é o autor do último commit";
-					}else if(permissaoUsuario.equals(TipoPermissaoMREnum.SEM_PERMISSAO_RESPONSAVEL_CODIFICACAO)) {
-						motivoReversao = " é o responsável pela codificação na issue " + gitlabMarkdown.link(issueLink, issue.getKey());
-					}
-					mensagemRevertLabels
+						String motivoReversao = " não tem permissão para alterar uma ou todas as labels alteradas";
+						if(permissaoUsuario.equals(TipoPermissaoMREnum.SEM_PERMISSAO_AUTOR_COMMIT)) {
+							motivoReversao = " é o autor do último commit";
+						}else if(permissaoUsuario.equals(TipoPermissaoMREnum.SEM_PERMISSAO_RESPONSAVEL_CODIFICACAO)) {
+							motivoReversao = " é o responsável pela codificação na issue " + gitlabMarkdown.link(issueLink, issue.getKey());
+						}
+						mensagemRevertLabels
 						.append(gitlabMarkdown.bold(motivoReversao))
 						.append(".");
-					gitlabService.sendMergeRequestComment(gitlabProjectId, mrIID, mensagemRevertLabels.toString());
+						gitlabService.sendMergeRequestComment(gitlabProjectId, mrIID, mensagemRevertLabels.toString());
+					}
 				}
+			}else {
+				messages.info("A alteração nas labels não afetou as labels de aprovações dos tribunais");
 			}
+			
 		}
 	}
 	
@@ -364,8 +373,6 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 				issueKey = Utils.getIssueKeyFromCommitMessage(lastCommitTitle);
 			}
 			
-			// FIXME - retirar esta treta daqui, isso é só para testes
-			issueKey = "TESTE-83";
 			if(StringUtils.isNotBlank(issueKey)) {
 				issue = jiraService.recuperaIssueDetalhada(issueKey);
 			}
@@ -438,7 +445,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 		if(labelsMR != null) {
 			for (String labelMR : labelsMR) {
 				if(StringUtils.isNotBlank(labelMR) && (labelMR.startsWith(GitlabService.PREFIXO_LABEL_APROVACAO_TRIBUNAL)) ) {
-					String siglaTribunal = labelMR.replaceAll(GitlabService.PREFIXO_LABEL_APROVACAO_TRIBUNAL, "");
+					String siglaTribunal = labelMR.replaceAll(GitlabService.PREFIXO_LABEL_APROVACAO_TRIBUNAL, "").replaceAll("_", "").trim();
 					labelsAprovacao.add(siglaTribunal);
 				}
 			}
@@ -446,13 +453,17 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 		return labelsAprovacao;
 	}
 	
-	private List<String> identificaLabelsAprovacaoPeloSufixo(List<String> sufixos){
+	private List<String> identificaLabelsAprovacaoPeloSufixo(List<String> sufixos, List<String> labelsOriginais){
 		List<String> labelsAprovacao = new ArrayList<>();
-		if(sufixos != null) {
+		if(labelsOriginais != null && sufixos != null) {
 			for (String sufixo : sufixos) {
 				if(StringUtils.isNotBlank(sufixo)) {
-					String nomeLabelAprovacao = GitlabService.PREFIXO_LABEL_APROVACAO_TRIBUNAL + sufixo;
-					labelsAprovacao.add(nomeLabelAprovacao);
+					for (String labelOriginal : labelsOriginais) {
+						if(StringUtils.isNotBlank(labelOriginal) && labelOriginal.startsWith(GitlabService.PREFIXO_LABEL_APROVACAO_TRIBUNAL) && labelOriginal.endsWith(sufixo)) {
+							labelsAprovacao.add(labelOriginal);
+							break;
+						}
+					}
 				}
 			}
 		}
@@ -511,7 +522,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 	}
 	
 	private void removeLabelsSemTribunalRevisorNaIssue(GitlabMergeRequestAttributes mergeRequest, JiraIssue issue,
-			List<String> labelsAprovacoesTribunais, List<String> tribunaisRevisores) throws Exception {
+			List<String> labelsAprovacoesTribunais, List<String> tribunaisRevisores, List<String> labelsOriginais) throws Exception {
 		
 		List<String> labelsSemTribunaisAprovadores = identificaLabelsSemTribunalRevisorNaIssue(labelsAprovacoesTribunais, tribunaisRevisores);
 
@@ -520,7 +531,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 			BigDecimal mrIID = mergeRequest.getIid();
 			String gitlabProjectId = mergeRequest.getTargetProjectId().toString();
 
-			List<String> nomesLabelsRemover = identificaLabelsAprovacaoPeloSufixo(labelsSemTribunaisAprovadores);
+			List<String> nomesLabelsRemover = identificaLabelsAprovacaoPeloSufixo(labelsSemTribunaisAprovadores, labelsOriginais);
 			GitlabMRResponse response = gitlabService.removeLabelsMR(mergeRequest, nomesLabelsRemover);
 			if(response == null) {
 				messages.error("Houve um erro ao tentar remover as labels do MR :: MRIID=" + mrIID 

@@ -44,12 +44,12 @@ public class GitlabMarkdown implements MarkdownInterface{
 
 	@Override
 	public String bold(String text) {
-		return "**" + text + "**";
+		return " **" + text + "** ";
 	}
 
 	@Override
 	public String italic(String text) {
-		return "*" + text + "*";
+		return " *" + text + "* ";
 	}
 
 	@Override
@@ -121,7 +121,7 @@ public class GitlabMarkdown implements MarkdownInterface{
 
 	@Override
 	public String newLine() {
-		return "\n";
+		return "\n\n";
 	}
 	
 	@Override
