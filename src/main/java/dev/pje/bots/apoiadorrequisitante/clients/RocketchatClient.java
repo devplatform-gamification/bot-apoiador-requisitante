@@ -14,6 +14,7 @@ import com.devplatform.model.rocketchat.RocketchatUser;
 import com.devplatform.model.rocketchat.request.RocketchatDirectMessageRequest;
 import com.devplatform.model.rocketchat.request.RocketchatPostMessageRequest;
 import com.devplatform.model.rocketchat.response.RocketchatChannelsResponse;
+import com.devplatform.model.rocketchat.response.RocketchatGroupsResponse;
 import com.devplatform.model.rocketchat.response.RocketchatPostMessageResponse;
 import com.devplatform.model.rocketchat.response.RocketchatRoomResponse;
 import com.devplatform.model.rocketchat.response.RocketchatSendMessageResponse;
@@ -26,6 +27,10 @@ public interface RocketchatClient {
 
 	@GetMapping(value = "/api/v1/channels.list?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public RocketchatChannelsResponse getChannels(
+			@SpringQueryMap Map<String, Object> options);
+
+	@GetMapping(value = "/api/v1/groups.list?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public RocketchatGroupsResponse getGroups(
 			@SpringQueryMap Map<String, Object> options);
 
 	@GetMapping(value = "/api/v1/users.list?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)

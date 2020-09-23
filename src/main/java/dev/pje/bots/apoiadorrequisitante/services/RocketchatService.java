@@ -18,6 +18,7 @@ import com.devplatform.model.rocketchat.RocketchatRoom;
 import com.devplatform.model.rocketchat.RocketchatUser;
 import com.devplatform.model.rocketchat.request.RocketchatPostMessageRequest;
 import com.devplatform.model.rocketchat.response.RocketchatChannelsResponse;
+import com.devplatform.model.rocketchat.response.RocketchatGroupsResponse;
 import com.devplatform.model.rocketchat.response.RocketchatPostMessageResponse;
 import com.devplatform.model.rocketchat.response.RocketchatUsersResponse;
 
@@ -225,9 +226,8 @@ public class RocketchatService {
 		
 		return users;
 	}
-	
-	
-	@Cacheable(cacheNames = "rocket-user-from-name")
+
+	@Cacheable(cacheNames = "rocket-channel-from-name")
 	public RocketchatRoom findChannel(String nameOrId) {
 		/**
 			{
@@ -286,6 +286,46 @@ public class RocketchatService {
 
 	@Cacheable(cacheNames = "rocket-get-channels")
 	public List<RocketchatRoom> getChannels(Map<String, Object> elementN0){
+		List<RocketchatRoom> rooms = getPublicChannels(elementN0);
+		if(rooms == null || rooms.isEmpty()) {
+			rooms = getPrivateChannels(elementN0);
+		}
+		
+		return rooms;
+	}
+	
+	@Cacheable(cacheNames = "rocket-get-private-channels")
+	public List<RocketchatRoom> getPrivateChannels(Map<String, Object> elementN0){
+		List<RocketchatRoom> rooms = new ArrayList<>();
+		Integer startAt = 0;
+		boolean finalizado = false;
+		try {
+			while(!finalizado) {
+				elementN0.put("offset", startAt.toString());
+				RocketchatGroupsResponse response = rocketchatClient.getGroups(elementN0);
+				
+				if(response != null && response.getSuccess() && response.getTotal() > 0) {
+					if((response.getCount() + response.getOffset()) <= response.getTotal() ) {
+						startAt += (response.getCount() + response.getOffset());
+						rooms.addAll(response.getGroups());
+					}
+				}
+				if(response == null || !response.getSuccess() || response.getCount() == 0 || startAt >= response.getTotal()) {
+					finalizado = true;
+					break;
+				}
+			}
+		}catch (Exception e) {
+			String errorMsg = "Houve um problema ao recuperar a lista de grupos com a query: "+ elementN0.toString() + " - erro: " + e.getLocalizedMessage();
+			logger.error(errorMsg);
+		}
+		
+		return rooms;
+	}
+	
+	
+	@Cacheable(cacheNames = "rocket-get-public-channels")
+	public List<RocketchatRoom> getPublicChannels(Map<String, Object> elementN0){
 		List<RocketchatRoom> rooms = new ArrayList<>();
 		Integer startAt = 0;
 		boolean finalizado = false;

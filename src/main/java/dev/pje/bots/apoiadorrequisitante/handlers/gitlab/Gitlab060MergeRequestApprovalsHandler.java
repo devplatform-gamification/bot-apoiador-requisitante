@@ -228,7 +228,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 					}
 					
 					if(!jiraService.isServico(revisorJira)) {
-						if(houveAlteracoesNasAprovacoes) {
+						if(true || houveAlteracoesNasAprovacoes) {
 							RocketchatMarkdown rocketchatMarkdown = new RocketchatMarkdown();
 							String aprovacoesMRTextRocketchat = aprovacoesMRTextModel.convert(rocketchatMarkdown);
 							
