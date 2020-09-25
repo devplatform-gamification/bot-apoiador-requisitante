@@ -37,5 +37,5 @@ public class Scheduler {
 		logger.info(msg);
 		
 		amqpProducer.sendMessageGeneric(msg, routingKey);
-   }
+   }	
 }

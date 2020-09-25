@@ -48,7 +48,7 @@ public interface GitlabClient {
 	public List<GitlabUser> findUser(
 			@SpringQueryMap Map<String, String> search
 			);
-	
+
 	@GetMapping(value = "/api/v4/projects/{projectId}/repository/files/{filepath}/raw?ref={ref}", consumes = "application/json")
 	@DecodeSlash(value = false)
 	public String getRawFile(

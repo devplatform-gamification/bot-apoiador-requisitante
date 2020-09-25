@@ -194,6 +194,7 @@ public class JiraService {
 	public static final String FIELD_FIX_VERSION = "fixVersions";
 	public static final String FIELD_COMMENT = "comment";
 	public static final String FIELD_TRIBUNAIS_REQUISITANTES = "customfield_11700";
+	public static final String FIELD_APROVADO_POR = "customfield_13836";
 	public static final String FIELD_APROVACOES_REALIZADAS = "customfield_13835";
 	public static final String FIELD_TRIBUNAIS_RESPONSAVEIS_REVISAO = "customfield_14018";
 	public static final String FIELD_USUARIOS_RESPONSAVEIS_REVISAO = "customfield_14017";
@@ -794,6 +795,22 @@ public class JiraService {
 		}
 	}
 
+	public void atualizarAprovadoPor(JiraIssue issue,  String textoAprovadoPor, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if((issueDetalhada.getFields().getAprovadoPor() == null) || !issueDetalhada.getFields().getAprovadoPor().equals(textoAprovadoPor)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_APROVADO_POR, textoAprovadoPor, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_APROVADO_POR) != null) {
+				updateFields.put(FIELD_APROVADO_POR, updateField.get(FIELD_APROVADO_POR));
+			}
+		}
+	}
+	
 	public void atualizarAprovacoesRealizadas(JiraIssue issue,  Integer aprovacoesRealizadas, Map<String, Object> updateFields) throws Exception {
 		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
 
@@ -1309,6 +1326,7 @@ public class JiraService {
 						FIELD_MRS_ACEITOS.equals(fieldName) ||
 						FIELD_MRS_ABERTOS.equals(fieldName) ||
 						FIELD_BRANCHES_RELACIONADOS.equals(fieldName) ||
+						FIELD_APROVADO_POR.equals(fieldName) || 
 						
 						FIELD_MENSAGEM_ROCKETCHAT.equals(fieldName) ||
 						FIELD_MENSAGEM_SLACK.equals(fieldName) ||

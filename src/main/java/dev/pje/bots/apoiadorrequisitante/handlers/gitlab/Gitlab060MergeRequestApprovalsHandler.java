@@ -185,18 +185,6 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 					List<String> listaTribunaisRequisitantesIssue = JiraUtils.translateFieldOptionsToValueList(tribunaisRequisitantes);
 					List<String> listaTribunaisRequisitantesPendentesAprovacao = Utils.getValuesOnlyInA(listaTribunaisRequisitantesIssue, tribunaisRevisoresIssue);
 					
-					aprovacoesMRTextModel.setAprovacoesNecessarias(aprovacoesNecessarias);
-					aprovacoesMRTextModel.setAprovacoesRealizadas(aprovacoesRealizadas);
-					aprovacoesMRTextModel.setAprovou(adicaoDeLabel);
-					aprovacoesMRTextModel.setIssue(issue);
-					aprovacoesMRTextModel.setMergeRequest(gitlabEventMR.getObjectAttributes());
-					aprovacoesMRTextModel.setUltimoRevisor(revisorJira);
-					aprovacoesMRTextModel.setUsuariosResponsaveisAprovacoes(responsaveisRevisao);
-					aprovacoesMRTextModel.setTribunaisRequisitantesPendentes(listaTribunaisRequisitantesPendentesAprovacao);
-					
-					if(issue.getFields().getResponsaveisRevisao() == null && responsaveisRevisao != null) {
-						
-					}
 					boolean houveAlteracoesNasAprovacoes = verificaSeHouveAlteracaoRevisores(responsaveisRevisao, tribunaisRevisoresIssue, issue);
 					Map<String, Object> updateFields = new HashMap<>();
 					
@@ -215,6 +203,15 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 					String MrsAbertosConfirmados = gitlabService.checkMRsOpened(MRsAbertos);
 					jiraService.atualizarMRsAbertos(issue, MrsAbertosConfirmados, updateFields, true);
 					
+					aprovacoesMRTextModel.setAprovacoesNecessarias(aprovacoesNecessarias);
+					aprovacoesMRTextModel.setAprovacoesRealizadas(aprovacoesRealizadas);
+					aprovacoesMRTextModel.setAprovou(adicaoDeLabel);
+					aprovacoesMRTextModel.setIssue(issue);
+					aprovacoesMRTextModel.setMergeRequest(gitlabEventMR.getObjectAttributes());
+					aprovacoesMRTextModel.setUltimoRevisor(revisorJira);
+					aprovacoesMRTextModel.setUsuariosResponsaveisAprovacoes(responsaveisRevisao);
+					aprovacoesMRTextModel.setTribunaisRequisitantesPendentes(listaTribunaisRequisitantesPendentesAprovacao);
+
 					// se o usuário não é de serviço - publica a altearção como um comentário na issue
 					if(!jiraService.isServico(revisorJira)) {
 						if(houveAlteracoesNasAprovacoes) {

@@ -195,13 +195,15 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 								}else {
 									projectPath = estruturaDocumentacao.getCategoriaPathDiretorio();
 								}
-								if(projectPath.contains("html")) {
+								if(StringUtils.isNotBlank(projectPath) && projectPath.contains("html")) {
 									String fileNameHtml = Utils.getFileNameFromFilePath(projectPath);
 									documentoPrincipalNomeAdoc = fileNameHtml.replace(JiraService.FILENAME_SUFFIX_HTML, JiraService.FILENAME_SUFFIX_ADOC);
 
 									projectPath = Utils.getPathFromFilePath(projectPath);
 								}else {
-									documentoPrincipalNomeAdoc = anexoAdoc.getFilename();
+									if(anexoAdoc != null) {
+										documentoPrincipalNomeAdoc = anexoAdoc.getFilename();
+									}
 								}
 							}
 
@@ -641,7 +643,7 @@ public class Documentation02CreateSolutionHandler extends Handler<JiraEventIssue
 		if(StringUtils.isNotBlank(conteudoArquivoIndex)) {
 			String[] linhas = conteudoArquivoIndex.split("\n");
 			for (String linha : linhas) {
-				if(linha.contains(subCategoryName)) {
+				if(StringUtils.isNotBlank(subCategoryName) && linha.contains(subCategoryName)) {
 					fullPath = Utils.getPathFromAsciidocLink(linha);
 					break;
 				}
