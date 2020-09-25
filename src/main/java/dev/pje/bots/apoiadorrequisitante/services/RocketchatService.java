@@ -14,6 +14,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.devplatform.model.rocketchat.RocketchatEmail;
+import com.devplatform.model.rocketchat.RocketchatMessageAttachment;
 import com.devplatform.model.rocketchat.RocketchatRoom;
 import com.devplatform.model.rocketchat.RocketchatUser;
 import com.devplatform.model.rocketchat.request.RocketchatPostMessageRequest;
@@ -57,15 +58,15 @@ public class RocketchatService {
 		}
 	}
 	
-	public void sendMessageToUsername(String username, String text) {
+	public void sendMessageToUsername(String username, String text, boolean showUrlPreview) {
 		String channel = null;
 		if(StringUtils.isNotBlank(username)) {
 			channel = "@" + username;
-			sendSimpleMessage(channel, text);
+			sendSimpleMessage(channel, text, showUrlPreview);
 		}
 	}
 	
-	public void sendSimpleMessage(String channel, String text) {
+	public void sendSimpleMessage(String channel, String text, boolean showUrlPreview) {
 		String idChannel = channel;
 		if(StringUtils.isNotBlank(channel) && !channel.startsWith("@")) {
 			RocketchatRoom channelObj = findChannel(channel);
@@ -75,6 +76,10 @@ public class RocketchatService {
 		}
 		if(StringUtils.isNotBlank(idChannel)) {
 			RocketchatPostMessageRequest message = new RocketchatPostMessageRequest(idChannel, text);
+			if(!showUrlPreview) {
+				List<RocketchatMessageAttachment> attachments = new ArrayList<>();
+				message.setAttachments(attachments);
+			}
 			RocketchatPostMessageResponse response = postMessage(message);
 			if(response != null) {
 				logger.debug("Message response: "+ response.toString());
@@ -85,33 +90,33 @@ public class RocketchatService {
 	}
 	
 	public void sendBotMessage(String text) {
-		sendSimpleMessage(GRUPO_BOT_TRIAGEM, text);
+		sendSimpleMessage(GRUPO_BOT_TRIAGEM, text, false);
 	}
 
 	public void sendMessageGrupoRevisorTecnico(String text) {
-		sendSimpleMessage(GRUPO_REVISOR_TECNICO, text);
+		sendSimpleMessage(GRUPO_REVISOR_TECNICO, text, false);
 	}
 	
 	public void sendMessageGrupoNegocial(String text) {
-		sendSimpleMessage(GRUPO_NEGOCIAL, text);
+		sendSimpleMessage(GRUPO_NEGOCIAL, text, false);
 	}
 	
-	public void sendMessagePJENews(String text) {
-		sendSimpleMessage(GRUPO_PJE_NEWS, text);
+	public void sendMessagePJENews(String text, boolean showUrlPreview) {
+		sendSimpleMessage(GRUPO_PJE_NEWS, text, showUrlPreview);
 	}
 	
-	public void sendMessagePlataformaPJEDev(String text) {
-		sendSimpleMessage(GRUPO_PJE_DEV_PLATFORM, text);
+	public void sendMessagePlataformaPJEDev(String text, boolean showUrlPreview) {
+		sendSimpleMessage(GRUPO_PJE_DEV_PLATFORM, text, showUrlPreview);
 	}
 	
-	public void sendMessageGeral(String text) {
-		sendSimpleMessage(GRUPO_GERAL, text);
+	public void sendMessageGeral(String text, boolean showUrlPreview) {
+		sendSimpleMessage(GRUPO_GERAL, text, showUrlPreview);
 	}
 
-	public void sendMessageCanaisEspecificos(String text, List<String> canais) {
+	public void sendMessageCanaisEspecificos(String text, List<String> canais, boolean showUrlPreview) {
 		if(canais != null && !canais.isEmpty()) {
 			for (String canal : canais) {
-				sendSimpleMessage(canal, text);
+				sendSimpleMessage(canal, text, showUrlPreview);
 			}
 		}
 	}

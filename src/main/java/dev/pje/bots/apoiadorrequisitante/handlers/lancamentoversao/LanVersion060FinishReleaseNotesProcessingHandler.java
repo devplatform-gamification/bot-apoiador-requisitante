@@ -277,7 +277,7 @@ public class LanVersion060FinishReleaseNotesProcessingHandler extends Handler<Ji
 		if(StringUtils.isNotBlank(mensagemRoketchat)) {
 			rocketchatService.sendBotMessage(mensagemRoketchat);
 			if(comunicarCanaisOficiais) {
-				rocketchatService.sendMessageGeral(mensagemRoketchat);
+				rocketchatService.sendMessageGeral(mensagemRoketchat, false);
 				rocketchatService.sendMessageGrupoRevisorTecnico(mensagemRoketchat);
 				rocketchatService.sendMessageGrupoNegocial(mensagemRoketchat);
 			}

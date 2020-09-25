@@ -160,7 +160,7 @@ public class Gamification010ClassificarAreasConhecimentoHandler extends Handler<
 						RocketchatMarkdown rocketMarkdown = new RocketchatMarkdown();
 						String rocketAtualizacaoClassificacaoText = atualizacaoClassificacaoTextModel.convert(rocketMarkdown);
 						rocketchatService.sendBotMessage(rocketAtualizacaoClassificacaoText);
-						rocketchatService.sendMessagePlataformaPJEDev(rocketAtualizacaoClassificacaoText);						
+						rocketchatService.sendMessagePlataformaPJEDev(rocketAtualizacaoClassificacaoText, false);						
 
 						/**
 						 * Atualização da classificação das áreas de conhecimento em: DD/MM/YYYY

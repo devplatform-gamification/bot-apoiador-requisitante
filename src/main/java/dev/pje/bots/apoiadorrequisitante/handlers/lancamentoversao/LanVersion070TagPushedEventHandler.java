@@ -208,7 +208,7 @@ public class LanVersion070TagPushedEventHandler extends Handler<GitlabEventPushT
 											RocketchatUser rocketUser = rocketchatService.findUser(usuarioCommiter.getEmailAddress());
 											if(rocketUser != null) {
 												String rocketUserName = rocketUser.getUsername();
-												rocketchatService.sendMessageToUsername(rocketUserName, rocketMessage);
+												rocketchatService.sendMessageToUsername(rocketUserName, rocketMessage, false);
 											}
 										}
 										// publica nos grupos grupo revisor negocial e revisor técnico do rocketchat

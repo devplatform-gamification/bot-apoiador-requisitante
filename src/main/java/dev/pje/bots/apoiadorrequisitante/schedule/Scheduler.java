@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dev.pje.bots.apoiadorrequisitante.amqp.config.AmqpProducer;
+import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira060MonitoramentoDemandasEmRevisaoHandler;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 
 @Component
@@ -26,6 +27,7 @@ public class Scheduler {
 
     /**
      * Executa todas as últimas sextas, sábado e domingo do mês à 1 hora, 5 minutos da manhã
+     * Reference: https://crontab.cronhub.io/
      * @throws Exception 
      */
 	@Scheduled(cron = "0 5 1 24-31 * 5-7")
@@ -37,5 +39,23 @@ public class Scheduler {
 		logger.info(msg);
 		
 		amqpProducer.sendMessageGeneric(msg, routingKey);
+   }	
+
+	@Autowired
+	Jira060MonitoramentoDemandasEmRevisaoHandler jira060MonitoramentoDemandasEmRevisao;
+    /**
+     * Executa todas as segundas-feiras às 5h20 da manhã
+     * Reference: https://crontab.cronhub.io/
+     * @throws Exception 
+     */
+	@Scheduled(cron = "0 20 5 * * 1")
+	public void verificaDemandasRevisaoPendenteDeTribunalRequisitante() throws Exception {
+		SimpleDateFormat sdf = new SimpleDateFormat(JiraService.JIRA_DATETIME_PATTERN);
+		Date now = new Date();
+		String strDate = sdf.format(now);
+		String msg = "Verificando as demandas em revisão que estão pendentes de homologação pelo tribunal requisitante :: " + strDate;
+		logger.info(msg);
+		
+		jira060MonitoramentoDemandasEmRevisao.handle(msg);
    }	
 }

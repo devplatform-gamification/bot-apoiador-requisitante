@@ -205,7 +205,7 @@ public class LanVersion020GenerateReleaseCandidateHandler extends Handler<JiraEv
 		if(StringUtils.isNotBlank(mensagemRoketchat)) {
 			rocketchatService.sendBotMessage(mensagemRoketchat);
 			if(comunicarCanaisOficiais) {
-				rocketchatService.sendMessageGeral(mensagemRoketchat);
+				rocketchatService.sendMessageGeral(mensagemRoketchat, false);
 				rocketchatService.sendMessageGrupoRevisorTecnico(mensagemRoketchat);
 				rocketchatService.sendMessageGrupoNegocial(mensagemRoketchat);
 			}

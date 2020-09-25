@@ -701,6 +701,27 @@ public class GitlabService {
 		return MRs;
 	}
 
+	public List<GitlabMRResponse> findMergeRequestAllProjects(Map<String, String> options){
+		List<GitlabMRResponse> MRs = null;
+		try {
+			MRs = gitlabClient.findMergeRequestAllProjects(options);
+		}catch (Exception e) {
+			String msgError = "Erro ao buscar MRs: erro: " + e.getLocalizedMessage();
+			logger.error(msgError);
+			telegramService.sendBotMessage(msgError);
+		}
+		return MRs;
+	}
+	
+	public List<GitlabMRResponse> findAllOpenMergeRequestsFromIssueKey(String issueKey){
+		Map<String, String> options = new HashMap<String, String>();
+		options.put("state", GitlabMergeRequestStateEnum.OPENED.toString());
+		options.put("search", issueKey);
+		options.put("in", "title");
+		
+		return findMergeRequestAllProjects(options);
+	}
+
 	public GitlabMRResponse getMergeRequest(String projectId, BigDecimal mergeRequestIId){
 		GitlabMRResponse MR = null;
 		try {

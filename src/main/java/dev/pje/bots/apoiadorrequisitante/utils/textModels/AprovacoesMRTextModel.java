@@ -87,6 +87,12 @@ public class AprovacoesMRTextModel extends AbstractTextModel {
 		StringBuilder markdownText = new StringBuilder();
 
 		String username = getUsername(ultimoRevisor, markdown);
+		if(aprovacoesRealizadas == null) {
+			aprovacoesRealizadas = 0;
+		}
+		if(aprovacoesNecessarias == null) {
+			aprovacoesNecessarias = 0;
+		}
 
 		String referUser = markdown.referUser(username);
 		if (StringUtils.isBlank(referUser) || referUser.equals(username)) {

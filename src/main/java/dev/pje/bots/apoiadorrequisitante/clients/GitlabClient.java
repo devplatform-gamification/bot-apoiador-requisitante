@@ -146,6 +146,11 @@ public interface GitlabClient {
 			@SpringQueryMap Map<String, String> options
 			);
 
+	@GetMapping(value = "/api/v4/projects/merge_requests?{options}", consumes = "application/json")
+	public List<GitlabMRResponse> findMergeRequestAllProjects(
+			@SpringQueryMap Map<String, String> options
+			);
+
 	@PostMapping(value = "/api/v4/projects/{projectId}/merge_requests", consumes = "application/json")
 	public GitlabMRResponse createMergeRequest(
 			@PathVariable("projectId") String projectId,

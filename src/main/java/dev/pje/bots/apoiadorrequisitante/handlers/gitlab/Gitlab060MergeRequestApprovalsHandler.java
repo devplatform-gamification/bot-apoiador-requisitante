@@ -232,7 +232,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 							String aprovacoesMRTextRocketchat = aprovacoesMRTextModel.convert(rocketchatMarkdown);
 							
 							// envia mensagens para os tribunais requisitantes da demanda
-							rocketchatService.sendMessageCanaisEspecificos(aprovacoesMRTextRocketchat, listaTribunaisRequisitantesIssue);
+							rocketchatService.sendMessageCanaisEspecificos(aprovacoesMRTextRocketchat, listaTribunaisRequisitantesIssue, false);
 							// envia mensagens para o grupo revisor
 							rocketchatService.sendMessageGrupoRevisorTecnico(aprovacoesMRTextRocketchat);
 							
