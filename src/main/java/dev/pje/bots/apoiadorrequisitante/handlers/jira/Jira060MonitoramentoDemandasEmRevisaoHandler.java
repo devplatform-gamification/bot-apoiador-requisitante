@@ -113,7 +113,6 @@ public class Jira060MonitoramentoDemandasEmRevisaoHandler extends Handler<String
 				tribunalRevisaoMRPendenteTextModel.setSiglaTribunal(tribunal);
 				
 				String demandasRevisaoPendenteTextRocketchat = tribunalRevisaoMRPendenteTextModel.convert(rocketchatMarkdown);
-				tribunal = "tjmt_r";
 				rocketchatService.sendSimpleMessage(tribunal, demandasRevisaoPendenteTextRocketchat, false);
 			}
 		}
