@@ -443,12 +443,12 @@ public class AmqpConsumer {
 	public void lanVer060FinishReleaseNotesProcessing(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
 			String body = new String(msg.getBody());
-			if((Object) body instanceof JiraEventIssue) {
+			try {
 				JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
 				String issueKey = jiraEventIssue.getIssue().getKey();
 				logger.info(lanversion060.getMessagePrefix() + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
 				lanversion060.handle(jiraEventIssue);
-			}else {
+			}catch (Exception e) {
 				logger.error(lanversion060.getMessagePrefix() + " A mensagem recebida não é compatível com o tipo esperado: " + body);
 			}
 		}

@@ -109,59 +109,42 @@ public class Utils {
 	}
 
 	/**
+	 * Changes the version number index
 	 * 
 	 * @param currentVersion
 	 * @param changeIndex
 	 * @param versionNumDigits
 	 * @return
 	 */
-	public static String calculateNextOrdinaryVersion(String currentVersion, int changeIndex, int versionNumDigits) {
+	public static String calculateNextOrdinaryVersion(String currentVersion, int changeIndex, int numDigits) {
 		String[] currentVersionArr = currentVersion.split("\\.");
-		String nextVersion = "";
+		List<String> nextVersionList = new ArrayList<>();
 		
-		for(int i=0; i < currentVersionArr.length && i < changeIndex; i++) {
-			if(i > 0) {
-				nextVersion += ".";
+		String itemToChange = "0";
+		for(int i=0; i < currentVersionArr.length; i++) {
+			nextVersionList.add(currentVersionArr[i]);
+			if(i == changeIndex) {
+				itemToChange = currentVersionArr[i];
+				break;
 			}
-			nextVersion += currentVersionArr[i];
 		}
-		
-		if(changeIndex > 0) {
-			nextVersion += ".";
+
+		if(StringUtils.isNotBlank(itemToChange) && StringUtils.isNumeric(itemToChange)) {
+			Integer changedItem = Integer.valueOf(itemToChange) + 1;
+			nextVersionList.add(changedItem.toString());
 		}
-		Integer changedItem = 0;
-		if(currentVersionArr.length >= changeIndex) {
-			String changedItemStr = "0";
-			if(currentVersionArr.length > changeIndex) {
-				changedItemStr = currentVersionArr[changeIndex];
-			}
-			changedItem = Integer.valueOf(changedItemStr) + 1;
-		}
-		nextVersion += changedItem.toString();
-		nextVersion = completeWithZeroDigits(nextVersion, versionNumDigits);
+		nextVersionList.addAll(getListOfZeroDigits(numDigits - nextVersionList.size()));
+		String nextVersion = String.join(".", nextVersionList);
 		
 		return nextVersion;
 	}
-	
-	private static String completeWithZeroDigits(String versionDefinedDigits, int versionNumDigits) {
-		String versionCompleted = "";
-		int numDefinedDigits = 0;
-		if(StringUtils.isNotBlank(versionDefinedDigits)) {
-			String[] versionArr = versionDefinedDigits.split("\\.");
-			numDefinedDigits = versionArr.length;
-			versionCompleted = versionDefinedDigits;
+
+	private static List<String> getListOfZeroDigits(int numDigits) {
+		List<String> zeroDigits = new ArrayList<>();
+		for(int i=0; i < numDigits; i++) {
+			zeroDigits.add("0");
 		}
-		if(numDefinedDigits < versionNumDigits) {
-			List<String> zeroList = new ArrayList<>();
-			for(int i=0; i < (numDefinedDigits - versionNumDigits); i++) {
-				zeroList.add("0");
-			}
-			if(numDefinedDigits > 0) {
-				versionCompleted += ".";
-			}
-			versionCompleted += String.join(".", zeroList);
-		}
-		return versionCompleted;
+		return zeroDigits;
 	}
 	
 	public static String clearVersionNumber(String version) {

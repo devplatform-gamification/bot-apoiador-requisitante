@@ -189,9 +189,8 @@ public class LanVersion050ProcessReleaseNotesHandler extends Handler<JiraEventIs
 		if(repositoryBranch != null) {
 			messages.info("Fazendo as alterações no branch: "+ branchName + " do projeto: " + gitlabProjectId);
 			String actualVersion = gitlabService.getActualVersion(gitlabProjectId, branchName, false);
-			String newVersion = releaseNotes.getVersion();
-			
 			String lastCommitId = null;
+			String newVersion = releaseNotes.getVersion();
 			// verifica se é necessário alterar o POM
 			if(StringUtils.isNotBlank(actualVersion) && StringUtils.isNotBlank(newVersion)) {
 				if(!actualVersion.equalsIgnoreCase(newVersion)) {
