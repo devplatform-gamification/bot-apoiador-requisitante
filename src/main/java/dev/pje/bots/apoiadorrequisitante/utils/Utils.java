@@ -533,10 +533,17 @@ public class Utils {
 	}
 	
 	public static String concatenaItensUnicosStrings(String stringA, String stringB) {
+		return concatenaItensUnicosStrings(stringA, stringB, null);
+	}
+	
+	public static String concatenaItensUnicosStrings(String stringA, String stringB, String cola) {
+		if(StringUtils.isBlank(cola)) {
+			cola = " \n";
+		}
 		if(StringUtils.isBlank(stringA)) {
 			stringA = stringB;
 		}else  if(!stringA.contains(stringB)) {
-			stringA += ", " + stringB;
+			stringA += cola + stringB;
 		}
 		
 		return stringA;
