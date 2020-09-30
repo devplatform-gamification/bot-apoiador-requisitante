@@ -122,10 +122,11 @@ public class Utils {
 		
 		String itemToChange = "0";
 		for(int i=0; i < currentVersionArr.length; i++) {
-			nextVersionList.add(currentVersionArr[i]);
 			if(i == changeIndex) {
 				itemToChange = currentVersionArr[i];
 				break;
+			}else {
+				nextVersionList.add(currentVersionArr[i]);
 			}
 		}
 

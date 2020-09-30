@@ -277,7 +277,7 @@ public class LanVersion060FinishReleaseNotesProcessingHandler extends Handler<Ji
 		if(StringUtils.isNotBlank(mensagemRoketchat)) {
 			rocketchatService.sendBotMessage(mensagemRoketchat);
 			if(comunicarCanaisOficiais) {
-				rocketchatService.sendMessageGeral(mensagemRoketchat, false);
+				rocketchatService.sendMessagePJENews(mensagemRoketchat, false);
 				rocketchatService.sendMessageGrupoRevisorTecnico(mensagemRoketchat);
 				rocketchatService.sendMessageGrupoNegocial(mensagemRoketchat);
 			}
@@ -285,7 +285,7 @@ public class LanVersion060FinishReleaseNotesProcessingHandler extends Handler<Ji
 		if(StringUtils.isNotBlank(mensagemSlack)) {
 			slackService.sendBotMessage(mensagemSlack);
 			if(comunicarCanaisOficiais) {
-				slackService.sendMessageGeral(mensagemSlack);
+				slackService.sendMessagePJENews(mensagemSlack);
 				slackService.sendMessageGrupoRevisorTecnico(mensagemSlack);
 				slackService.sendMessageGrupoNegocial(mensagemSlack);
 			}
@@ -294,6 +294,7 @@ public class LanVersion060FinishReleaseNotesProcessingHandler extends Handler<Ji
 			telegramService.sendBotMessageHtml(mensagemTelegram);
 			if(comunicarCanaisOficiais) {
 				telegramService.sendMessageGeralHtml(mensagemTelegram);
+				telegramService.sendMessagePJeNewsHtml(mensagemTelegram);
 			}
 		}
 	}

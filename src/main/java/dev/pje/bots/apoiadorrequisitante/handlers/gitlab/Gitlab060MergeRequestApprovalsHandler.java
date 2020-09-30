@@ -20,6 +20,8 @@ import com.devplatform.model.gitlab.GitlabEventChangedItem;
 import com.devplatform.model.gitlab.GitlabLabel;
 import com.devplatform.model.gitlab.GitlabMergeRequestActionsEnum;
 import com.devplatform.model.gitlab.GitlabMergeRequestAttributes;
+import com.devplatform.model.gitlab.GitlabMergeRequestStateEnum;
+import com.devplatform.model.gitlab.GitlabMergeRequestStatusEnum;
 import com.devplatform.model.gitlab.GitlabUser;
 import com.devplatform.model.gitlab.event.GitlabEventMergeRequest;
 import com.devplatform.model.gitlab.response.GitlabMRResponse;
@@ -350,44 +352,53 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 				List<String> labelsAdicionadas, List<String> labelsRemovidas) {
 		TipoPermissaoMREnum permissaoUsuario = null;
 		
-		if(revisorJira != null && revisorGitlab != null) {
+		if(revisorJira != null && revisorGitlab != null && mergeRequest != null) {
 			if((jiraService.isServico(revisorJira) || jiraService.isLiderProjeto(revisorJira))) {
 				permissaoUsuario = TipoPermissaoMREnum.COM_PERMISSAO;
 			}else if(jiraService.isRevisorCodigo(revisorJira)) {
-				String labelAprovacaoUsuario = jiraService.getLabelAprovacaoCodigoDeUsuario(revisorJira);
-				Boolean usuarioAlterouSuaLabel = false;
-				if(StringUtils.isNotBlank(labelAprovacaoUsuario) && StringUtils.isNotBlank(tribunalRevisor) 
-						&& labelAprovacaoUsuario.endsWith(tribunalRevisor)) {
-					
-					if(labelsAdicionadas != null && labelsAdicionadas.size() == 1
-							&& (labelsRemovidas == null || labelsRemovidas.isEmpty())
-							&& Utils.compareAsciiIgnoreCase(labelsAdicionadas.get(0), labelAprovacaoUsuario)) {
-						usuarioAlterouSuaLabel = true;
-					}else if(labelsRemovidas != null && labelsRemovidas.size() == 1
-							&& (labelsAdicionadas == null || labelsAdicionadas.isEmpty())
-							&& Utils.compareAsciiIgnoreCase(labelsRemovidas.get(0), labelAprovacaoUsuario)) {
-						usuarioAlterouSuaLabel = true;
-					}
-				}else if(StringUtils.isNotBlank(labelAprovacaoUsuario) && StringUtils.isNotBlank(tribunalRevisor)) {
-					messages.error("O usuário revisor: " + revisorJira.getName() + " está configurado para indicar aprovação: " + labelAprovacaoUsuario 
-							+ ", mas pertence ao tribunal: " + tribunalRevisor);
-				}
-				if(usuarioAlterouSuaLabel) {
-					// verifica se o usuário não é o autor do MR, nem é o autor do último commit, nem é o responsável pela codificação da issue
-					GitlabUser autorUltimoCommit = getLastCommitAuthor(mergeRequest);
-					if(autorUltimoCommit != null && autorUltimoCommit.getId().equals(revisorGitlab.getId())) {
-						permissaoUsuario = TipoPermissaoMREnum.SEM_PERMISSAO_AUTOR_COMMIT;
+				if(!mergeRequest.getState().equals(GitlabMergeRequestStateEnum.OPENED) || !mergeRequest.getMergeStatus().equals(GitlabMergeRequestStatusEnum.CAN_BE_MERGED)) {
+					permissaoUsuario = TipoPermissaoMREnum.SEM_PERMISSAO_MERGE_NAO_MERGEAVEL;
+					if(!mergeRequest.getState().equals(GitlabMergeRequestStateEnum.OPENED)) {
+						messages.error("O merge não está aberto");
 					}else {
-						JiraUser responsavelCodificacao = issue.getFields().getResponsavelCodificacao();
-						if(responsavelCodificacao.getKey().equalsIgnoreCase(revisorJira.getKey())) {
-							permissaoUsuario = TipoPermissaoMREnum.SEM_PERMISSAO_RESPONSAVEL_CODIFICACAO;
-						}
-					}
-					if(permissaoUsuario == null) {
-						permissaoUsuario = TipoPermissaoMREnum.COM_PERMISSAO;
+						messages.error("O merge não está apto a ser mergeado");
 					}
 				}else {
-					permissaoUsuario = TipoPermissaoMREnum.SEM_PERMISSAO_ALTEROU_LABEL_ERRADA;
+					String labelAprovacaoUsuario = jiraService.getLabelAprovacaoCodigoDeUsuario(revisorJira);
+					Boolean usuarioAlterouSuaLabel = false;
+					if(StringUtils.isNotBlank(labelAprovacaoUsuario) && StringUtils.isNotBlank(tribunalRevisor) 
+							&& labelAprovacaoUsuario.endsWith(tribunalRevisor)) {
+						
+						if(labelsAdicionadas != null && labelsAdicionadas.size() == 1
+								&& (labelsRemovidas == null || labelsRemovidas.isEmpty())
+								&& Utils.compareAsciiIgnoreCase(labelsAdicionadas.get(0), labelAprovacaoUsuario)) {
+							usuarioAlterouSuaLabel = true;
+						}else if(labelsRemovidas != null && labelsRemovidas.size() == 1
+								&& (labelsAdicionadas == null || labelsAdicionadas.isEmpty())
+								&& Utils.compareAsciiIgnoreCase(labelsRemovidas.get(0), labelAprovacaoUsuario)) {
+							usuarioAlterouSuaLabel = true;
+						}
+					}else if(StringUtils.isNotBlank(labelAprovacaoUsuario) && StringUtils.isNotBlank(tribunalRevisor)) {
+						messages.error("O usuário revisor: " + revisorJira.getName() + " está configurado para indicar aprovação: " + labelAprovacaoUsuario 
+								+ ", mas pertence ao tribunal: " + tribunalRevisor);
+					}
+					if(usuarioAlterouSuaLabel) {
+						// verifica se o usuário não é o autor do MR, nem é o autor do último commit, nem é o responsável pela codificação da issue
+						GitlabUser autorUltimoCommit = getLastCommitAuthor(mergeRequest);
+						if(autorUltimoCommit != null && autorUltimoCommit.getId().equals(revisorGitlab.getId())) {
+							permissaoUsuario = TipoPermissaoMREnum.SEM_PERMISSAO_AUTOR_COMMIT;
+						}else {
+							JiraUser responsavelCodificacao = issue.getFields().getResponsavelCodificacao();
+							if(responsavelCodificacao.getKey().equalsIgnoreCase(revisorJira.getKey())) {
+								permissaoUsuario = TipoPermissaoMREnum.SEM_PERMISSAO_RESPONSAVEL_CODIFICACAO;
+							}
+						}
+						if(permissaoUsuario == null) {
+							permissaoUsuario = TipoPermissaoMREnum.COM_PERMISSAO;
+						}
+					}else {
+						permissaoUsuario = TipoPermissaoMREnum.SEM_PERMISSAO_ALTEROU_LABEL_ERRADA;
+					}
 				}
 			}
 		}

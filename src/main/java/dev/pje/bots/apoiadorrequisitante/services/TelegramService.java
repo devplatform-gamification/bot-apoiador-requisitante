@@ -32,6 +32,9 @@ public class TelegramService {
 	@Value("${project.telegram.channel.geral}") 
 	private String GRUPO_GERAL;
 
+	@Value("${project.telegram.channel.pje-news-id}") 
+	private String GRUPO_PJENEWS;
+
 	public static Integer MAX_MESSAGE_SIZE = 4096;
 	public static Integer numMessagesSent = 0;
 
@@ -109,5 +112,9 @@ public class TelegramService {
 
 	public void sendMessageGeralHtml(String text) {
 		sendSimpleMessage(GRUPO_GERAL, text, true, TelegramMessageParseModeEnum.HTML);
+	}
+
+	public void sendMessagePJeNewsHtml(String text) {
+		sendSimpleMessage(GRUPO_PJENEWS, text, true, TelegramMessageParseModeEnum.HTML);
 	}
 }

@@ -205,7 +205,7 @@ public class LanVersion020GenerateReleaseCandidateHandler extends Handler<JiraEv
 		if(StringUtils.isNotBlank(mensagemRoketchat)) {
 			rocketchatService.sendBotMessage(mensagemRoketchat);
 			if(comunicarCanaisOficiais) {
-				rocketchatService.sendMessageGeral(mensagemRoketchat, false);
+				rocketchatService.sendMessagePJENews(mensagemRoketchat, false);
 				rocketchatService.sendMessageGrupoRevisorTecnico(mensagemRoketchat);
 				rocketchatService.sendMessageGrupoNegocial(mensagemRoketchat);
 			}
@@ -213,7 +213,7 @@ public class LanVersion020GenerateReleaseCandidateHandler extends Handler<JiraEv
 		if(StringUtils.isNotBlank(mensagemSlack)) {
 			slackService.sendBotMessage(mensagemSlack);
 			if(comunicarCanaisOficiais) {
-				slackService.sendMessageGeral(mensagemSlack);
+				slackService.sendMessagePJENews(mensagemSlack);
 				slackService.sendMessageGrupoRevisorTecnico(mensagemSlack);
 				slackService.sendMessageGrupoNegocial(mensagemSlack);
 			}

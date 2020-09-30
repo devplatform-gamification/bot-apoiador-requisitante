@@ -177,6 +177,7 @@ project:
     name: ${PROJECT_TELEGRAM_CHANNEL_NAME:my-telegram-channel-name}
     url: ${PROJECT_TELEGRAM_CHANNEL_URL:my-telegram-channel-url}
     triage-bot-id: ${PROJECT_TELEGRAM_CHANNEL_BOT_TRIAGEM:my-telegram-triage-bot-channel-id}
+    pje-news-id: ${PROJECT_TELEGRAM_CHANNEL_PJENEWS:my-pjenews-channel-id}
     geral: ${PROJECT_TELEGRAM_CHANNEL_GENERAL:my-telegram-general-channel-id}
   rocketchat:
     channel:
