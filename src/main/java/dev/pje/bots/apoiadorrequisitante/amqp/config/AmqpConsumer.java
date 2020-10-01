@@ -596,7 +596,11 @@ public class AmqpConsumer {
 			String body = new String(msg.getBody());
 			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
 			String issueKey = jiraEventIssue.getIssue().getKey();
-			logger.info(gamification020.getMessagePrefix() + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+			String eventType = "undefined";
+			if(jiraEventIssue.getIssueEventTypeName() != null) {
+				eventType = jiraEventIssue.getIssueEventTypeName().name();
+			}
+			logger.info(gamification020.getMessagePrefix() + " - " + issueKey + " - " + eventType);
 			gamification020.handle(jiraEventIssue);
 		}
 	}

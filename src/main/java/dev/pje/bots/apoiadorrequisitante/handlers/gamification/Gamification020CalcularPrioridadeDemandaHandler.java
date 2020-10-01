@@ -221,7 +221,7 @@ public class Gamification020CalcularPrioridadeDemandaHandler extends Handler<Jir
 
 				if(raiasCalculoOpcional.contains(raiaAtualId)) {
 					Integer prioridadeAtual = issue.getFields().getBusinessValue();
-					if(prioridadeAtual != null && prioridadeAtual > 30) {
+					if(prioridadeAtual != null && prioridadeAtual > 5) {
 						messages.info("não deve recalcular pois a prioridade atual é: " + prioridadeAtual);
 						demandaEmRaiaCalculavel = false;
 					}
