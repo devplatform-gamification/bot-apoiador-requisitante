@@ -22,6 +22,7 @@ import com.devplatform.model.gitlab.GitlabMergeRequestAttributes;
 import com.devplatform.model.gitlab.GitlabMergeRequestStateEnum;
 import com.devplatform.model.gitlab.GitlabNote;
 import com.devplatform.model.gitlab.GitlabPipeline;
+import com.devplatform.model.gitlab.GitlabPipelineStatusEnum;
 import com.devplatform.model.gitlab.GitlabProject;
 import com.devplatform.model.gitlab.GitlabProjectExtended;
 import com.devplatform.model.gitlab.GitlabProjectVariable;
@@ -903,33 +904,49 @@ public class GitlabService {
 			telegramService.sendBotMessage(msgError);
 			throw new Exception(msgError);			
 		}else{
-			Boolean hasPipelines = projectHasPipelines(projectId, mrOpened.getIid());
-			
-			GitlabAcceptMRRequest acceptMerge = new GitlabAcceptMRRequest();
-			acceptMerge.setMergeRequestIid(mrOpened.getIid());
-			acceptMerge.setId(projectId);
-			acceptMerge.setMergeWhenPipelineSucceeds(hasPipelines);
-			acceptMerge.setSquash(squashCommits);
-			acceptMerge.setShouldRemoveSourceBranch(removeSourceBranch);
-			if(StringUtils.isNotBlank(mergeMessage)) {
-				acceptMerge.setMergeCommitMessage(mergeMessage);
-			}
-					
-			try {
-				mrAccepted = sendAcceptMergeRequest(projectId, mrIID, acceptMerge);
-				if(mrAccepted != null && !hasPipelines) {
-					// aguarda o MR ser finalizado, pois pode ser que tenha que passar por um pipeline ainda
-					Integer maxTries = 10;
-					Integer timeToWaitInSeconds = 20;
-					Integer numTries = 0;
-					while (mrAccepted != null && GitlabMergeRequestStateEnum.OPENED.equals(mrAccepted.getState()) && numTries < maxTries) {
-						logger.info("waitting "+timeToWaitInSeconds+" seconds before to check if merge was accepted....");
-						Utils.waitSeconds(timeToWaitInSeconds);
-						mrAccepted = getMergeRequest(projectId, mrOpened.getIid());
-					}
+			List<GitlabPipeline> pipelines = projectHasPipelines(projectId, mrOpened.getIid());
+			GitlabPipeline lastPipeLine = null;
+			boolean lastPipelineFailed = false;
+			if(pipelines != null && !pipelines.isEmpty()) {
+				lastPipeLine = pipelines.get(0);
+				if(lastPipeLine.getStatus().equals(GitlabPipelineStatusEnum.FAILED) 
+						|| lastPipeLine.getStatus().equals(GitlabPipelineStatusEnum.CANCELED) 
+						|| lastPipeLine.getStatus().equals(GitlabPipelineStatusEnum.SKIPPED)) {
+					lastPipelineFailed = true;
 				}
-			}catch (Exception e) {
-				throw new Exception(e.getLocalizedMessage());
+			}
+			if(lastPipelineFailed) {
+				String msgError = "No projeto: " + projectId + " o MR: " + mrOpened.getIid().toString() + " o pipeline " + lastPipeLine.getId() + " falhou.";
+				logger.error(msgError);
+				telegramService.sendBotMessage(msgError);
+				throw new Exception(msgError);			
+			}else {
+				GitlabAcceptMRRequest acceptMerge = new GitlabAcceptMRRequest();
+				acceptMerge.setMergeRequestIid(mrOpened.getIid());
+				acceptMerge.setId(projectId);
+				acceptMerge.setMergeWhenPipelineSucceeds(lastPipeLine != null);
+				acceptMerge.setSquash(squashCommits);
+				acceptMerge.setShouldRemoveSourceBranch(removeSourceBranch);
+				if(StringUtils.isNotBlank(mergeMessage)) {
+					acceptMerge.setMergeCommitMessage(mergeMessage);
+				}
+				
+				try {
+					mrAccepted = sendAcceptMergeRequest(projectId, mrIID, acceptMerge);
+					if(mrAccepted != null && lastPipeLine == null) {
+						// aguarda o MR ser finalizado, pois pode ser que tenha que passar por um pipeline ainda
+						Integer maxTries = 10;
+						Integer timeToWaitInSeconds = 20;
+						Integer numTries = 0;
+						while (mrAccepted != null && GitlabMergeRequestStateEnum.OPENED.equals(mrAccepted.getState()) && numTries < maxTries) {
+							logger.info("waitting "+timeToWaitInSeconds+" seconds before to check if merge was accepted....");
+							Utils.waitSeconds(timeToWaitInSeconds);
+							mrAccepted = getMergeRequest(projectId, mrOpened.getIid());
+						}
+					}
+				}catch (Exception e) {
+					throw new Exception(e.getLocalizedMessage());
+				}
 			}
 		}
 		return mrAccepted;
@@ -981,7 +998,7 @@ public class GitlabService {
 		return mergeResponse;
 	}
 	
-	public boolean projectHasPipelines(String projectId, BigDecimal mergeRequestIId) {
+	public List<GitlabPipeline> projectHasPipelines(String projectId, BigDecimal mergeRequestIId) {
 		List<GitlabPipeline> pipelines = null;
 		try {
 			pipelines = gitlabClient.listMRPipelines(projectId, mergeRequestIId);
@@ -992,7 +1009,7 @@ public class GitlabService {
 			telegramService.sendBotMessage(errorMessage);
 		}
 		
-		return (pipelines != null && !pipelines.isEmpty());
+		return pipelines;
 	}
 	
 	public GitlabMRResponse openMergeRequest(String projectId, GitlabMRRequest mergeRequest) {
