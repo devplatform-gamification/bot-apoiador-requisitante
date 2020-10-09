@@ -52,6 +52,7 @@ import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 
 public class Utils {
 	public static final String DATE_PATTERN_SIMPLE = "yyyy-MM-dd";
+	public static final String DATETIME_PATTERN_SIMPLE = "MM/dd/yyyy HH:mm:ss";
 	public static final String DATE_PATTERN_PORTUGUESE = "HH:mm dd/MM/yyyy";
 	
 	public static boolean compareAsciiIgnoreCase(String valueA, String valueB) {
@@ -193,6 +194,17 @@ public class Utils {
 		ZonedDateTime zonedDateTime = ZonedDateTime.parse(stringDate, formatter);
 		
 		return Date.from(zonedDateTime.toInstant());
+	}
+	
+	public static Date getDateFromTimestamp(String timestamp) {
+		Date date = null;
+		try {
+			date = new Date(Long.parseLong(timestamp));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		return date;
 	}
 	
 	public static Date getDateFromString(String releaseDateStr) {
@@ -500,6 +512,13 @@ public class Utils {
 		return xmlProcessed;
 	}
 
+	public static long checkDifferenceInMinutesBetweenTwoDates(Date firstDate, Date secondDate) {
+	    long diffInMillies = Math.subtractExact(firstDate.getTime(), secondDate.getTime());
+	    long diff = TimeUnit.MINUTES.convert(diffInMillies, TimeUnit.MILLISECONDS);
+	    
+	    return diff;
+	}
+	
 	public static long checkDifferenceInHoursBetweenTwoDates(Date firstDate, Date secondDate) {
 	    long diffInMillies = Math.subtractExact(firstDate.getTime(), secondDate.getTime());
 	    long diff = TimeUnit.HOURS.convert(diffInMillies, TimeUnit.MILLISECONDS);

@@ -218,7 +218,19 @@ public class JiraService {
 	public static final String FIELD_PUBLICAR_DOCUMENTACAO_AUTOMATICAMENTE = "customfield_14009";
 	public static final String FIELD_VERSION_TYPE = "customfield_13906";
 	public static final String FIELD_ESTRUTURA_DOCUMENTACAO = "customfield_14004";
+
+	public static final String FIELD_DATA_ATRIBUICAO_RESPONSAVEL = "customfield_14100";
+	public static final String FIELD_TEMPO_ATRIBUICAO_RESPONSAVEL = "customfield_14101";
+	public static final String FIELD_DATA_ATRIBUICAO_RAIA = "customfield_14102";
+	public static final String FIELD_TEMPO_ATRIBUICAO_RAIA = "customfield_14103";
+	public static final String FIELD_RESPONSAVEIS_POR_RAIA = "customfield_14104";
+
+	public static final String FIELD_DATA_ULTIMA_VERIFICACAO = "customfield_14106";
+	public static final String FIELD_DATA_PROXIMA_VERIFICACAO = "customfield_14107";
 	
+	public static final String FIELD_DATA_FICAR_PRONTO = "duedate";
+	public static final String FIELD_PERCENTUAL_CONCLUSAO = "customfield_11107";
+
 	public static final String FIELD_RAIA_FLUXO = "customfield_14014";
 	
 	public static final String FIELD_MENSAGEM_SLACK = "customfield_14013";
@@ -902,6 +914,156 @@ public class JiraService {
 			}
 		}
 	}
+	
+	public void atualizarResponsaveisPorRaia(JiraIssue issue, String responsaveisPorRaia, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if(StringUtils.isBlank(issueDetalhada.getFields().getResponsavelPorRaia()) || !issueDetalhada.getFields().getResponsavelPorRaia().equals(responsaveisPorRaia)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_RESPONSAVEIS_POR_RAIA, responsaveisPorRaia, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_RESPONSAVEIS_POR_RAIA) != null) {
+				updateFields.put(FIELD_RESPONSAVEIS_POR_RAIA, updateField.get(FIELD_RESPONSAVEIS_POR_RAIA));
+			}
+		}
+	}
+
+	public void atualizarTempoAtribuicaoPorRaia(JiraIssue issue, String tempoAtribuicaoPorRaia, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if(StringUtils.isBlank(issueDetalhada.getFields().getTempoAtribuicaoPorRaia()) || !issueDetalhada.getFields().getTempoAtribuicaoPorRaia().equals(tempoAtribuicaoPorRaia)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_TEMPO_ATRIBUICAO_RAIA, tempoAtribuicaoPorRaia, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_TEMPO_ATRIBUICAO_RAIA) != null) {
+				updateFields.put(FIELD_TEMPO_ATRIBUICAO_RAIA, updateField.get(FIELD_TEMPO_ATRIBUICAO_RAIA));
+			}
+		}
+	}
+
+	public void atualizarTempoAtribuicaoPorResponsavel(JiraIssue issue, String tempoAtribuicaoPorResponsavel, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if(StringUtils.isBlank(issueDetalhada.getFields().getTempoAtribuicaoPorResponsavel()) || !issueDetalhada.getFields().getTempoAtribuicaoPorResponsavel().equals(tempoAtribuicaoPorResponsavel)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_TEMPO_ATRIBUICAO_RESPONSAVEL, tempoAtribuicaoPorResponsavel, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_TEMPO_ATRIBUICAO_RESPONSAVEL) != null) {
+				updateFields.put(FIELD_TEMPO_ATRIBUICAO_RESPONSAVEL, updateField.get(FIELD_TEMPO_ATRIBUICAO_RESPONSAVEL));
+			}
+		}
+	}
+
+	public void atualizarDataAtribuicaoResponsavel(JiraIssue issue,  String dataAtribuicaoResponsavel, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if(StringUtils.isBlank(issueDetalhada.getFields().getDataAtribuicaoResponsavel()) || !issueDetalhada.getFields().getDataAtribuicaoResponsavel().equals(dataAtribuicaoResponsavel)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_DATA_ATRIBUICAO_RESPONSAVEL, dataAtribuicaoResponsavel, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_DATA_ATRIBUICAO_RESPONSAVEL) != null) {
+				updateFields.put(FIELD_DATA_ATRIBUICAO_RESPONSAVEL, updateField.get(FIELD_DATA_ATRIBUICAO_RESPONSAVEL));
+			}
+		}
+	}
+	
+	 /* >> quando a raia da demanda ou o responsável forem alterados, zerar os valores de:
+	 * 		ok- "Data última verificação"
+	 * 		ok- "Data próxima verificação" >> data que será definida com um intervalo X a partir da última verificação ou a data para ficar pronto mais 3 dias (o que tiver o maior valor)
+	 * 		ok- "Data para ficar pronto" << verificar se deve-se manter o histórico para validação posterior
+	 * 		- "Percentdone"
+	 */
+	public void atualizarPercentualDeConclusao(JiraIssue issue,  float percentualDeConclusao, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if(issueDetalhada.getFields().getPercentDone() == 0f || issueDetalhada.getFields().getPercentDone() != percentualDeConclusao) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_PERCENTUAL_CONCLUSAO, percentualDeConclusao, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_PERCENTUAL_CONCLUSAO) != null) {
+				updateFields.put(FIELD_PERCENTUAL_CONCLUSAO, updateField.get(FIELD_PERCENTUAL_CONCLUSAO));
+			}
+		}
+	}
+
+	public void atualizarDataParaFicarPronto(JiraIssue issue,  String dataParaFicarPronto, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if(StringUtils.isBlank(issueDetalhada.getFields().getDuedate()) || !issueDetalhada.getFields().getDuedate().equals(dataParaFicarPronto)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_DATA_FICAR_PRONTO, dataParaFicarPronto, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_DATA_FICAR_PRONTO) != null) {
+				updateFields.put(FIELD_DATA_FICAR_PRONTO, updateField.get(FIELD_DATA_FICAR_PRONTO));
+			}
+		}
+	}
+
+	public void atualizarDataProximaVerificacao(JiraIssue issue,  String dataProximaVerificacao, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if(StringUtils.isBlank(issueDetalhada.getFields().getDataProximaVerificacao()) || !issueDetalhada.getFields().getDataProximaVerificacao().equals(dataProximaVerificacao)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_DATA_PROXIMA_VERIFICACAO, dataProximaVerificacao, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_DATA_PROXIMA_VERIFICACAO) != null) {
+				updateFields.put(FIELD_DATA_PROXIMA_VERIFICACAO, updateField.get(FIELD_DATA_PROXIMA_VERIFICACAO));
+			}
+		}
+	}
+
+	public void atualizarDataUltimaVerificacao(JiraIssue issue,  String dataUltimaVerificacao, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if(StringUtils.isBlank(issueDetalhada.getFields().getDataUltimaVerificacao()) || !issueDetalhada.getFields().getDataUltimaVerificacao().equals(dataUltimaVerificacao)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_DATA_ULTIMA_VERIFICACAO, dataUltimaVerificacao, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_DATA_ULTIMA_VERIFICACAO) != null) {
+				updateFields.put(FIELD_DATA_ULTIMA_VERIFICACAO, updateField.get(FIELD_DATA_ULTIMA_VERIFICACAO));
+			}
+		}
+	}
+
+	public void atualizarDataAtribuicaoRaia(JiraIssue issue,  String dataAtribuicaoRaia, Map<String, Object> updateFields) throws Exception {
+		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
+
+		boolean houveAlteracao = false;
+		if(StringUtils.isBlank(issueDetalhada.getFields().getDataAtribuicaoRaia()) || !issueDetalhada.getFields().getDataAtribuicaoRaia().equals(dataAtribuicaoRaia)) {
+			houveAlteracao = true;
+		}
+
+		if(houveAlteracao) {
+			Map<String, Object> updateField = createUpdateObject(FIELD_DATA_ATRIBUICAO_RAIA, dataAtribuicaoRaia, "UPDATE");
+			if(updateField != null && updateField.get(FIELD_DATA_ATRIBUICAO_RAIA) != null) {
+				updateFields.put(FIELD_DATA_ATRIBUICAO_RAIA, updateField.get(FIELD_DATA_ATRIBUICAO_RAIA));
+			}
+		}
+	}
 
 	public void atualizarURLPublicacao(JiraIssue issue,  String urlReleaseNotes, Map<String, Object> updateFields) throws Exception {
 		JiraIssue issueDetalhada = recuperaIssueDetalhada(issue);
@@ -1331,6 +1493,10 @@ public class JiraService {
 						FIELD_MENSAGEM_ROCKETCHAT.equals(fieldName) ||
 						FIELD_MENSAGEM_SLACK.equals(fieldName) ||
 						FIELD_MENSAGEM_TELEGRAM.equals(fieldName) ||
+						
+						FIELD_TEMPO_ATRIBUICAO_RESPONSAVEL.equals(fieldName) ||
+						FIELD_TEMPO_ATRIBUICAO_RAIA.equals(fieldName) ||
+						FIELD_RESPONSAVEIS_POR_RAIA.equals(fieldName) ||
 
 						FIELD_DESCRIPTION.equals(fieldName)
 						)) {
@@ -1348,7 +1514,15 @@ public class JiraService {
 			if(!identificouCampo) {
 				throw new Exception("Valor para update fora do padrão - deveria ser String, recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
-		}else if(FIELD_DATA_RELEASE_NOTES.equals(fieldName) || FIELD_DATA_TAG_GIT.equals(fieldName)) {
+		}else if(
+				FIELD_DATA_RELEASE_NOTES.equals(fieldName)
+				|| FIELD_DATA_TAG_GIT.equals(fieldName)
+				|| FIELD_DATA_ATRIBUICAO_RESPONSAVEL.equals(fieldName)
+				|| FIELD_DATA_ATRIBUICAO_RAIA.equals(fieldName)
+				|| FIELD_DATA_ULTIMA_VERIFICACAO.equals(fieldName)
+				|| FIELD_DATA_PROXIMA_VERIFICACAO.equals(fieldName)
+				|| FIELD_DATA_FICAR_PRONTO.equals(fieldName)
+				) {
 			String dateTimeStr = null;
 			boolean identificouCampo = false;
 			if(valueToUpdate != null) {
@@ -1562,18 +1736,33 @@ public class JiraService {
 			}
 		}else if(
 				FIELD_BUSSINESS_VALUE.equals(fieldName)
-				|| FIELD_APROVACOES_REALIZADAS.equals(fieldName)) {
-
+				|| FIELD_APROVACOES_REALIZADAS.equals(fieldName)
+				) {
 			boolean identificouCampo = false;
 			identificouCampo = (valueToUpdate == null || valueToUpdate instanceof Integer);
-			Map<String, Object> newOption = new HashMap<>();
-			newOption.put("set", (Integer) valueToUpdate);
-			List<Map<String, Object>> jiraOptionArray = new ArrayList<>();
-			jiraOptionArray.add(newOption);
-			objectToUpdate.put(fieldName, jiraOptionArray);
-			
-			if(!identificouCampo) {
+			if(identificouCampo) {
+				Map<String, Object> newOption = new HashMap<>();
+				newOption.put("set", (Integer) valueToUpdate);
+				List<Map<String, Object>> jiraOptionArray = new ArrayList<>();
+				jiraOptionArray.add(newOption);
+				objectToUpdate.put(fieldName, jiraOptionArray);
+			}else{
 				throw new Exception("Valor para update fora do padrão - deveria ser Integer, recebeu: " +  valueToUpdate.getClass().getTypeName());
+			}
+		}else if(
+				FIELD_PERCENTUAL_CONCLUSAO.equals(fieldName)
+				) {
+
+			boolean identificouCampo = false;
+			identificouCampo = (valueToUpdate == null || valueToUpdate instanceof Float);
+			if(identificouCampo) {
+				Map<String, Object> newOption = new HashMap<>();
+				newOption.put("set", (float) valueToUpdate);
+				List<Map<String, Object>> jiraOptionArray = new ArrayList<>();
+				jiraOptionArray.add(newOption);
+				objectToUpdate.put(fieldName, jiraOptionArray);
+			}else{
+				throw new Exception("Valor para update fora do padrão - deveria ser float, recebeu: " +  valueToUpdate.getClass().getTypeName());
 			}
 		}
 		return objectToUpdate;
@@ -1625,7 +1814,23 @@ public class JiraService {
 
 		return customFieldOptions;
 	}
+	
+	@Cacheable(cacheNames = "custom-field-summary")
+	public JiraCustomField getCustomFieldSummary (String customFieldName) { 
+		JiraCustomField customFieldSummary = null;
+		try {
+			customFieldSummary = jiraClient.getCustomFieldDefinition(customFieldName);
+		}catch (Exception e) {
+			String errorMesasge = "Erro ao buscar customfield: "+ customFieldName + " - erro: " + e.getLocalizedMessage();
+			logger.error(errorMesasge);
+			slackService.sendBotMessage(errorMesasge);
+			rocketchatService.sendBotMessage(errorMesasge);
+			telegramService.sendBotMessage(errorMesasge);
+		}
 
+		return customFieldSummary;
+	}
+	
 	public JiraCustomFieldOption findSprintDoGrupo(String sprintDoGrupo, boolean onlyEnabled) {
 		JiraCustomFieldOption option = null;
 		if(StringUtils.isNotBlank(sprintDoGrupo)) {

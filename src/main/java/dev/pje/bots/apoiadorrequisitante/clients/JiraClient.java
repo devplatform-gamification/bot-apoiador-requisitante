@@ -90,6 +90,10 @@ public interface JiraClient {
 	public List<JiraProperty> getIssueStatusProperties(
 			@PathVariable("issueKeyOrId") String issueKey);
 	
+	@GetMapping(value = "/rest/scriptrunner/latest/custom/customFields/{customFieldId}", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public JiraCustomField getCustomFieldDefinition(
+			@PathVariable("customFieldId") String customField);
+
 	@GetMapping(value = "/rest/scriptrunner/latest/custom/customFields/{customFieldId}/option?{options}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public JiraCustomField getCustomFieldOptions(
 			@PathVariable("customFieldId") String customField, @SpringQueryMap Map<String, String> options);

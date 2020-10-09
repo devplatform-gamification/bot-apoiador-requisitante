@@ -24,19 +24,22 @@ spring:
         concurrency: ${RABBIT_CONCURRENCY:3}
         max-concurrency: ${RABBIT_MAX_CONCURRENCY:10}
     template:
-      default-receive-queue: ${RABBIT_JIRA01_APOIADOR_REQUISITANTE_QUEUE:jira010-apoiador-requisitante.queue}
+      default-receive-queue: ${RABBIT_JIRA010_APOIADOR_REQUISITANTE_QUEUE:jira010-apoiador-requisitante.queue}
       exchange: ${RABBIT_EXCHANGE:dev-platform.exchange}
       custom:
         # TODO - migrar esta queue para um novo servico separado deste daqui - pre-requisito: o clientejira deve estar separado em um servico fora deste aqui
         jira020-classification-queue: 
-          name: ${RABBIT_JIRA02_SUPEREPICTHEME_QUEUE:jira020-super-epic-theme.queue}
-          auto-startup: ${RABBIT_JIRA02_SUPEREPICTHEME_QUEUE_AUTOSTARTUP:false}
+          name: ${RABBIT_JIRA020_SUPEREPICTHEME_QUEUE:jira020-super-epic-theme.queue}
+          auto-startup: ${RABBIT_JIRA020_SUPEREPICTHEME_QUEUE_AUTOSTARTUP:false}
         jira030-resposta-demandante:
-          name: ${RABBIT_JIRA03_RESPOSTA_DEMANDANTE_QUEUE:jira030-resposta-demandante.queue}
-          auto-startup: ${RABBIT_JIRA03_RESPOSTA_DEMANDANTE_QUEUE_AUTOSTARTUP:false}
+          name: ${RABBIT_JIRA030_RESPOSTA_DEMANDANTE_QUEUE:jira030-resposta-demandante.queue}
+          auto-startup: ${RABBIT_JIRA030_RESPOSTA_DEMANDANTE_QUEUE_AUTOSTARTUP:false}
         jira040-raia-fluxo:
-          name: ${RABBIT_JIRA04_RAIA_FLUXO_QUEUE:jira040-raia-fluxo.queue}
-          auto-startup: ${RABBIT_JIRA04_RAIA_FLUXO_AUTOSTARTUP:false}
+          name: ${RABBIT_JIRA040_RAIA_FLUXO_QUEUE:jira040-raia-fluxo.queue}
+          auto-startup: ${RABBIT_JIRA040_RAIA_FLUXO_AUTOSTARTUP:false}
+        jira070-registro-atividades:
+          name: ${RABBIT_JIRA070_REGISTRO_ATIVIDADES_QUEUE:jira070-registro-atividades.queue}
+          auto-startup: ${RABBIT_JIRA070_REGISTRO_ATIVIDADES_AUTOSTARTUP:false}
 
         gitlab010-commit-script-queue:
           name: ${RABBIT_GITLAB010_COMMIT_SCRIPT_QUEUE:gitlab010-commit-script.queue}

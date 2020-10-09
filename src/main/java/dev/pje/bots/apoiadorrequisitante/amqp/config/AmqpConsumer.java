@@ -34,6 +34,7 @@ import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira010ApoiadorRequisitan
 import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira020ClassificationHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira030DemandanteHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira040RaiaFluxoHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira070RegistroAtividadesDemandasHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.lancamentoversao.LanVersion010TriageHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.lancamentoversao.LanVersion015PrepareActualVersionHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.lancamentoversao.LanVersion020GenerateReleaseCandidateHandler;
@@ -62,6 +63,9 @@ public class AmqpConsumer {
 
 	@Autowired
 	private Jira040RaiaFluxoHandler jira040RaiaFluxoHandler;
+
+	@Autowired
+	private Jira070RegistroAtividadesDemandasHandler jira070RegistroAtividadesDemandasHandler;
 
 	/**************/
 	@Autowired
@@ -196,7 +200,7 @@ public class AmqpConsumer {
 			bindings = @QueueBinding(
 				value = @Queue(value = "${spring.rabbitmq.template.custom.jira040-raia-fluxo.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
 				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
-				key = {"${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-generic.routing-key}"})
+				key = {"${spring.rabbitmq.template.custom.jira.issue-created.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-generic.routing-key}"})
 		)
 	public void jira040RaiaFluxo(Message msg) throws Exception {
 		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
@@ -208,6 +212,27 @@ public class AmqpConsumer {
 				jira040RaiaFluxoHandler.handle(jiraEventIssue);
 			}else {
 				logger.error(jira040RaiaFluxoHandler.getMessagePrefix() + " - ERRO ao tentar identifiar o evento da mensagem.");
+			}
+		}
+	}
+	
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.jira070-registro-atividades.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.jira070-registro-atividades.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.jira.issue-updated.routing-key}", "${spring.rabbitmq.template.custom.jira.issue-generic.routing-key}"})
+		)
+	public void jira070RegistroAtividadesDemandasHandler(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			JiraEventIssue jiraEventIssue = objectMapper.readValue(body, JiraEventIssue.class);
+			if(jiraEventIssue != null && jiraEventIssue.getIssueEventTypeName() != null) {
+				String issueKey = jiraEventIssue.getIssue().getKey();
+				logger.info(jira070RegistroAtividadesDemandasHandler.getMessagePrefix() + " - " + issueKey + " - " + jiraEventIssue.getIssueEventTypeName().name());
+				jira070RegistroAtividadesDemandasHandler.handle(jiraEventIssue);
+			}else {
+				logger.error(jira070RegistroAtividadesDemandasHandler.getMessagePrefix() + " - ERRO ao tentar identifiar o evento da mensagem.");
 			}
 		}
 	}
