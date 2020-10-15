@@ -84,7 +84,10 @@ public class GitlabMarkdown implements MarkdownInterface{
 	
 	@Override
 	public String referUser(String username) {
-		return "@" + username.trim();
+		if(StringUtils.isNotBlank(username)) {
+			username = username.trim();
+		}
+		return "@" + username;
 	}
 
 	@Override

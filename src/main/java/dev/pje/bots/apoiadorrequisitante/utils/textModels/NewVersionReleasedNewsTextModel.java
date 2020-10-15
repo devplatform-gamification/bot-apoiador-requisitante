@@ -20,7 +20,7 @@ import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component
-public class NewVersionReleasedNewsTextModel extends AbstractTextModel{
+public class NewVersionReleasedNewsTextModel implements AbstractTextModel{
 
 	private static final String DESENVOLVEDOR_ANONIMO = "desenvolvedor.anonimo";
 

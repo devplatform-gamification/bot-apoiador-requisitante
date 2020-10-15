@@ -59,7 +59,9 @@ spring:
         gitlab060-merge-request-approvals:
           name: ${RABBIT_GITLAB060_MERGE_REQUEST_APPROVALS_QUEUE:gitlab060-merge-request-approvals-queue}
           auto-startup: ${RABBIT_GITLAB060_MERGE_REQUEST_APPROVALS_AUTOSTARTUP:false}
-          
+        gitlab070-pipeline-failed:
+          name: ${RABBIT_GITLAB070_PIPELINE_FAILED_QUEUE:gitlab070-pipeline-failed-queue}
+          auto-startup: ${RABBIT_GITLAB070_PIPELINE_FAILED_AUTOSTARTUP:false}
           
         lanver010-triage-queue:
           name: ${RABBIT_LANVER010_TRIAGE_QUEUE:lanver010-triage-queue}
@@ -145,6 +147,9 @@ spring:
             routing-key: ${RABBIT_GITLAB_TAGPUSH_ROUTINGKEY:dev-platform.gitlab.TAG_PUSH}
           merge-request:
             routing-key: ${RABBIT_GITLAB_MERGE_REQUEST_ROUTINGKEY:dev-platform.gitlab.MERGE_REQUEST}
+          pipeline:
+            routing-key: ${RABBIT_GITLAB_PIPELINE_ROUTINGKEY:dev-platform.gitlab.PIPELINE_CHANGES}
+
 springfox:
   documentation:
     swagger:

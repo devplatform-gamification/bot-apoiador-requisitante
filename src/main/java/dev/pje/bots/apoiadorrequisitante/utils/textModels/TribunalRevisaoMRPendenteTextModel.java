@@ -12,7 +12,7 @@ import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component
-public class TribunalRevisaoMRPendenteTextModel extends AbstractTextModel {
+public class TribunalRevisaoMRPendenteTextModel implements AbstractTextModel {
 
 	@Value("${clients.jira.url}")
 	private String JIRAURL;

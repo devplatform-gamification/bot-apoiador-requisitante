@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.devplatform.model.gitlab.event.GitlabEventMergeRequest;
+import com.devplatform.model.gitlab.event.GitlabEventPipeline;
 import com.devplatform.model.gitlab.event.GitlabEventPush;
 import com.devplatform.model.gitlab.event.GitlabEventPushTag;
 import com.devplatform.model.jira.event.JiraEventIssue;
@@ -29,6 +30,7 @@ import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab010CheckingNewScr
 import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab030MergeRequestMergeOrCloseHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab040TagPushFinishVersionHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab060MergeRequestApprovalsHandler;
+import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab070PipelineFailedHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab020GitflowEventHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira010ApoiadorRequisitanteHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira020ClassificationHandler;
@@ -82,6 +84,9 @@ public class AmqpConsumer {
 
 	@Autowired
 	private Gitlab060MergeRequestApprovalsHandler gitlab060MergeRequestApprovals;
+
+	@Autowired
+	private Gitlab070PipelineFailedHandler gitlab070PipelineFailed;
 
 	/**************/
 	@Autowired
@@ -352,6 +357,39 @@ public class AmqpConsumer {
 		}
 	}
 	
+	@RabbitListener(
+			autoStartup = "${spring.rabbitmq.template.custom.gitlab070-pipeline-failed.auto-startup}",
+			bindings = @QueueBinding(
+				value = @Queue(value = "${spring.rabbitmq.template.custom.gitlab070-pipeline-failed.name}", durable = "true", autoDelete = "false", exclusive = "false"), 
+				exchange = @Exchange(value = "${spring.rabbitmq.template.exchange}", type = ExchangeTypes.TOPIC), 
+				key = {"${spring.rabbitmq.template.custom.gitlab.pipeline.routing-key}"})
+		)
+	public void gitlab070PipelineFailed(Message msg) throws Exception {
+		if(msg != null && msg.getBody() != null && msg.getMessageProperties() != null) {
+			String body = new String(msg.getBody());
+			GitlabEventPipeline gitEventPipeline = objectMapper.readValue(body, GitlabEventPipeline.class);
+			if(gitEventPipeline != null) {
+				String projectName = gitEventPipeline.getProject().getName();
+				String pipelineRef = null;
+				String pipelineId = null;
+				String status = null;
+				if(gitEventPipeline.getObjectAttributes() != null && StringUtils.isNotBlank(gitEventPipeline.getObjectAttributes().getRef())) {
+					pipelineRef = gitEventPipeline.getObjectAttributes().getRef();
+				}
+				if(gitEventPipeline.getObjectAttributes() != null && gitEventPipeline.getObjectAttributes().getId() != null) {
+					pipelineId = gitEventPipeline.getObjectAttributes().getId().toString();
+				}
+				if(gitEventPipeline.getObjectAttributes() != null && gitEventPipeline.getObjectAttributes().getStatus() != null) {
+					status = gitEventPipeline.getObjectAttributes().getStatus().name();
+				}
+				logger.info(gitlab070PipelineFailed.getMessagePrefix() + " - " + "project: " + projectName + " - Pipeline ref: " + pipelineRef + " - #" + pipelineId + " - status: "+status);
+				gitlab070PipelineFailed.handle(gitEventPipeline);
+			}else {
+				logger.error(gitlab060MergeRequestApprovals.getMessagePrefix() + " Objeto não parece ser de um evento de Pipeline");
+			}
+		}
+	}
+
 	/************************/
 	// Consumers de lancamento de versao
 	/************************/

@@ -110,7 +110,7 @@ public class LanVersion070TagPushedEventHandler extends Handler<GitlabEventPushT
 						String actualVersion = Utils.clearVersionNumber(tagVersion);
 						if(StringUtils.isNotBlank(actualVersion)) {
 							// identifica qual é o projeto do jira no qual foi integrada a TAG
-							String jiraProjectKey = gitlabService.getJiraRelatedProjectKey(gitlabProjectId);
+							String jiraProjectKey = gitlabService.getJiraRelatedProjectKey(gitlabProjectId, true);
 							// verifica se existem outros projetos relacionados a esse do jira
 							List<String> jiraRelatedProjectKeys = jiraService.getJiraRelatedProjects(jiraProjectKey);
 							// buscar a issue de "lancamento de versão" dos projetos relacionados - se for criacao de tag: retorna as issues abertas, caso contrário, só as fechadas
@@ -205,11 +205,7 @@ public class LanVersion070TagPushedEventHandler extends Handler<GitlabEventPushT
 									if(StringUtils.isNotBlank(rocketMessage)) {
 										// publica indicacao da issue ao autor via rocketchat
 										if(usuarioCommiter != null) {
-											RocketchatUser rocketUser = rocketchatService.findUser(usuarioCommiter.getEmailAddress());
-											if(rocketUser != null) {
-												String rocketUserName = rocketUser.getUsername();
-												rocketchatService.sendMessageToUsername(rocketUserName, rocketMessage, false);
-											}
+											rocketchatService.sendMessageToUsername(usuarioCommiter.getEmailAddress(), rocketMessage, false);
 										}
 										// publica nos grupos grupo revisor negocial e revisor técnico do rocketchat
 										rocketchatService.sendBotMessage(rocketMessage);

@@ -10,7 +10,7 @@ import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component
-public class NewVersionReleasedSimpleCallTextModel extends AbstractTextModel{
+public class NewVersionReleasedSimpleCallTextModel implements AbstractTextModel{
 	private VersionReleaseNotes releaseNotes;
 	
 	public void setReleaseNotes(VersionReleaseNotes releaseNotes) {

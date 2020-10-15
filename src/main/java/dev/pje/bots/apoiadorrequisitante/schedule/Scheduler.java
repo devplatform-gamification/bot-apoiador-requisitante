@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dev.pje.bots.apoiadorrequisitante.amqp.config.AmqpProducer;
+import dev.pje.bots.apoiadorrequisitante.handlers.gitlab.Gitlab080UpdateMergeRequestsHandler;
 import dev.pje.bots.apoiadorrequisitante.handlers.jira.Jira060MonitoramentoDemandasEmRevisaoHandler;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
 
@@ -58,4 +59,23 @@ public class Scheduler {
 		
 		jira060MonitoramentoDemandasEmRevisao.handle(msg);
    }	
+
+	@Autowired
+	Gitlab080UpdateMergeRequestsHandler gitlab080UpdateMergeRequests;
+    /**
+     * Executa de 15 em 15 dias aos sábados e domingos, às 4h30 da manhã
+     * Reference: https://crontab.cronhub.io/
+     * @throws Exception 
+     */
+	@Scheduled(cron = "0 30 4 11-17,25-31 * 6-7")
+	public void atualizaListaMergesRequestsAbertos() throws Exception {
+		SimpleDateFormat sdf = new SimpleDateFormat(JiraService.JIRA_DATETIME_PATTERN);
+		Date now = new Date();
+		String strDate = sdf.format(now);
+		String msg = "Verificando os merge requests abertos, para saber se podem ser atualizados automaticamente :: " + strDate;
+		logger.info(msg);
+		
+		gitlab080UpdateMergeRequests.handle(msg);
+   }	
+
 }

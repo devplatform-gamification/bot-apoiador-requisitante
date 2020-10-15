@@ -17,7 +17,7 @@ import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component
-public class AtualizacaoClassificacaoAreasConhecimentoTextModel extends AbstractTextModel{
+public class AtualizacaoClassificacaoAreasConhecimentoTextModel implements AbstractTextModel{
 
 	@Value("${clients.jira.url}")
 	private String JIRAURL;

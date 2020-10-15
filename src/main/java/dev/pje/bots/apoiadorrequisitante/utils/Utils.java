@@ -334,19 +334,20 @@ public class Utils {
 	
 	public static String getIssueKeyFromCommitMessage(String commitMessage) {
 		String issueKey = null;
-		List<String> issueKeys = new ArrayList<>();
-
-		Pattern pattern = Pattern.compile("([A-Za-z]+\\-[0-9]+)");
-
-        Matcher matcher = pattern.matcher(commitMessage);
-        while(matcher.find()) {
-        	String k = matcher.group(1);
-    		issueKeys.add(k);
-    		if(StringUtils.isBlank(issueKey)) {// está recuperando a primeira issue encontrada em caso de haver mais de uma
-    			issueKey = k;
-    		}
-        }
-        
+		if(StringUtils.isNotBlank(commitMessage)) {
+			List<String> issueKeys = new ArrayList<>();
+			
+			Pattern pattern = Pattern.compile("([A-Za-z]+\\-[0-9]+)");
+			
+			Matcher matcher = pattern.matcher(commitMessage);
+			while(matcher.find()) {
+				String k = matcher.group(1);
+				issueKeys.add(k);
+				if(StringUtils.isBlank(issueKey)) {// está recuperando a primeira issue encontrada em caso de haver mais de uma
+					issueKey = k;
+				}
+			}
+		}
         return issueKey;
 	}
 	

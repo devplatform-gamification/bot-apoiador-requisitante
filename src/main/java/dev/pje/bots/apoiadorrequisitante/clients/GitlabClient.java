@@ -140,13 +140,19 @@ public interface GitlabClient {
 			@PathVariable("mergeRequestIid") BigDecimal mergeRequestIId
 			);
 
+	@PutMapping(value = "/api/v4/projects/{projectId}/merge_requests/{mergeRequestIid}/rebase", consumes = "application/json")
+	public GitlabMRResponse rebaseMergeRequest(
+			@PathVariable("projectId") String projectId,
+			@PathVariable("mergeRequestIid") BigDecimal mergeRequestIId
+			);
+
 	@GetMapping(value = "/api/v4/projects/{projectId}/merge_requests?{options}", consumes = "application/json")
 	public List<GitlabMRResponse> findMergeRequest(
 			@PathVariable("projectId") String projectId,
 			@SpringQueryMap Map<String, String> options
 			);
 
-	@GetMapping(value = "/api/v4/projects/merge_requests?{options}", consumes = "application/json")
+	@GetMapping(value = "/api/v4/merge_requests?{options}", consumes = "application/json")
 	public List<GitlabMRResponse> findMergeRequestAllProjects(
 			@SpringQueryMap Map<String, String> options
 			);

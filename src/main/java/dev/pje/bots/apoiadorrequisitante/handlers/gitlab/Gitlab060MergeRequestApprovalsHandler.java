@@ -14,8 +14,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.devplatform.model.bot.approvals.TipoPermissaoMREnum;
-import com.devplatform.model.gitlab.GitlabCommit;
-import com.devplatform.model.gitlab.GitlabCommitAuthor;
 import com.devplatform.model.gitlab.GitlabEventChangedItem;
 import com.devplatform.model.gitlab.GitlabLabel;
 import com.devplatform.model.gitlab.GitlabMergeRequestActionsEnum;
@@ -118,7 +116,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 				BigDecimal mrIID = gitlabEventMR.getObjectAttributes().getIid();
 				
 				GitlabMRResponse mergeRequest = gitlabService.getMergeRequest(gitlabProjectId, mrIID);
-				JiraIssue issue = getIssue(gitlabEventMR);
+				JiraIssue issue = jiraService.getIssue(gitlabEventMR);
 				GitlabUser revisorGitlab = gitlabEventMR.getUser();
 				JiraUser revisorJira = jiraService.getJiraUserFromGitlabUser(revisorGitlab);
 				String tribunalUsuarioRevisor = jiraService.getTribunalUsuario(revisorJira, false);
@@ -384,7 +382,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 					}
 					if(usuarioAlterouSuaLabel) {
 						// verifica se o usuário não é o autor do MR, nem é o autor do último commit, nem é o responsável pela codificação da issue
-						GitlabUser autorUltimoCommit = getLastCommitAuthor(mergeRequest);
+						GitlabUser autorUltimoCommit = gitlabService.getLastCommitAuthor(mergeRequest);
 						if(autorUltimoCommit != null && autorUltimoCommit.getId().equals(revisorGitlab.getId())) {
 							permissaoUsuario = TipoPermissaoMREnum.SEM_PERMISSAO_AUTOR_COMMIT;
 						}else {
@@ -404,45 +402,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 		}
 		return permissaoUsuario;
 	}
-	
-	private JiraIssue getIssue(GitlabEventMergeRequest gitlabEventMR) {
-		JiraIssue issue = null;
-		if(gitlabEventMR != null && gitlabEventMR.getObjectAttributes() != null) {
-			String mergeTitle = gitlabEventMR.getObjectAttributes().getTitle();
-			GitlabCommit lastCommit = gitlabEventMR.getObjectAttributes().getLastCommit();
-			String lastCommitTitle = null;
-			if(lastCommit != null) {
-				lastCommitTitle = lastCommit.getTitle();
-			}
-			
-			String issueKey = Utils.getIssueKeyFromCommitMessage(mergeTitle);
-			if(StringUtils.isBlank(issueKey)) {
-				issueKey = Utils.getIssueKeyFromCommitMessage(lastCommitTitle);
-			}
-			
-			if(StringUtils.isNotBlank(issueKey)) {
-				issue = jiraService.recuperaIssueDetalhada(issueKey);
-			}
-		}
 		
-		return issue;
-	}
-	
-	private GitlabUser getLastCommitAuthor(GitlabMergeRequestAttributes mergeRequest) {
-		GitlabUser user = null;
-		if(mergeRequest != null) {
-			GitlabCommit lastCommit = mergeRequest.getLastCommit();
-			if(lastCommit != null) {
-				GitlabCommitAuthor commitAuthor = lastCommit.getAuthor();
-				if(commitAuthor != null && StringUtils.isNotBlank(commitAuthor.getEmail())) {
-					user = gitlabService.findUserByEmail(commitAuthor.getEmail());
-				}
-			}
-		}
-		
-		return user;
-	}
-
 	private List<JiraUser> atualizaListaUsuariosRevisores(boolean adicionaRevisor, List<JiraUser> usuariosRevisores, JiraUser revisorAtual){
 		List<JiraUser> novaListaResponsaveisRevisao = new ArrayList<>();
 		

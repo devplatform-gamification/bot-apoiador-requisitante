@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import com.devplatform.model.bot.VersionTypeEnum;
 import com.devplatform.model.gitlab.GitlabCommit;
+import com.devplatform.model.gitlab.GitlabCommitAuthor;
 import com.devplatform.model.gitlab.GitlabDiscussion;
 import com.devplatform.model.gitlab.GitlabMergeRequestAttributes;
 import com.devplatform.model.gitlab.GitlabMergeRequestStateEnum;
@@ -689,7 +690,14 @@ public class GitlabService {
 		}
 		return branchMerged;
 	}
-	
+
+	public List<GitlabMRResponse> findOpenMergeRequestsFromProjectBranch(String projectId, String sourceBranch){
+		Map<String, String> options = new HashMap<String, String>();
+		options.put("state", GitlabMergeRequestStateEnum.OPENED.toString());
+		options.put("source_branch", sourceBranch);
+		return findMergeRequest(projectId, options);
+	}
+
 	public List<GitlabMRResponse> findMergeRequest(String projectId, Map<String, String> options){
 		List<GitlabMRResponse> MRs = null;
 		try {
@@ -703,9 +711,24 @@ public class GitlabService {
 	}
 
 	public List<GitlabMRResponse> findMergeRequestAllProjects(Map<String, String> options){
-		List<GitlabMRResponse> MRs = null;
+		List<GitlabMRResponse> MRs = new ArrayList<>();
 		try {
-			MRs = gitlabClient.findMergeRequestAllProjects(options);
+			if(options == null) {
+				options = new HashMap<>();
+			}
+			
+			Integer page = 1;
+			boolean finalizado = false;
+			while(!finalizado) {
+				options.put("page", page.toString());
+				List<GitlabMRResponse> pageMRs = gitlabClient.findMergeRequestAllProjects(options);
+				if(pageMRs != null && !pageMRs.isEmpty()) {
+					MRs.addAll(pageMRs);
+					page++;
+				}else {
+					finalizado = true;
+				}
+			}
 		}catch (Exception e) {
 			String msgError = "Erro ao buscar MRs: erro: " + e.getLocalizedMessage();
 			logger.error(msgError);
@@ -734,7 +757,19 @@ public class GitlabService {
 		}
 		return MR;
 	}
-	
+
+	public GitlabMRResponse rebaseMergeRequest(String projectId, BigDecimal mergeRequestIId){
+		GitlabMRResponse MR = null;
+		try {
+			MR = gitlabClient.rebaseMergeRequest(projectId, mergeRequestIId);
+		}catch (Exception e) {
+			String msgError = "Erro ao tentar fazer o rebase do MR: " + mergeRequestIId.toString() + " do projeto: " + projectId + " - erro: " + e.getLocalizedMessage();
+			logger.error(msgError);
+			telegramService.sendBotMessage(msgError);
+		}
+		return MR;
+	}
+
 	public String checkMRsOpened(String mergesWebUrls) {
 		List<String> mrAbertosConfirmados = new ArrayList<>();
 		
@@ -886,6 +921,25 @@ public class GitlabService {
 		return mrOpened;
 	}
 	
+	public GitlabMRResponse closeMergeRequest(String projectId, BigDecimal mergeRequestIId) {
+		GitlabMRResponse mergeResponse = null;
+			
+		GitlabMRResponse mrOpened = getMergeRequest(projectId, mergeRequestIId);
+		if(mrOpened != null && mrOpened.getState() != null && mrOpened.getState().equals(GitlabMergeRequestStateEnum.OPENED)) {
+			GitlabMRUpdateRequest updateMerge = new GitlabMRUpdateRequest();
+			updateMerge.setMergeRequestIid(mergeRequestIId);
+			updateMerge.setStateEvent("close");
+			
+			mergeResponse = updateMergeRequest(projectId, mergeRequestIId, updateMerge);
+		}else {
+			String msgError = "Não foi possível fechar o MR do projeto: " + projectId + " - MR: " + mergeRequestIId.toString() + " já está fechado.";
+			logger.error(msgError);
+			telegramService.sendBotMessage(msgError);
+		}
+		
+		return mergeResponse;
+	}
+
 	public GitlabMRResponse acceptMergeRequest(String projectId, BigDecimal mrIID) throws Exception {
 		return acceptMergeRequest(projectId, mrIID, null, true, true);
 	}
@@ -904,14 +958,12 @@ public class GitlabService {
 			telegramService.sendBotMessage(msgError);
 			throw new Exception(msgError);			
 		}else{
-			List<GitlabPipeline> pipelines = projectHasPipelines(projectId, mrOpened.getIid());
+			List<GitlabPipeline> pipelines = mergePipelines(projectId, mrOpened.getIid());
 			GitlabPipeline lastPipeLine = null;
 			boolean lastPipelineFailed = false;
 			if(pipelines != null && !pipelines.isEmpty()) {
 				lastPipeLine = pipelines.get(0);
-				if(lastPipeLine.getStatus().equals(GitlabPipelineStatusEnum.FAILED) 
-						|| lastPipeLine.getStatus().equals(GitlabPipelineStatusEnum.CANCELED) 
-						|| lastPipeLine.getStatus().equals(GitlabPipelineStatusEnum.SKIPPED)) {
+				if(GitlabPipelineStatusEnum.statusFailed(lastPipeLine.getStatus())) {
 					lastPipelineFailed = true;
 				}
 			}
@@ -998,7 +1050,7 @@ public class GitlabService {
 		return mergeResponse;
 	}
 	
-	public List<GitlabPipeline> projectHasPipelines(String projectId, BigDecimal mergeRequestIId) {
+	public List<GitlabPipeline> mergePipelines(String projectId, BigDecimal mergeRequestIId) {
 		List<GitlabPipeline> pipelines = null;
 		try {
 			pipelines = gitlabClient.listMRPipelines(projectId, mergeRequestIId);
@@ -1149,12 +1201,12 @@ public class GitlabService {
 		return tagName;
 	}
 	
-	public String getJiraRelatedProjectKey(String projectId){
+	public String getJiraRelatedProjectKey(String projectId, Boolean ifNotFoundUseDefaultValue){
 		String jiraProjectKey = null;
 		GitlabProjectVariable projectVariable = getProjectVariable(projectId, PROJECT_PROPERTY_JIRA_MAIN_RELATED_PROJECT);
 		if(projectVariable != null) {
 			jiraProjectKey = projectVariable.getValue();
-		}else {
+		}else if(ifNotFoundUseDefaultValue != null && ifNotFoundUseDefaultValue){
 			jiraProjectKey = JIRA_MAIN_RELATED_PROJECT_DEFAULT;
 		}
 		
@@ -1169,9 +1221,9 @@ public class GitlabService {
 			String errorMessage = "Não foi possível recuperar a variavel: " + variableKey + " do projeto: " + projectId + "\n"
 					+ e.getMessage();
 			logger.error(errorMessage);
-			slackService.sendBotMessage(errorMessage);
-			rocketchatService.sendBotMessage(errorMessage);
-			telegramService.sendBotMessage(errorMessage);
+//			slackService.sendBotMessage(errorMessage);
+//			rocketchatService.sendBotMessage(errorMessage);
+//			telegramService.sendBotMessage(errorMessage);
 		}
 		return projectVariable;
 	}
@@ -1254,5 +1306,20 @@ public class GitlabService {
 		}catch (Exception e) {
 		}
 		return users;
+	}
+	
+	public GitlabUser getLastCommitAuthor(GitlabMergeRequestAttributes mergeRequest) {
+		GitlabUser user = null;
+		if(mergeRequest != null) {
+			GitlabCommit lastCommit = mergeRequest.getLastCommit();
+			if(lastCommit != null) {
+				GitlabCommitAuthor commitAuthor = lastCommit.getAuthor();
+				if(commitAuthor != null && StringUtils.isNotBlank(commitAuthor.getEmail())) {
+					user = findUserByEmail(commitAuthor.getEmail());
+				}
+			}
+		}
+		
+		return user;
 	}
 }

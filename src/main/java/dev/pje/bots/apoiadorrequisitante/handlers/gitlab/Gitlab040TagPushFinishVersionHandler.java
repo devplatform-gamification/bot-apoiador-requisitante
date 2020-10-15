@@ -107,7 +107,7 @@ public class Gitlab040TagPushFinishVersionHandler extends Handler<GitlabEventPus
 				String actualVersion = gitlabService.getActualVersion(gitlabProjectId, referenceCommit, true);
 				if(StringUtils.isNotBlank(actualVersion)) {
 					// identifica qual é o projeto do jira no qual foi integrada a TAG
-					String jiraProjectKey = gitlabService.getJiraRelatedProjectKey(gitlabProjectId);
+					String jiraProjectKey = gitlabService.getJiraRelatedProjectKey(gitlabProjectId, true);
 					// verifica se existem outros projetos relacionados a esse do jira
 					List<String> jiraRelatedProjectKeys = jiraService.getJiraRelatedProjects(jiraProjectKey);
 					// recupera a lista de issues desta versão, independente do status

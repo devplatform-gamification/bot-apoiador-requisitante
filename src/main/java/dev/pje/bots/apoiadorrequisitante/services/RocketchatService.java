@@ -59,9 +59,15 @@ public class RocketchatService {
 	}
 	
 	public void sendMessageToUsername(String username, String text, boolean showUrlPreview) {
-		String channel = null;
-		if(StringUtils.isNotBlank(username)) {
-			channel = "@" + username;
+		String channel = username;
+		if(StringUtils.isNotBlank(username) && !username.startsWith("@")) {
+			RocketchatUser user = findUser(username);
+			if(user != null) {
+				channel = "@" + user.getUsername();
+			}
+		}
+		
+		if(StringUtils.isNotBlank(channel)) {
 			sendSimpleMessage(channel, text, showUrlPreview);
 		}
 	}

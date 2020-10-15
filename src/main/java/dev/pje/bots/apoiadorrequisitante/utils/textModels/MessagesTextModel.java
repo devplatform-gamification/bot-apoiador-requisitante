@@ -11,7 +11,7 @@ import com.devplatform.model.jira.request.ProcessingTypeEnum;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component
-public class MessagesTextModel extends AbstractTextModel{
+public class MessagesTextModel implements AbstractTextModel{
 	
 	private List<ProcessingMessage> messages;
 	

@@ -18,8 +18,12 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.devplatform.model.gitlab.GitlabCommit;
+import com.devplatform.model.gitlab.GitlabMergeRequestAttributes;
 import com.devplatform.model.gitlab.GitlabUser;
 import com.devplatform.model.gitlab.GitlabUserIdentity;
+import com.devplatform.model.gitlab.event.GitlabEventMergeRequest;
+import com.devplatform.model.gitlab.response.GitlabMRResponse;
 import com.devplatform.model.jira.JiraFilter;
 import com.devplatform.model.jira.JiraGroup;
 import com.devplatform.model.jira.JiraGroups;
@@ -2838,5 +2842,50 @@ public class JiraService {
 		}
 		proximaVersao = Utils.calculateNextOrdinaryVersion(versaoAtual, index, numDigits);
 		return proximaVersao;
-	}	
+	}
+
+	public JiraIssue getIssue(GitlabEventMergeRequest gitlabEventMR) {
+		JiraIssue issue = null;
+		if(gitlabEventMR != null && gitlabEventMR.getObjectAttributes() != null) {
+			issue = getIssue(gitlabEventMR.getObjectAttributes());
+		}
+		return issue;
+	}
+
+	public JiraIssue getIssue(GitlabMRResponse mergeRequest) {
+		JiraIssue issue = null;
+		if(mergeRequest != null) {
+			issue = getIssue(mergeRequest.getTitle(), mergeRequest.getLastCommit());
+		}
+		
+		return issue;
+	}
+
+	public JiraIssue getIssue(GitlabMergeRequestAttributes mergeRequest) {
+		JiraIssue issue = null;
+		if(mergeRequest != null) {
+			issue = getIssue(mergeRequest.getTitle(), mergeRequest.getLastCommit());
+		}
+		
+		return issue;
+	}
+	
+	public JiraIssue getIssue(String mergeTitle, GitlabCommit lastCommit) {
+		JiraIssue issue = null;
+		String lastCommitTitle = null;
+		if(lastCommit != null) {
+			lastCommitTitle = lastCommit.getTitle();
+		}
+		
+		String issueKey = Utils.getIssueKeyFromCommitMessage(mergeTitle);
+		if(StringUtils.isBlank(issueKey)) {
+			issueKey = Utils.getIssueKeyFromCommitMessage(lastCommitTitle);
+		}
+		
+		if(StringUtils.isNotBlank(issueKey)) {
+			issue = recuperaIssueDetalhada(issueKey);
+		}
+		
+		return issue;
+	}
 }

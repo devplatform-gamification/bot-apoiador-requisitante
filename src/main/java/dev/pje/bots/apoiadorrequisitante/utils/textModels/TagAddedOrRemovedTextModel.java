@@ -9,7 +9,7 @@ import dev.pje.bots.apoiadorrequisitante.utils.JiraUtils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component
-public class TagAddedOrRemovedTextModel extends AbstractTextModel{
+public class TagAddedOrRemovedTextModel implements AbstractTextModel{
 
 	@Value("${clients.jira.url}")
 	private String JIRAURL;

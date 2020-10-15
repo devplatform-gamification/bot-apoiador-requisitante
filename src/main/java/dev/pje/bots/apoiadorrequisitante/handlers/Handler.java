@@ -1,5 +1,7 @@
 package dev.pje.bots.apoiadorrequisitante.handlers;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.PostConstruct;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Component;
 import com.devplatform.model.jira.JiraIssue;
 import com.devplatform.model.jira.JiraIssueTransition;
 import com.devplatform.model.jira.request.JiraIssueCreateAndUpdate;
+import com.devplatform.model.jira.request.fields.JiraComment;
 
 import dev.pje.bots.apoiadorrequisitante.services.GitlabService;
 import dev.pje.bots.apoiadorrequisitante.services.JiraService;
@@ -65,6 +68,7 @@ public abstract class Handler<E> {
 	 * @param enviarComentario - se não enontrar nenhuma transição, envia as informações como um comentário
 	 * @throws Exception
 	 */
+	@SuppressWarnings("unchecked")
 	protected void enviarAlteracaoJira(JiraIssue issue, Map<String, Object> updateFields, Map<String, Object> createFields, String transictionIdOrNameOrPropertyKey, 
 			boolean usarEdicaoAvancada, boolean enviarComentario) throws Exception{
 
@@ -98,6 +102,26 @@ public abstract class Handler<E> {
 		}
 		if(transition == null && enviarComentario) {
 			String comment = updateFields.toString();
+			if(updateFields != null && updateFields.containsKey("comment") && updateFields.keySet().size() == 1) {
+				try {
+					Map<String, Object> commentHashMap = null;
+					Object commentObj = updateFields.get("comment");
+					if(commentObj instanceof List) {
+						List<Object> commentListObj = (List<Object>)commentObj;
+						if(commentListObj != null && !commentListObj.isEmpty()) {
+							Object commentItemObj = commentListObj.get(0);
+							if(commentItemObj instanceof HashMap) {
+								commentHashMap = (Map<String, Object>) commentItemObj;
+								if(commentHashMap.containsKey("add")) {
+									JiraComment commentJiraObj = (JiraComment) commentHashMap.get("add");
+									comment = commentJiraObj.getBody();
+								}
+							}
+						}
+					}
+				}catch (Exception e) {
+				}
+			}
 			if(StringUtils.isNotBlank(comment)) {
 				jiraService.sendTextAsComment(issue, comment);									
 			}
@@ -107,7 +131,7 @@ public abstract class Handler<E> {
 			getLogger().info(msg);
 			try {
 				jiraService.updateIssue(issue, jiraIssueCreateAndUpdate);
-				messages.info("Issue atualizada");
+				messages.info(issue.getKey() + " - Issue atualizada");
 			}catch (Exception e) {
 				messages.error("Falhou ao tentar atualizar a issue: " + issue.getKey());
 			}

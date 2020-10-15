@@ -100,7 +100,18 @@ public class GitlabUtils {
 		}
 		return releasesUrl;
 	}
-	
+
+	public static String getGitlabProjectJobsUrl(String jobId, String projectWebUrl) {
+		String releasesUrl = null;
+		if(StringUtils.isNotBlank(projectWebUrl)) {
+			if(!projectWebUrl.endsWith("/")) {
+				projectWebUrl += "/";
+			}
+			releasesUrl = projectWebUrl + "-/jobs/" + jobId;
+		}
+		return releasesUrl;
+	}
+
 	public static List<String> translateGitlabLabelListToValueList(List<GitlabLabel> gitlabLabels){
 		List<String> labelList = new ArrayList<>();
 

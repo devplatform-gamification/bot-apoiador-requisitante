@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component
-public class ReleaseCandidateTextModel extends AbstractTextModel{
+public class ReleaseCandidateTextModel implements AbstractTextModel{
 	
 	@Value("${clients.jira.url}")
 	private String JIRAURL;

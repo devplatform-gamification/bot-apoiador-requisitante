@@ -14,7 +14,7 @@ import dev.pje.bots.apoiadorrequisitante.utils.Utils;
 import dev.pje.bots.apoiadorrequisitante.utils.markdown.MarkdownInterface;
 
 @Component
-public class ResultadoCriteriosPriorizacaoDemandaTextModel extends AbstractTextModel{
+public class ResultadoCriteriosPriorizacaoDemandaTextModel implements AbstractTextModel{
 
 	private List<ResultadoCriterioPriorizacao> resultadosCriterios;
 	private Integer pontuacaoTotal;
