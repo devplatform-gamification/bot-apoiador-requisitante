@@ -115,7 +115,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 				String gitlabProjectId = gitlabEventMR.getProject().getId().toString();
 				BigDecimal mrIID = gitlabEventMR.getObjectAttributes().getIid();
 				
-				GitlabMRResponse mergeRequest = gitlabService.getMergeRequest(gitlabProjectId, mrIID);
+ 				GitlabMRResponse mergeRequest = gitlabService.getMergeRequest(gitlabProjectId, mrIID);
 				JiraIssue issue = jiraService.getIssue(gitlabEventMR);
 				GitlabUser revisorGitlab = gitlabEventMR.getUser();
 				JiraUser revisorJira = jiraService.getJiraUserFromGitlabUser(revisorGitlab);
@@ -126,7 +126,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 				TipoPermissaoMREnum permissaoUsuario = verificaPermissaoUsuario(revisorJira, revisorGitlab, tribunalUsuarioRevisor, 
 						issue, mergeRequest, labelsAprovacoesAdicionadas, labelsAprovacoesRemovidas);
 				
-				if(permissaoUsuario.equals(TipoPermissaoMREnum.COM_PERMISSAO)) {
+				if(permissaoUsuario != null && permissaoUsuario.equals(TipoPermissaoMREnum.COM_PERMISSAO)) {
 					messages.info("O usuário " + revisorJira.getName() + " possui permissão para a alteração de labels:\n" + alteracaoNasLabels);
 					// identifica os dados da issue e do merge
 					boolean adicaoDeLabel = (labelsAprovacoesAdicionadas != null && !labelsAprovacoesAdicionadas.isEmpty());
@@ -279,7 +279,9 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 						.append(gitlabMarkdown.normal(String.join(", ", labels)))
 						.append(gitlabMarkdown.normal(" foram reestabelecidas, pois o usuário"));
 						String motivoReversao = "não tem permissão para alterar uma ou todas as labels alteradas";
-						if(permissaoUsuario.equals(TipoPermissaoMREnum.SEM_PERMISSAO_AUTOR_COMMIT)) {
+						if(permissaoUsuario == null || permissaoUsuario.equals(TipoPermissaoMREnum.SEM_PERMISSAO_NAO_EH_REVISOR)) {
+							motivoReversao = "não é um revisor de código registrado";
+						}else if(permissaoUsuario.equals(TipoPermissaoMREnum.SEM_PERMISSAO_AUTOR_COMMIT)) {
 							motivoReversao = "é o autor do último commit";
 						}else if(permissaoUsuario.equals(TipoPermissaoMREnum.SEM_PERMISSAO_RESPONSAVEL_CODIFICACAO)) {
 							motivoReversao = "é o responsável pela codificação na issue " + gitlabMarkdown.link(issueLink, issue.getKey());
@@ -348,7 +350,7 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 				JiraUser revisorJira, GitlabUser revisorGitlab, String tribunalRevisor,
 				JiraIssue issue, GitlabMergeRequestAttributes mergeRequest,
 				List<String> labelsAdicionadas, List<String> labelsRemovidas) {
-		TipoPermissaoMREnum permissaoUsuario = null;
+		TipoPermissaoMREnum permissaoUsuario = TipoPermissaoMREnum.SEM_PERMISSAO_NAO_EH_REVISOR;
 		
 		if(revisorJira != null && revisorGitlab != null && mergeRequest != null) {
 			if((jiraService.isServico(revisorJira) || jiraService.isLiderProjeto(revisorJira))) {

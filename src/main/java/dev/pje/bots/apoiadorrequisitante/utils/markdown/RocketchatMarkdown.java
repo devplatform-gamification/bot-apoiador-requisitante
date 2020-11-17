@@ -98,7 +98,8 @@ public class RocketchatMarkdown implements MarkdownInterface{
 	
 	@Override
 	public String referUser(String username) {
-		return " @" + username.trim();
+		username = username != null ? username.trim() : username;
+		return " @" + username;
 	}
 
 	@Override
