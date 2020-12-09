@@ -350,12 +350,14 @@ public class Gitlab060MergeRequestApprovalsHandler extends Handler<GitlabEventMe
 				JiraUser revisorJira, GitlabUser revisorGitlab, String tribunalRevisor,
 				JiraIssue issue, GitlabMergeRequestAttributes mergeRequest,
 				List<String> labelsAdicionadas, List<String> labelsRemovidas) {
-		TipoPermissaoMREnum permissaoUsuario = TipoPermissaoMREnum.SEM_PERMISSAO_NAO_EH_REVISOR;
+		TipoPermissaoMREnum permissaoUsuario = null;
 		
 		if(revisorJira != null && revisorGitlab != null && mergeRequest != null) {
 			if((jiraService.isServico(revisorJira) || jiraService.isLiderProjeto(revisorJira))) {
 				permissaoUsuario = TipoPermissaoMREnum.COM_PERMISSAO;
-			}else if(jiraService.isRevisorCodigo(revisorJira)) {
+			}else if(!jiraService.isRevisorCodigo(revisorJira)) {
+				permissaoUsuario = TipoPermissaoMREnum.SEM_PERMISSAO_NAO_EH_REVISOR;
+			}else{
 				if(!mergeRequest.getState().equals(GitlabMergeRequestStateEnum.OPENED) || !mergeRequest.getMergeStatus().equals(GitlabMergeRequestStatusEnum.CAN_BE_MERGED)) {
 					permissaoUsuario = TipoPermissaoMREnum.SEM_PERMISSAO_MERGE_NAO_MERGEAVEL;
 					if(!mergeRequest.getState().equals(GitlabMergeRequestStateEnum.OPENED)) {
